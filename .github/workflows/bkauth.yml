@@ -1,12 +1,12 @@
-name: core-api ci
+name: bkauth ci
 
 on:
   push:
-    branches: [ master, pre_*, ft_*, release/* ]
-    paths: ['src/core-api/**']
+    branches: [ main, pre_*, ft_*, release/* ]
+    paths: ['src/bkauth/**']
   pull_request:
-    branches: [ master, pre_*, ft_*, release/* ]
-    paths: ['src/core-api/**']
+    branches: [ main, pre_*, ft_*, release/* ]
+    paths: ['src/bkauth/**']
 
 jobs:
   build:
