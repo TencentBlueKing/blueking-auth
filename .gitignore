@@ -1,0 +1,21 @@
+# IDE
+.idea/
+.vscode
+.fleet
+.envrc
+
+# build file
+bin/
+src/bkauth/bkauth
+# mac
+.DS_Store
+build.yml
+
+*.log
+src/bkauth/config.yaml
+.coverage.cov
+*.coverprofile
+*.test
+
+.codecc
+.idea

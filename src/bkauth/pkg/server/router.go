@@ -1,0 +1,67 @@
+/*
+ * TencentBlueKing is pleased to support the open source community by making
+ * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ *     http://opensource.org/licenses/MIT
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * We undertake not to change the open source license (MIT license) applicable
+ * to the current version of the project delivered to anyone in the future.
+ */
+
+package server
+
+import (
+	"github.com/gin-gonic/gin"
+
+	"bkauth/pkg/api/app"
+	"bkauth/pkg/api/basic"
+	"bkauth/pkg/api/oauth"
+	"bkauth/pkg/config"
+	"bkauth/pkg/middleware"
+)
+
+// NewRouter ...
+func NewRouter(cfg *config.Config) *gin.Engine {
+	if !cfg.Debug {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	// disable console log color
+	gin.DisableConsoleColor()
+
+	// router := gin.Default()
+	router := gin.New()
+	// MW: gin default logger
+	router.Use(gin.Logger())
+	// MW: recovery with sentry
+	router.Use(middleware.Recovery(cfg.Sentry.Enable))
+	// MW: request_id
+	router.Use(middleware.RequestID())
+
+	// basic apis
+	basic.Register(cfg, router)
+
+	// app apis for app code/secret
+	appRouter := router.Group("/api/v1/apps")
+	appRouter.Use(middleware.Metrics())
+	// TODO: 接口日志有些敏感有些不敏感，校验接口也有使用POST的, 目前一刀切
+	appRouter.Use(middleware.APILogger())
+	appRouter.Use(middleware.AccessAppAuthMiddleware())
+	app.Register(appRouter)
+
+	// oauth apis for oauth2.0 accessToken
+	oauthRouter := router.Group("/api/v1/oauth")
+	oauthRouter.Use(middleware.Metrics())
+	oauthRouter.Use(middleware.APILogger())
+	oauthRouter.Use(middleware.AccessAppAuthMiddleware())
+	oauth.Register(oauthRouter)
+
+	return router
+}

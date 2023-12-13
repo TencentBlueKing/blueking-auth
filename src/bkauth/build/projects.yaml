@@ -1,0 +1,7 @@
+- name: server
+  module: bkauth
+  project_dir: bkauth
+  alias: bkauth
+  language: binary
+  version: 0.0.13
+  version_type: ee
