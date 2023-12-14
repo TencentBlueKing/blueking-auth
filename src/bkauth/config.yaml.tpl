@@ -68,7 +68,7 @@ logger:
     encoding: json
     writer: file
     settings: {name: bkauth_api.log, size: 100, backups: 10, age: 7, path: ./}
-    ## 日志脱敏开关配置
+    ## 日志脱敏开关
     desensitizeEnabled: true
     ## 日志脱敏规则配置: key--日志打印filed的key，jsonPath--日志value需要脱敏的json path路径
     desensitizeFileds:
