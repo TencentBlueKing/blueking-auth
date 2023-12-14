@@ -1,6 +1,6 @@
 FROM golang:1.20.4 AS builder
 
-COPY ../.. /app
+COPY ./ /app
 WORKDIR /app
 
 RUN echo "" > /app/sql_migrations/0001_20210909_1542.sql
