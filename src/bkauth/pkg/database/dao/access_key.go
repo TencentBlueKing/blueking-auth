@@ -70,13 +70,13 @@ func NewAccessKeyManager() AccessKeyManager {
 
 func (m *accessKeyManager) CreateWithTx(tx *sqlx.Tx, secret AccessKey) (int64, error) {
 	query := `INSERT INTO access_key (
-		app_code, 
+		app_code,
 		app_secret,
 		created_source,
 		enabled
 	) VALUES (
-		:app_code, 
-		:app_secret, 
+		:app_code,
+		:app_secret,
 		:created_source,
 		:enabled
 	)`
@@ -85,13 +85,13 @@ func (m *accessKeyManager) CreateWithTx(tx *sqlx.Tx, secret AccessKey) (int64, e
 
 func (m *accessKeyManager) Create(secret AccessKey) (int64, error) {
 	query := `INSERT INTO access_key (
-		app_code, 
+		app_code,
 		app_secret,
 		created_source,
 		enabled
 	) VALUES (
-		:app_code, 
-		:app_secret, 
+		:app_code,
+		:app_secret,
 		:created_source,
 		:enabled
 	)`
@@ -124,15 +124,15 @@ func (m *accessKeyManager) ListWithCreatedAtByAppCode(appCode string) (accessKey
 }
 
 func (m *accessKeyManager) selectAccessKeyWithCreatedAt(accessKeys *[]AccessKeyWithCreatedAt, appCode string) error {
-	query := `SELECT 
+	query := `SELECT
 		id,
 		app_code,
 		app_secret,
 		created_source,
 		enabled,
 		created_at
-		FROM access_key 
-		WHERE app_code = ? 
+		FROM access_key
+		WHERE app_code = ?
 		ORDER BY id DESC`
 	return database.SqlxSelect(m.DB, accessKeys, query, appCode)
 }

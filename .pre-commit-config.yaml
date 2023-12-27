@@ -16,19 +16,29 @@ repos:
       - id: trailing-whitespace
   - repo: local
     hooks:
+    - id: Name check
+      name: Check sensitive info of name
+      verbose: true
+      language: system
+      entry: bash -c "if [[ -d pre_commit_hooks ]]; then pre_commit_hooks/rtx.sh $@; fi"
+    - id: IP check
+      name: Check sensitive info of ip
+      verbose: true
+      language: system
+      entry: bash -c "if [[ -d pre_commit_hooks ]]; then pre_commit_hooks/ip.sh $@; fi"
+  - repo: local
+    hooks:
       - id: golangci-lint
         name: golangci-lint
-        description: Fast linters runner for Go.
-        entry: cd src/bkauth && golangci-lint run --fix
-        files: src/bkauth/
+        language: system
         types: [go]
-        language: golang
         pass_filenames: false
+        entry: bash -c "cd src/bkauth && golangci-lint run --fix"
+        files: src/bkauth/
       - id: golang-unittest
         name: golang-unittest
-        description: Golang unittest.
-        entry:  cd src/bkauth && make test
-        files: src/bkauth/
+        language: system
         types: [go]
-        language: golang
         pass_filenames: false
+        entry:  bash -c "cd src/bkauth && make test"
+        files: src/bkauth/

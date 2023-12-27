@@ -108,15 +108,15 @@ func Test_UpdateByID(t *testing.T) {
 
 func Test_ListWithCreatedAtByAppCode(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		mockQuery := `^SELECT 
+		mockQuery := `^SELECT
 			id,
 			app_code,
 			app_secret,
 			created_source,
 			enabled,
 			created_at
-			FROM access_key 
-			WHERE app_code = (.*) 
+			FROM access_key
+			WHERE app_code = (.*)
 			ORDER BY id DESC$`
 		mockRows := sqlmock.NewRows([]string{"id", "app_code", "app_secret", "created_source", "created_at"}).
 			AddRow(int64(2), "bkauth", "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", "bk_paas", time.Now()).
