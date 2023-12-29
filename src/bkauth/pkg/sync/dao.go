@@ -106,9 +106,9 @@ func (m *openPaaSManager) UpdateBKPaaSApp(code, authToken string) error {
 
 func (m *openPaaSManager) CreateESBAppAccount(appCode, appToken string) error {
 	query := `INSERT INTO esb_app_account (
-		app_code, 
-		app_token, 
-		introduction, 
+		app_code,
+		app_token,
+		introduction,
 		created_time
 	) VALUES (:app_code, :app_token, :introduction, :created_time)`
 	data := map[string]interface{}{
