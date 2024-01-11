@@ -47,7 +47,7 @@ func Metrics() gin.HandlerFunc {
 		// request count
 		metric.RequestCount.With(prometheus.Labels{
 			"method":          c.Request.Method,
-			"path":            c.Request.URL.Path,
+			"path":            c.FullPath(),
 			"status":          status,
 			"access_app_code": appCode,
 		}).Inc()
@@ -55,7 +55,7 @@ func Metrics() gin.HandlerFunc {
 		// request duration, in ms
 		metric.RequestDuration.With(prometheus.Labels{
 			"method":          c.Request.Method,
-			"path":            c.Request.URL.Path,
+			"path":            c.FullPath(),
 			"status":          status,
 			"access_app_code": appCode,
 		}).Observe(float64(duration) / float64(time.Millisecond))
