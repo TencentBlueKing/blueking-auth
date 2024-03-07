@@ -94,9 +94,9 @@ func newLogger(cfg *config.LogConfig) *zap.Logger {
 
 	// 日志脱敏
 	var options []zap.Option
-	if cfg.DesensitizeEnabled {
+	if cfg.Desensitization.Enabled {
 		fieldMap := make(map[string][]string)
-		for _, filed := range cfg.DesensitizeFields {
+		for _, filed := range cfg.Desensitization.Fields {
 			fieldMap[filed.Key] = filed.JsonPath
 		}
 		options = append(options, WithDesensitize(fieldMap))
