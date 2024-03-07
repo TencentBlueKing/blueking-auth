@@ -68,17 +68,19 @@ logger:
     encoding: json
     writer: file
     settings: {name: bkauth_api.log, size: 100, backups: 10, age: 7, path: ./}
-    ## 日志脱敏开关配置
-    desensitizeEnabled: true
-    ## 日志脱敏规则配置: key--日志打印filed的key，jsonPath--日志value需要脱敏的json path路径
-    desensitizeFileds:
-      - key: body
-        jsonPath:
-          - "bk_app_secret"
-      - key: response_body
-        jsonPath:
-          - "bk_app_secret"
-          - "data.#.bk_app_secret"
+    # 敏感日志配置
+    desensitization:
+      ## 日志脱敏开关配置
+      enabled: true
+      ## 日志脱敏规则配置: key -- 日志打印 field 的 key，jsonPath -- 日志 value 需要脱敏的 json path 路径
+      fields:
+        - key: body
+          jsonPath:
+            - "bk_app_secret"
+        - key: response_body
+          jsonPath:
+            - "bk_app_secret"
+            - "data.#.bk_app_secret"
   sql:
     level: debug
     encoding: json
