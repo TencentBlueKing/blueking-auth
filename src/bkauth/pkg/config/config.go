@@ -42,17 +42,22 @@ type LogConfig struct {
 	Encoding string
 	Writer   string
 	Settings map[string]string
-	// 脱敏日志开关
-	DesensitizeEnabled bool
-	// 敏感字段列表
-	DesensitizeFields []DesensitizeFiledConfig
+	// 日志脱敏
+	Desensitization DesensitizationConfig
 }
 
-// DesensitizeFiledConfig ...
-type DesensitizeFiledConfig struct {
-	// 敏感字段所属的filed key
+type DesensitizationConfig struct {
+	// 脱敏日志开关
+	Enabled bool
+	// 敏感字段列表
+	Fields []DesensitizationFiled
+}
+
+// DesensitizationFiled ...
+type DesensitizationFiled struct {
+	// 敏感字段所属的 filed key
 	Key string
-	// 敏感字段JsonPath
+	// 敏感字段 JsonPath
 	JsonPath []string
 }
 
