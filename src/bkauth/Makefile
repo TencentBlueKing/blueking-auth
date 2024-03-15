@@ -1,7 +1,5 @@
 .PHONY: init dep migrations mock lint lint-dupl test bench build build-linux build-aarch64 clean all serve cov
 
-IMG ?= bkauth:development
-
 init:
 	#pip install pre-commit
 	pre-commit install
@@ -48,21 +46,19 @@ bench:
 
 build:
 	# go build .
-	go build -tags=jsoniter -ldflags "-X bkauth/pkg/version.Version=${VERSION} -X bkauth/pkg/version.Commit=`git rev-parse HEAD` -X bkauth/pkg/version.BuildTime=`date +%Y-%m-%d_%I:%M:%S` -X 'bkauth/pkg/version.GoVersion=`go version`'" .
-
-docker-build: ## Build docker image with the manager.
-	docker build -t ${IMG} .
-
-
+	go build -tags=jsoniter -ldflags "-X bkauth/pkg/version.Version=${VERSION} -X bkauth/pkg/version.Commit=${COMMIT} -X bkauth/pkg/version.BuildTime=`date +%Y-%m-%d_%I:%M:%S` -X 'bkauth/pkg/version.GoVersion=`go version`'" .
 
 build-linux:
 	# GOOS=linux GOARCH=amd64 go build .
-	GOOS=linux GOARCH=amd64 go build  -tags=jsoniter -ldflags "-X bkauth/pkg/version.Version=`git describe --tags --abbrev=0` -X bkauth/pkg/version.Commit=`git rev-parse HEAD` -X bkauth/pkg/version.BuildTime=`date +%Y-%m-%d_%I:%M:%S` -X 'bkauth/pkg/version.GoVersion=`go version`'" .
+	GOOS=linux GOARCH=amd64 go build  -tags=jsoniter -ldflags "-X bkauth/pkg/version.Version=${VERSION} -X bkauth/pkg/version.Commit=${COMMIT} -X bkauth/pkg/version.BuildTime=`date +%Y-%m-%d_%I:%M:%S` -X 'bkauth/pkg/version.GoVersion=`go version`'" .
 
 build-aarch64:
-	GOOS=linux GOARCH=arm64 go build  -tags=jsoniter -ldflags "-X bkauth/pkg/version.Version=`git describe --tags --abbrev=0` -X bkauth/pkg/version.Commit=`git rev-parse HEAD` -X bkauth/pkg/version.BuildTime=`date +%Y-%m-%d_%I:%M:%S` -X 'bkauth/pkg/version.GoVersion=`go version`'" .
+	GOOS=linux GOARCH=arm64 go build  -tags=jsoniter -ldflags "-X bkauth/pkg/version.Version=${VERSION} -X bkauth/pkg/version.Commit=${COMMIT} -X bkauth/pkg/version.BuildTime=`date +%Y-%m-%d_%I:%M:%S` -X 'bkauth/pkg/version.GoVersion=`go version`'" .
 
 all: lint test build
 
 serve: build
 	./bkauth -c config.yaml
+
+docker-build:
+	docker build --build-arg VERSION=`git describe --tags --abbrev=0` --build-arg COMMIT=`git rev-parse HEAD` -t bkauth:development .
