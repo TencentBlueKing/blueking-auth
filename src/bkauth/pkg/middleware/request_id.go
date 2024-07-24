@@ -34,7 +34,7 @@ func RequestID() gin.HandlerFunc {
 		zap.S().Debug("Middleware: RequestID")
 
 		requestID := c.GetHeader(util.RequestIDHeaderKey)
-		if requestID == "" || len(requestID) != 32 {
+		if requestID == "" {
 			requestID = hex.EncodeToString(uuid.Must(uuid.NewV4()).Bytes())
 		}
 		util.SetRequestID(c, requestID)
