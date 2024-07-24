@@ -45,17 +45,17 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	// MW: gin default logger
 	router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
 		// your custom format
-		return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s %s\"\n",
+		return fmt.Sprintf("%s - [%s] \"%s %s %s %s %d \"%s\" %s %s\"\n",
 			param.ClientIP,
 			param.TimeStamp.Format(time.RFC1123),
 			param.Method,
 			param.Path,
 			param.Request.Proto,
+			param.Request.Header.Get(util.RequestIDHeaderKey),
 			param.StatusCode,
 			param.Latency,
 			param.Request.UserAgent(),
 			param.ErrorMessage,
-			param.Request.Header.Get(util.RequestIDHeaderKey),
 		)
 	}))
 	// MW: recovery with sentry
