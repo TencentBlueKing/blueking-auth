@@ -60,7 +60,7 @@ func logSlowSQL(start time.Time, query string, args interface{}) {
 
 	// current, set 20ms
 	if latency > 20 {
-		logger.Debug(
+		logger.Error(
 			"-",
 			zap.String("sql", strings.ReplaceAll(query, "\n\t\t", " ")),
 			zap.String("sql", truncateArgs(args, ArgsTruncateLength)),
