@@ -4,11 +4,11 @@ init:
 	#pip install pre-commit
 	pre-commit install
 	# go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.42.1
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.61.0
 	# for make doc
-	go get -u -d github.com/swaggo/swag/cmd/swag@v1.7.1
+	go get -u -d github.com/swaggo/swag/cmd/swag@latest
 	# for make mock
-	go install github.com/golang/mock/mockgen@v1.6.0
+	go install go.uber.org/mock/mockgen@latest
 	# for goimports
 	go install -v github.com/incu6us/goimports-reviser/v3@latest
 
@@ -27,7 +27,7 @@ mock:
 fmt:
 	golines ./ -m 120 -w --base-formatter gofmt --no-reformat-tags
 	gofumpt  -l -w .
-	goimports-reviser -rm-unused  -format ./...
+	goimports-reviser -rm-unused -excludes '.git,vendor' -format ./...
 
 lint:
 	golangci-lint run

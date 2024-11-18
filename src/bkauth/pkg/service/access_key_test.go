@@ -19,9 +19,9 @@
 package service
 
 import (
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 
 	"bkauth/pkg/database/dao/mock"
 )

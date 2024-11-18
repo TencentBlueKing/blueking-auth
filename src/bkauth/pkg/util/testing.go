@@ -22,7 +22,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -35,6 +35,8 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/steinfletcher/apitest"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // TestingContent ...
@@ -96,9 +98,9 @@ func SetupRouter() *gin.Engine {
 	r := gin.New()
 	gin.SetMode(gin.ReleaseMode)
 	r.Use(gin.Recovery())
-	//r.GET("/ping", func(c *gin.Context) {
+	// r.GET("/ping", func(c *gin.Context) {
 	//	c.String(200, "pong")
-	//})
+	// })
 	return r
 }
 
@@ -140,7 +142,7 @@ type JSONAssertFunc func(map[string]interface{}) error
 // NewJSONAssertFunc ...
 func NewJSONAssertFunc(t assert.TestingT, assertFunc JSONAssertFunc) func(res *http.Response, req *http.Request) error {
 	return func(res *http.Response, req *http.Request) error {
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		assert.NoError(t, err, "read body from response fail")
 
 		defer res.Body.Close()
@@ -164,7 +166,7 @@ func NewResponseAssertFunc(
 	responseFunc ResponseAssertFunc,
 ) func(res *http.Response, req *http.Request) error {
 	return func(res *http.Response, req *http.Request) error {
-		body, err := ioutil.ReadAll(res.Body)
+		body, err := io.ReadAll(res.Body)
 		assert.NoError(t, err, "read body from response fail")
 
 		defer res.Body.Close()
@@ -224,9 +226,10 @@ func CreateNewAPIRequestFunc(
 
 		test := apitest.New().Handler(r)
 		// test.Handler(r)
+		caser := cases.Title(language.Und)
 
 		reflectValues := reflect.ValueOf(test).MethodByName(
-			strings.Title(method),
+			caser.String(method),
 		).Call([]reflect.Value{reflect.ValueOf(url)})
 
 		return &GinAPIRequest{
