@@ -358,4 +358,55 @@ var _ = Describe("App", func() {
 			assert.Contains(GinkgoT(), err.Error(), "accessKeyManager.CreateWithTx")
 		})
 	})
+
+	Describe("Get cases", func() {
+		var ctl *gomock.Controller
+
+		BeforeEach(func() {
+			ctl = gomock.NewController(GinkgoT())
+		})
+
+		AfterEach(func() {
+			ctl.Finish()
+		})
+
+		It("ok", func() {
+			mockAppManager := mock.NewMockAppManager(ctl)
+			mockAppManager.EXPECT().Get("bkauth").Return(dao.App{
+				Code:        "bkauth",
+				Name:        "bkauth",
+				Description: "bkauth intro",
+				TenantID:    "tenant1",
+			}, nil)
+
+			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
+
+			svc := appService{
+				manager:          mockAppManager,
+				accessKeyManager: mockAccessKeyManager,
+			}
+
+			app, err := svc.Get("bkauth")
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), "bkauth", app.Code)
+			assert.Equal(GinkgoT(), "bkauth", app.Name)
+			assert.Equal(GinkgoT(), "bkauth intro", app.Description)
+			assert.Equal(GinkgoT(), "tenant1", app.TenantID)
+		})
+
+		It("error", func() {
+			mockAppManager := mock.NewMockAppManager(ctl)
+			mockAppManager.EXPECT().Get("bkauth").Return(dao.App{}, errors.New("error"))
+
+			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
+
+			svc := appService{
+				manager:          mockAppManager,
+				accessKeyManager: mockAccessKeyManager,
+			}
+
+			_, err := svc.Get("bkauth")
+			assert.Error(GinkgoT(), err)
+		})
+	})
 })

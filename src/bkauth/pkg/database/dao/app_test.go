@@ -86,3 +86,22 @@ func Test_appManager_NameExists(t *testing.T) {
 		assert.Equal(t, exists, true)
 	})
 }
+
+func Test_appManager_Get(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mockQuery := `^SELECT code, name, description, tenant_id FROM app where code = (.*) LIMIT 1$`
+		mockRows := sqlmock.NewRows([]string{"code", "name", "description", "tenant_id"}).
+			AddRow("bkauth", "bkauth", "bkauth intro", "default")
+		mock.ExpectQuery(mockQuery).WithArgs("bkauth").WillReturnRows(mockRows)
+
+		manager := &appManager{DB: db}
+
+		app, err := manager.Get("bkauth")
+
+		assert.NoError(t, err, "query from db fail.")
+		assert.Equal(t, app.Code, "bkauth")
+		assert.Equal(t, app.Name, "bkauth")
+		assert.Equal(t, app.Description, "bkauth intro")
+		assert.Equal(t, app.TenantID, "default")
+	})
+}

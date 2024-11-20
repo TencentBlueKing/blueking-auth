@@ -31,5 +31,11 @@ type createAppSerializer struct {
 }
 
 func (s *createAppSerializer) validate() error {
+	if s.TenantID != common.TenantIDAll {
+		if !common.ValidTenantIDRegex.MatchString(s.TenantID) {
+			return common.ErrInvalidTenantID
+		}
+	}
+
 	return s.ValidateAppCode()
 }

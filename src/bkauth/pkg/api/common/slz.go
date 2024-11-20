@@ -29,6 +29,12 @@ var (
 
 	ErrInvalidAppCode = errors.New("invalid app_code: app_code should begin with a lowercase letter or numbers, " +
 		"contains lowercase letters(a-z), numbers(0-9), underline(_) or hyphen(-), length should be 1 to 32 letters")
+
+	// 租户相关验证
+	TenantIDAll        = "*"
+	ValidTenantIDRegex = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9-]{1,30}[a-zA-Z0-9]$")
+	ErrInvalidTenantID = errors.New("invalid bk_tenant_id: bk_tenant_id should begin with a letter, " +
+		"contains letters(a-zA-Z), numbers(0-9) or hyphen(-), length should be 2 to 32")
 )
 
 type AppCodeSerializer struct {
