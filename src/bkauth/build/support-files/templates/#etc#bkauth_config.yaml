@@ -41,13 +41,6 @@ databases:
     maxIdleConns: 50
     connMaxLifetimeSecond: 600
 
-  - id: "open_paas"
-    host: "__BK_PAAS_MYSQL_HOST__"
-    port: __BK_PAAS_MYSQL_PORT__
-    user: "__BK_PAAS_MYSQL_USER__"
-    password: "__BK_PAAS_MYSQL_PASSWORD__"
-    name: "open_paas"
-
 redis:
   - id: "__BK_AUTH_REDIS_MODE__"
     addr: "__BK_AUTH_REDIS_ADDR__"

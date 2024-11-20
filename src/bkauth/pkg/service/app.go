@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -30,6 +30,7 @@ import (
 const AppSVC = "AppSVC"
 
 type AppService interface {
+	Get(code string) (types.App, error)
 	Exists(code string) (bool, error)
 	NameExists(name string) (bool, error)
 	Create(app types.App, createdSource string) error
@@ -47,6 +48,22 @@ func NewAppService() AppService {
 		manager:          dao.NewAppManager(),
 		accessKeyManager: dao.NewAccessKeyManager(),
 	}
+}
+
+func (s *appService) Get(code string) (app types.App, err error) {
+	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "Get")
+
+	daoApp, err := s.manager.Get(code)
+	if err != nil {
+		return app, errorWrapf(err, "manager.Get fail")
+	}
+
+	return types.App{
+		Code:        daoApp.Code,
+		Name:        daoApp.Name,
+		Description: daoApp.Description,
+		TenantID:    daoApp.TenantID,
+	}, nil
 }
 
 func (s *appService) Exists(code string) (bool, error) {
@@ -69,7 +86,7 @@ func (s *appService) NameExists(name string) (bool, error) {
 	return exists, nil
 }
 
-// Create :创建应用，createdSource为创建的来源，即哪个系统创建了该APP
+// Create :创建应用，createdSource 为创建的来源，即哪个系统创建了该 APP
 func (s *appService) Create(app types.App, createdSource string) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "Create")
 
@@ -83,13 +100,18 @@ func (s *appService) Create(app types.App, createdSource string) (err error) {
 	}
 
 	// 创建应用
-	daoApp := dao.App{Code: app.Code, Name: app.Name, Description: app.Description}
+	daoApp := dao.App{
+		Code:        app.Code,
+		Name:        app.Name,
+		Description: app.Description,
+		TenantID:    app.TenantID,
+	}
 	err = s.manager.CreateWithTx(tx, daoApp)
 	if err != nil {
 		return errorWrapf(err, "manager.CreateWithTx app=`%+v` fail", daoApp)
 	}
 
-	// 创建应用对应Secret
+	// 创建应用对应 Secret
 	daoAccessKey := newDaoAccessKey(app.Code, createdSource)
 	_, err = s.accessKeyManager.CreateWithTx(tx, daoAccessKey)
 	if err != nil {
@@ -100,7 +122,7 @@ func (s *appService) Create(app types.App, createdSource string) (err error) {
 	return
 }
 
-// CreateWithSecret :创建应用，但支持指定appSecret的值，createdSource为创建的来源，即哪个系统创建了该APP
+// CreateWithSecret :创建应用，但支持指定 appSecret 的值，createdSource 为创建的来源，即哪个系统创建了该 APP
 func (s *appService) CreateWithSecret(app types.App, appSecret, createdSource string) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "CreateWithSecret")
 
@@ -113,13 +135,18 @@ func (s *appService) CreateWithSecret(app types.App, appSecret, createdSource st
 	}
 
 	// 创建应用
-	daoApp := dao.App{Code: app.Code, Name: app.Name, Description: app.Description}
+	daoApp := dao.App{
+		Code:        app.Code,
+		Name:        app.Name,
+		Description: app.Description,
+		TenantID:    app.TenantID,
+	}
 	err = s.manager.CreateWithTx(tx, daoApp)
 	if err != nil {
 		return errorWrapf(err, "manager.CreateWithTx app=`%+v` fail", daoApp)
 	}
 
-	// 创建应用对应Secret
+	// 创建应用对应 Secret
 	daoAccessKey := newDaoAccessKeyWithAppSecret(app.Code, appSecret, createdSource)
 	_, err = s.accessKeyManager.CreateWithTx(tx, daoAccessKey)
 	if err != nil {
@@ -145,6 +172,7 @@ func (s *appService) List() (apps []types.App, err error) {
 			Code:        daoApp.Code,
 			Name:        daoApp.Name,
 			Description: daoApp.Description,
+			TenantID:    daoApp.TenantID,
 		})
 	}
 

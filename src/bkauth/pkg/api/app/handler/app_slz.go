@@ -27,6 +27,7 @@ type createAppSerializer struct {
 	AppSecret   string `json:"bk_app_secret" binding:"omitempty,max=128" example:"bk_paas"`
 	Name        string `json:"name" binding:"required" example:"BK PaaS"`
 	Description string `json:"description" binding:"omitempty" example:"Platform as A Service"`
+	TenantID    string `json:"bk_tenant_id" binding:"required" example:"default"`
 }
 
 func (s *createAppSerializer) validate() error {

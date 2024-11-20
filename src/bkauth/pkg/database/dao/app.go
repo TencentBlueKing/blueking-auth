@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -33,15 +33,16 @@ type App struct {
 	Code        string `db:"code"`
 	Name        string `db:"name"`
 	Description string `db:"description"`
+	TenantID    string `db:"tenant_id"`
 
-	// Note: APP 是一个主表, oauth2相关信息是关联表(外键code)，这里只是备注一下而已，后续删除注释
+	// Note: APP 是一个主表，oauth2 相关信息是关联表 (外键 code)，这里只是备注一下而已，后续删除注释
 	// Oauth2.0 相关信息
-	// Scopes 和 RedirectURLs，但是由于这些都可能需要支持多个，可能得考虑json(List)存储或另外一对多的表存储
+	// Scopes 和 RedirectURLs，但是由于这些都可能需要支持多个，可能得考虑 json(List) 存储或另外一对多的表存储
 
-	// AppCode: 蓝鲸体系里 app_code=client_id，实际Oauth2.0协议里建议ClientID是随机字符串
+	// AppCode: 蓝鲸体系里 app_code=client_id，实际 Oauth2.0 协议里建议 ClientID 是随机字符串
 	// https://datatracker.ietf.org/doc/html/rfc6749#section-2.2
 	// https://www.oauth.com/oauth2-servers/client-registration/client-id-secret/
-	// ClientType: Oauth2.0协议里根据安全性来区分类型，https://datatracker.ietf.org/doc/html/rfc6749#section-2.1
+	// ClientType: Oauth2.0 协议里根据安全性来区分类型，https://datatracker.ietf.org/doc/html/rfc6749#section-2.1
 	// AppCode   string `db:"client_id"`
 	// ClientType string `db:"client_type"`
 }
@@ -51,6 +52,7 @@ type AppManager interface {
 	Exists(code string) (bool, error)
 	NameExists(name string) (bool, error)
 	List() ([]App, error)
+	Get(code string) (App, error)
 }
 
 type appManager struct {
@@ -64,8 +66,18 @@ func NewAppManager() AppManager {
 	}
 }
 
+func (m *appManager) Get(code string) (app App, err error) {
+	query := `SELECT code, name, description, tenant_id FROM app where code = ? LIMIT 1`
+
+	err = database.SqlxGet(m.DB, &app, query, code)
+	if errors.Is(err, sql.ErrNoRows) {
+		return app, nil
+	}
+	return
+}
+
 func (m *appManager) CreateWithTx(tx *sqlx.Tx, app App) error {
-	query := `INSERT INTO app (code, name, description) VALUES (:code, :name, :description)`
+	query := `INSERT INTO app (code, name, description, tenant_id) VALUES (:code, :name, :description, :tenant_id)`
 	_, err := database.SqlxInsertWithTx(tx, query, app)
 	return err
 }
@@ -107,7 +119,7 @@ func (m *appManager) selectNameExistence(existCode *string, name string) error {
 }
 
 func (m *appManager) List() (apps []App, err error) {
-	query := `SELECT code, name, description FROM app`
+	query := `SELECT code, name, description, tenant_id FROM app`
 	err = database.SqlxSelect(m.DB, &apps, query)
 	if errors.Is(err, sql.ErrNoRows) {
 		return apps, nil

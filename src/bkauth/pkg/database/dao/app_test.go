@@ -32,7 +32,7 @@ func Test_appManager_CreateWithTx(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`INSERT INTO app`).WithArgs(
-			"bkauth", "bkauth", "bkauth intro",
+			"bkauth", "bkauth", "bkauth intro", "default",
 		).WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
@@ -43,6 +43,7 @@ func Test_appManager_CreateWithTx(t *testing.T) {
 			Code:        "bkauth",
 			Name:        "bkauth",
 			Description: "bkauth intro",
+			TenantID:    "default",
 		}
 
 		manager := &appManager{DB: db}

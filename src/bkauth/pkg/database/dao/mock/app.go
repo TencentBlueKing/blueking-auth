@@ -70,6 +70,21 @@ func (mr *MockAppManagerMockRecorder) Exists(code any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockAppManager)(nil).Exists), code)
 }
 
+// Get mocks base method.
+func (m *MockAppManager) Get(code string) (dao.App, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", code)
+	ret0, _ := ret[0].(dao.App)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockAppManagerMockRecorder) Get(code any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockAppManager)(nil).Get), code)
+}
+
 // List mocks base method.
 func (m *MockAppManager) List() ([]dao.App, error) {
 	m.ctrl.T.Helper()
