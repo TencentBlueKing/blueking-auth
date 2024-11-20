@@ -49,12 +49,18 @@ func CreateApp(c *gin.Context) {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
 		return
 	}
-	// FIXME: tenant_id validate
 	// validate app_code
 	if err := body.validate(); err != nil {
 		util.BadRequestErrorJSONResponse(c, err.Error())
 		return
 	}
+
+	// extra validate for tenant_id
+	if !util.GetIsMultiTenantMode(c) && body.TenantID != util.TenantIDDefault {
+		util.BadRequestErrorJSONResponse(c, "tenant_id must be `default` in single tenant mode")
+		return
+	}
+
 	// check app code/name is unique
 	if err := checkAppCreateUnique(body.AppCode, body.Name); err != nil {
 		util.ConflictJSONResponse(c, err.Error())
@@ -89,8 +95,8 @@ func CreateApp(c *gin.Context) {
 		}
 	}
 
-	// 由于应用在创建前可能调用相关接口查询，导致`是否存在该App`的查询已被缓存，若不删除缓存，则创建后在缓存未实现前，还是会出现 app 不存在的
-	cacheImpls.DeleteApp(app.Code)
+	// 由于应用在创建前可能调用相关接口查询，导致`是否存在该App/app基本信息`的查询已被缓存，若不删除缓存，则创建后在缓存未实现前，还是会出现 app 不存在的
+	cacheImpls.DeleteAppCache(app.Code)
 
 	util.SuccessJSONResponse(c, "ok", common.AppResponse{AppCode: app.Code})
 }
@@ -117,14 +123,13 @@ func GetApp(c *gin.Context) {
 	}
 	appCode := uriParams.AppCode
 
-	svc := service.NewAppService()
-	app, err := svc.Get(appCode)
+	app, err := cacheImpls.GetApp(appCode)
 	if err != nil {
-		err = errorx.Wrapf(err, "Handler", "GetApp", "svc.Get appCode=`%s` fail", appCode)
+		err = errorx.Wrapf(err, "Handler", "GetApp", "cacheImpls.GetApp appCode=`%s` fail", appCode)
 		util.SystemErrorJSONResponse(c, err)
 		return
 	}
-	// FIXME: add a cache here
+
 	data := common.AppResponse{
 		AppCode:     app.Code,
 		Name:        app.Name,

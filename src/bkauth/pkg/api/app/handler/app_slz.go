@@ -20,6 +20,7 @@ package handler
 
 import (
 	"bkauth/pkg/api/common"
+	"bkauth/pkg/util"
 )
 
 type createAppSerializer struct {
@@ -31,7 +32,7 @@ type createAppSerializer struct {
 }
 
 func (s *createAppSerializer) validate() error {
-	if s.TenantID != common.TenantIDAll {
+	if s.TenantID != util.TenantIDAll {
 		if !common.ValidTenantIDRegex.MatchString(s.TenantID) {
 			return common.ErrInvalidTenantID
 		}

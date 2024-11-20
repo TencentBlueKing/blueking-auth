@@ -16,26 +16,17 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package fixture
+package middleware
 
 import (
-	"go.uber.org/zap"
-
-	"bkauth/pkg/config"
 	"bkauth/pkg/util"
+
+	"github.com/gin-gonic/gin"
 )
 
-func InitFixture(cfg *config.Config) {
-	var tenantID string
-	if cfg.IsMultiTenantMode {
-		tenantID = "*"
-		zap.S().Info("isMultiTenantMode=True, the tenantID will be set to `*` for all init data")
-	} else {
-		tenantID = util.TenantIDDefault
-		zap.S().Info("isMultiTenantMode=True, the tenantID will be set to `default` for all init data")
-	}
-
-	for appCode, appSecret := range cfg.AccessKeys {
-		createAccessKey(appCode, appSecret, tenantID)
+func NewIsMultiTenantModeMiddleware(isMultiTenantMode bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		util.SetIsMultiTenantMode(c, isMultiTenantMode)
+		c.Next()
 	}
 }

@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -27,15 +27,15 @@ import (
 	"bkauth/pkg/service/types"
 )
 
-func createAccessKey(appCode, appSecret string) {
+func createAccessKey(appCode, appSecret, tenantID string) {
 	createdSource := "deploy_init"
 
-	// TODO: 校验appCode和appSecret格式是否正确
+	// TODO: 校验 appCode 和 appSecret 格式是否正确
 	if appCode == "" || appSecret == "" {
 		return
 	}
 
-	// 查询App是否存在
+	// 查询 App 是否存在
 	appSvc := service.NewAppService()
 	exists, err := appSvc.Exists(appCode)
 	if err != nil {
@@ -44,7 +44,7 @@ func createAccessKey(appCode, appSecret string) {
 	// 不存在则创建
 	if !exists {
 		err = appSvc.CreateWithSecret(
-			types.App{Code: appCode, Name: appCode, Description: appCode},
+			types.App{Code: appCode, Name: appCode, Description: appCode, TenantID: tenantID},
 			appSecret,
 			createdSource,
 		)
@@ -54,8 +54,8 @@ func createAccessKey(appCode, appSecret string) {
 		return
 	}
 
-	// APP存在则只需要创建Secret
-	// 查询对应的AppCode和AppSecret是否已存在
+	// APP 存在则只需要创建 Secret
+	// 查询对应的 AppCode 和 AppSecret 是否已存在
 	svc := service.NewAccessKeyService()
 	exists, err = svc.Verify(appCode, appSecret)
 	if err != nil {

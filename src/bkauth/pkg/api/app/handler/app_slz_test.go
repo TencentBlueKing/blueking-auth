@@ -3,9 +3,9 @@ package handler
 import (
 	"testing"
 
-	"bkauth/pkg/api/common"
-
 	"github.com/stretchr/testify/assert"
+
+	"bkauth/pkg/api/common"
 )
 
 func TestCreateAppSerializer_Validate(t *testing.T) {

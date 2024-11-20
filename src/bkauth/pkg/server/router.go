@@ -58,6 +58,7 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	// TODO: 接口日志有些敏感有些不敏感，校验接口也有使用POST的, 目前一刀切
 	appRouter.Use(middleware.APILogger())
 	appRouter.Use(middleware.AccessAppAuthMiddleware())
+	appRouter.Use(middleware.NewIsMultiTenantModeMiddleware(cfg.IsMultiTenantMode))
 	app.Register(appRouter)
 
 	// oauth apis for oauth2.0 accessToken
@@ -65,6 +66,7 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	oauthRouter.Use(middleware.Metrics())
 	oauthRouter.Use(middleware.APILogger())
 	oauthRouter.Use(middleware.AccessAppAuthMiddleware())
+	// appRouter.Use(middleware.NewIsMultiTenantModeMiddleware(cfg.IsMultiTenantMode))
 	oauth.Register(oauthRouter)
 
 	return router

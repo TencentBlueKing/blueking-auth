@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -79,7 +79,7 @@ func TargetExistsAndClientValid() gin.HandlerFunc {
 		}
 		targetID := uriParams.TargetID
 
-		// Note: 这里没必要缓存，因为本身Target的注册和变更频率很低
+		// Note: 这里没必要缓存，因为本身 Target 的注册和变更频率很低
 		svc := service.NewTargetService()
 		target, err := svc.Get(targetID)
 		if err != nil {

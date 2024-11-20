@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -19,41 +19,38 @@
 package impls
 
 import (
-	"go.uber.org/zap"
-
 	"bkauth/pkg/cache"
+	"bkauth/pkg/errorx"
 	"bkauth/pkg/service"
 )
 
-// AccessAppCacheKey ...
-// Note: 当前缓存只用于 API 的认证，不用于任何业务逻辑
-type AccessAppCacheKey struct {
-	AppCode   string
-	AppSecret string
+type AppExistsKey struct {
+	AppCode string
 }
 
-// Key ...
-func (k AccessAppCacheKey) Key() string {
-	return k.AppCode + ":" + k.AppSecret
+func (k AppExistsKey) Key() string {
+	return k.AppCode
 }
 
-func retrieveAccessApp(key cache.Key) (interface{}, error) {
-	k := key.(AccessAppCacheKey)
+func retrieveAppExists(key cache.Key) (interface{}, error) {
+	k := key.(AppExistsKey)
 
-	svc := service.NewAccessKeyService()
-	return svc.Verify(k.AppCode, k.AppSecret)
+	svc := service.NewAppService()
+	return svc.Exists(k.AppCode)
 }
 
-// VerifyAccessApp ...
-func VerifyAccessApp(appCode, appSecret string) bool {
-	key := AccessAppCacheKey{
-		AppCode:   appCode,
-		AppSecret: appSecret,
+// AppExists ...
+func AppExists(appCode string) (exists bool, err error) {
+	key := AppExistsKey{
+		AppCode: appCode,
 	}
-	exists, err := LocalAccessAppCache.GetBool(key)
+
+	err = AppExistsCache.GetInto(key, &exists, retrieveAppExists)
 	if err != nil {
-		zap.S().Errorf("get app_code_app_secret from memory cache fail, key=%s, err=%s", key.Key(), err)
-		return false
+		err = errorx.Wrapf(err, CacheLayer, "AppExists",
+			"AppExistsCache.GetInto appCode=`%s` fail", appCode)
+		return exists, err
 	}
-	return exists
+
+	return exists, nil
 }
