@@ -69,6 +69,7 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 
 	return router
 }
+
 func ginLogFormat(param gin.LogFormatterParams) string {
 	// your custom format
 	return fmt.Sprintf("%s - [%s] \"%s %s %s %s %d \"%s\" %s %s\"\n",

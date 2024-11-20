@@ -22,9 +22,9 @@ import (
 	"errors"
 
 	"github.com/agiledragon/gomonkey"
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 
 	"bkauth/pkg/database"
 	"bkauth/pkg/database/dao"
