@@ -56,9 +56,15 @@ func CreateApp(c *gin.Context) {
 	}
 
 	// extra validate for tenant_id
-	if !util.GetIsMultiTenantMode(c) && body.Tenant.ID != util.TenantIDDefault {
-		util.BadRequestErrorJSONResponse(c, "tenant_id must be `default` in single tenant mode")
-		return
+	if !util.GetIsMultiTenantMode(c) {
+		if body.Tenant.Type != util.TenantTypeSingle {
+			util.BadRequestErrorJSONResponse(c, "tenant_type must be `single` in single tenant mode")
+			return
+		}
+		if body.Tenant.ID != util.TenantIDDefault {
+			util.BadRequestErrorJSONResponse(c, "tenant_id must be `default` in single tenant mode")
+			return
+		}
 	}
 
 	// check app code/name is unique
