@@ -33,6 +33,7 @@ type App struct {
 	Code        string `db:"code"`
 	Name        string `db:"name"`
 	Description string `db:"description"`
+	TenantType  string `db:"tenant_type"`
 	TenantID    string `db:"tenant_id"`
 
 	// Note: APP 是一个主表，oauth2 相关信息是关联表 (外键 code)，这里只是备注一下而已，后续删除注释
@@ -67,7 +68,7 @@ func NewAppManager() AppManager {
 }
 
 func (m *appManager) Get(code string) (app App, err error) {
-	query := `SELECT code, name, description, tenant_id FROM app where code = ? LIMIT 1`
+	query := `SELECT code, name, description, tenant_type, tenant_id FROM app where code = ? LIMIT 1`
 
 	err = database.SqlxGet(m.DB, &app, query, code)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -77,7 +78,8 @@ func (m *appManager) Get(code string) (app App, err error) {
 }
 
 func (m *appManager) CreateWithTx(tx *sqlx.Tx, app App) error {
-	query := `INSERT INTO app (code, name, description, tenant_id) VALUES (:code, :name, :description, :tenant_id)`
+	query := `INSERT INTO app (code, name, description, tenant_type, tenant_id)
+	VALUES (:code, :name, :description, :tenant_type, :tenant_id)`
 	_, err := database.SqlxInsertWithTx(tx, query, app)
 	return err
 }
@@ -119,7 +121,7 @@ func (m *appManager) selectNameExistence(existCode *string, name string) error {
 }
 
 func (m *appManager) List() (apps []App, err error) {
-	query := `SELECT code, name, description, tenant_id FROM app`
+	query := `SELECT code, name, description, tenant_type, tenant_id FROM app`
 	err = database.SqlxSelect(m.DB, &apps, query)
 	if errors.Is(err, sql.ErrNoRows) {
 		return apps, nil

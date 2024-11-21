@@ -32,7 +32,7 @@ func Test_appManager_CreateWithTx(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`INSERT INTO app`).WithArgs(
-			"bkauth", "bkauth", "bkauth intro", "default",
+			"bkauth", "bkauth", "bkauth intro", "type1", "default",
 		).WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
@@ -43,6 +43,7 @@ func Test_appManager_CreateWithTx(t *testing.T) {
 			Code:        "bkauth",
 			Name:        "bkauth",
 			Description: "bkauth intro",
+			TenantType:  "type1",
 			TenantID:    "default",
 		}
 
@@ -89,9 +90,9 @@ func Test_appManager_NameExists(t *testing.T) {
 
 func Test_appManager_Get(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		mockQuery := `^SELECT code, name, description, tenant_id FROM app where code = (.*) LIMIT 1$`
-		mockRows := sqlmock.NewRows([]string{"code", "name", "description", "tenant_id"}).
-			AddRow("bkauth", "bkauth", "bkauth intro", "default")
+		mockQuery := `^SELECT code, name, description, tenant_type, tenant_id FROM app where code = (.*) LIMIT 1$`
+		mockRows := sqlmock.NewRows([]string{"code", "name", "description", "tenant_type", "tenant_id"}).
+			AddRow("bkauth", "bkauth", "bkauth intro", "type1", "default")
 		mock.ExpectQuery(mockQuery).WithArgs("bkauth").WillReturnRows(mockRows)
 
 		manager := &appManager{DB: db}
@@ -102,6 +103,7 @@ func Test_appManager_Get(t *testing.T) {
 		assert.Equal(t, app.Code, "bkauth")
 		assert.Equal(t, app.Name, "bkauth")
 		assert.Equal(t, app.Description, "bkauth intro")
+		assert.Equal(t, app.TenantType, "type1")
 		assert.Equal(t, app.TenantID, "default")
 	})
 }

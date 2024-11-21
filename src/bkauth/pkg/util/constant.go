@@ -28,8 +28,10 @@ const (
 
 	ErrorIDKey = "err"
 
-	// 全租户类型的 tenant_id 为 *
-	TenantIDAll = "*"
+	// 全租户类型
+	TenantTypeGlobal = "global"
+	// 单租户类型
+	TenantTypeSingle = "single"
 
 	// 单租户模式下，默认租户 id 为 default
 	TenantIDDefault = "default"

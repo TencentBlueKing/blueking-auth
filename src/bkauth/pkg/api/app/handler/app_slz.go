@@ -19,21 +19,32 @@
 package handler
 
 import (
+	"errors"
+
 	"bkauth/pkg/api/common"
 	"bkauth/pkg/util"
 )
 
+type tenantSerializer struct {
+	Type string `json:"type" binding:"required,oneof=global single" example:"single"`
+	ID   string `json:"id" binding:"omitempty,max=32" example:"default"`
+}
+
 type createAppSerializer struct {
 	common.AppCodeSerializer
-	AppSecret   string `json:"bk_app_secret" binding:"omitempty,max=128" example:"bk_paas"`
-	Name        string `json:"name" binding:"required" example:"BK PaaS"`
-	Description string `json:"description" binding:"omitempty" example:"Platform as A Service"`
-	TenantID    string `json:"bk_tenant_id" binding:"required" example:"default"`
+	AppSecret   string           `json:"bk_app_secret" binding:"omitempty,max=128" example:"bk_paas"`
+	Name        string           `json:"name" binding:"required" example:"BK PaaS"`
+	Description string           `json:"description" binding:"omitempty" example:"Platform as A Service"`
+	Tenant      tenantSerializer `json:"bk_tenant" binding:"required"`
 }
 
 func (s *createAppSerializer) validate() error {
-	if s.TenantID != util.TenantIDAll {
-		if !common.ValidTenantIDRegex.MatchString(s.TenantID) {
+	if s.Tenant.Type == util.TenantTypeGlobal {
+		if s.Tenant.ID != "" {
+			return errors.New("tenant_id should be empty when tenant_type is global")
+		}
+	} else {
+		if !common.ValidTenantIDRegex.MatchString(s.Tenant.ID) {
 			return common.ErrInvalidTenantID
 		}
 	}

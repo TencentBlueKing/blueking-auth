@@ -56,7 +56,7 @@ func CreateApp(c *gin.Context) {
 	}
 
 	// extra validate for tenant_id
-	if !util.GetIsMultiTenantMode(c) && body.TenantID != util.TenantIDDefault {
+	if !util.GetIsMultiTenantMode(c) && body.Tenant.ID != util.TenantIDDefault {
 		util.BadRequestErrorJSONResponse(c, "tenant_id must be `default` in single tenant mode")
 		return
 	}
@@ -71,7 +71,8 @@ func CreateApp(c *gin.Context) {
 		Code:        body.AppCode,
 		Name:        body.Name,
 		Description: body.Description,
-		TenantID:    body.TenantID,
+		TenantType:  body.Tenant.Type,
+		TenantID:    body.Tenant.ID,
 	}
 	// 获取请求的来源
 	createdSource := util.GetAccessAppCode(c)
@@ -134,7 +135,10 @@ func GetApp(c *gin.Context) {
 		AppCode:     app.Code,
 		Name:        app.Name,
 		Description: app.Description,
-		TenantID:    app.TenantID,
+		Tenant: common.TenantResponse{
+			ID:   app.TenantID,
+			Type: app.TenantType,
+		},
 	}
 
 	util.SuccessJSONResponse(c, "ok", data)

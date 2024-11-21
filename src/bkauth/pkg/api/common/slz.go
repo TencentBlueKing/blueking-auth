@@ -49,11 +49,16 @@ func (s *AppCodeSerializer) ValidateAppCode() error {
 	return nil
 }
 
+type TenantResponse struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+}
+
 type AppResponse struct {
-	AppCode     string `json:"bk_app_code"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	TenantID    string `json:"bk_tenant_id"`
+	AppCode     string         `json:"bk_app_code"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Tenant      TenantResponse `json:"bk_tenant"`
 }
 
 type OAuthAppResponse struct {

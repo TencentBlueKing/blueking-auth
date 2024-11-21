@@ -62,6 +62,7 @@ func (s *appService) Get(code string) (app types.App, err error) {
 		Code:        daoApp.Code,
 		Name:        daoApp.Name,
 		Description: daoApp.Description,
+		TenantType:  daoApp.TenantType,
 		TenantID:    daoApp.TenantID,
 	}, nil
 }
@@ -104,6 +105,7 @@ func (s *appService) Create(app types.App, createdSource string) (err error) {
 		Code:        app.Code,
 		Name:        app.Name,
 		Description: app.Description,
+		TenantType:  app.TenantType,
 		TenantID:    app.TenantID,
 	}
 	err = s.manager.CreateWithTx(tx, daoApp)
@@ -139,6 +141,7 @@ func (s *appService) CreateWithSecret(app types.App, appSecret, createdSource st
 		Code:        app.Code,
 		Name:        app.Name,
 		Description: app.Description,
+		TenantType:  app.TenantType,
 		TenantID:    app.TenantID,
 	}
 	err = s.manager.CreateWithTx(tx, daoApp)
@@ -172,6 +175,7 @@ func (s *appService) List() (apps []types.App, err error) {
 			Code:        daoApp.Code,
 			Name:        daoApp.Name,
 			Description: daoApp.Description,
+			TenantType:  daoApp.TenantType,
 			TenantID:    daoApp.TenantID,
 		})
 	}

@@ -376,6 +376,7 @@ var _ = Describe("App", func() {
 				Code:        "bkauth",
 				Name:        "bkauth",
 				Description: "bkauth intro",
+				TenantType:  "type1",
 				TenantID:    "tenant1",
 			}, nil)
 
@@ -391,6 +392,7 @@ var _ = Describe("App", func() {
 			assert.Equal(GinkgoT(), "bkauth", app.Code)
 			assert.Equal(GinkgoT(), "bkauth", app.Name)
 			assert.Equal(GinkgoT(), "bkauth intro", app.Description)
+			assert.Equal(GinkgoT(), "type1", app.TenantType)
 			assert.Equal(GinkgoT(), "tenant1", app.TenantID)
 		})
 

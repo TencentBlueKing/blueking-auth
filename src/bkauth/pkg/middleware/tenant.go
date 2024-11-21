@@ -19,9 +19,9 @@
 package middleware
 
 import (
-	"bkauth/pkg/util"
-
 	"github.com/gin-gonic/gin"
+
+	"bkauth/pkg/util"
 )
 
 func NewIsMultiTenantModeMiddleware(isMultiTenantMode bool) gin.HandlerFunc {
