@@ -38,6 +38,13 @@ type createAppSerializer struct {
 	Tenant      tenantSerializer `json:"bk_tenant" binding:"required"`
 }
 
+type listAppSerializer struct {
+	TenantType string `form:"tenant_type" binding:"omitempty,oneof=global single" example:"single"`
+	TenantID   string `form:"tenant_id" binding:"omitempty,max=32" example:"default"`
+	Page       int    `form:"page" binding:"omitempty,min=1" example:"1"`
+	PageSize   int    `form:"page_size" binding:"omitempty,min=1,max=100" example:"10"`
+}
+
 func (s *createAppSerializer) validate() error {
 	if s.Tenant.Type == util.TenantTypeGlobal {
 		if s.Tenant.ID != "" {

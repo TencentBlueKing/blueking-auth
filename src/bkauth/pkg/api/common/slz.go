@@ -68,3 +68,8 @@ type OAuthAppResponse struct {
 type TargetIDSerializer struct {
 	TargetID string `uri:"target_id" json:"target_id" binding:"required,min=3,max=16" example:"bk_ci"`
 }
+
+type PaginatedResponse struct {
+	Count   int         `json:"count"`
+	Results interface{} `json:"results"`
+}

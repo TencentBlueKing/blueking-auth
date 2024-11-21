@@ -35,7 +35,7 @@ type AppService interface {
 	NameExists(name string) (bool, error)
 	Create(app types.App, createdSource string) error
 	CreateWithSecret(app types.App, appSecret, createdSource string) error
-	List() ([]types.App, error)
+	List(tenantType, tenantID string, page, pageSize int) (int, []types.App, error)
 }
 
 type appService struct {
@@ -161,12 +161,17 @@ func (s *appService) CreateWithSecret(app types.App, appSecret, createdSource st
 	return
 }
 
-func (s *appService) List() (apps []types.App, err error) {
+func (s *appService) List(tenantType, tenantID string, page, pageSize int) (total int, apps []types.App, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "List")
 
-	daoApps, err := s.manager.List()
+	total, err = s.manager.Count(tenantType, tenantID)
 	if err != nil {
-		return apps, errorWrapf(err, "manager.List fail")
+		return 0, nil, errorWrapf(err, "manager.Count fail")
+	}
+
+	daoApps, err := s.manager.List(tenantType, tenantID, page, pageSize)
+	if err != nil {
+		return 0, nil, errorWrapf(err, "manager.List fail")
 	}
 
 	apps = make([]types.App, 0, len(daoApps))
@@ -180,5 +185,5 @@ func (s *appService) List() (apps []types.App, err error) {
 		})
 	}
 
-	return
+	return total, apps, nil
 }

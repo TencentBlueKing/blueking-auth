@@ -149,3 +149,51 @@ func GetApp(c *gin.Context) {
 
 	util.SuccessJSONResponse(c, "ok", data)
 }
+
+// ListApp godoc
+// @Summary list apps
+// @Description  lists apps with optional query parameters
+// @ID api-app-list
+// @Tags app
+// @Accept  json
+// @Produce  json
+// @Param tenant_type query string false "Tenant Type"
+// @Param tenant_id query string false "Tenant ID"
+// @Param page query int false "Page number"
+// @Param page_size query int false "Page size"
+// @Success 200 {object} util.Response{data=common.PaginatedResponse{results=[]common.AppResponse}}
+// @Header 200 {string} X-Request-Id "the request id"
+// @Router /api/v1/apps [get]
+func ListApp(c *gin.Context) {
+	var query listAppSerializer
+	if err := c.ShouldBindQuery(&query); err != nil {
+		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
+		return
+	}
+
+	svc := service.NewAppService()
+	total, apps, err := svc.List(query.TenantType, query.TenantID, query.Page, query.PageSize)
+	if err != nil {
+		err = errorx.Wrapf(err, "Handler", "ListApp", "svc.List fail")
+		util.SystemErrorJSONResponse(c, err)
+		return
+	}
+
+	results := make([]common.AppResponse, 0, len(apps))
+	for _, app := range apps {
+		results = append(results, common.AppResponse{
+			AppCode:     app.Code,
+			Name:        app.Name,
+			Description: app.Description,
+			Tenant: common.TenantResponse{
+				ID:   app.TenantID,
+				Type: app.TenantType,
+			},
+		})
+	}
+
+	util.SuccessJSONResponse(c, "ok", common.PaginatedResponse{
+		Count:   total,
+		Results: results,
+	})
+}

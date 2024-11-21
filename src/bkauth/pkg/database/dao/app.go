@@ -52,8 +52,9 @@ type AppManager interface {
 	CreateWithTx(tx *sqlx.Tx, app App) error
 	Exists(code string) (bool, error)
 	NameExists(name string) (bool, error)
-	List() ([]App, error)
+	List(tenantType, tenantID string, page, pageSize int) ([]App, error)
 	Get(code string) (App, error)
+	Count(tenantType, tenantID string) (int, error)
 }
 
 type appManager struct {
@@ -120,11 +121,44 @@ func (m *appManager) selectNameExistence(existCode *string, name string) error {
 	return database.SqlxGet(m.DB, existCode, query, name)
 }
 
-func (m *appManager) List() (apps []App, err error) {
-	query := `SELECT code, name, description, tenant_type, tenant_id FROM app`
-	err = database.SqlxSelect(m.DB, &apps, query)
+func (m *appManager) List(tenantType, tenantID string, page, pageSize int) (apps []App, err error) {
+	query := `SELECT code, name, description, tenant_type, tenant_id FROM app WHERE 1=1`
+	args := []interface{}{}
+
+	if tenantType != "" {
+		query += ` AND tenant_type = ?`
+		args = append(args, tenantType)
+	}
+	if tenantID != "" {
+		query += ` AND tenant_id = ?`
+		args = append(args, tenantID)
+	}
+
+	if page > 0 && pageSize > 0 {
+		query += ` LIMIT ? OFFSET ?`
+		args = append(args, pageSize, (page-1)*pageSize)
+	}
+
+	err = database.SqlxSelect(m.DB, &apps, query, args...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return apps, nil
 	}
+	return
+}
+
+func (m *appManager) Count(tenantType, tenantID string) (total int, err error) {
+	query := `SELECT COUNT(*) FROM app WHERE 1=1`
+	args := []interface{}{}
+
+	if tenantType != "" {
+		query += ` AND tenant_type = ?`
+		args = append(args, tenantType)
+	}
+	if tenantID != "" {
+		query += ` AND tenant_id = ?`
+		args = append(args, tenantID)
+	}
+
+	err = database.SqlxGet(m.DB, &total, query, args...)
 	return
 }
