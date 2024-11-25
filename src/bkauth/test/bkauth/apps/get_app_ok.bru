@@ -1,0 +1,24 @@
+meta {
+  name: get_app_ok
+  type: http
+  seq: 9
+}
+
+get {
+  url: http://{{host}}:{{port}}/api/v1/apps/demo
+  body: json
+  auth: none
+}
+
+headers {
+  X-Bk-App-Code: {{x_bk_app_code}}
+  X-Bk-App-Secret: {{x_bk_app_secret}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.message: eq ok
+  res.body.data.bk_app_code: eq demo
+  res.body.data.bk_tenant.type: eq single
+  res.body.data.bk_tenant.id: eq default
+}
