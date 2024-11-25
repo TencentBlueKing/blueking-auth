@@ -25,7 +25,7 @@ func TestCreateAppSerializer_Validate(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "tenant_id should be empty when tenant_type is global",
+			errMsg:  "bk_tenant.id should be empty when tenant_type is global",
 		},
 		{
 			name: "tenant_type=single and tenant_id not valid",

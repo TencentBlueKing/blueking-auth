@@ -43,12 +43,15 @@ type listAppSerializer struct {
 	TenantID   string `form:"tenant_id" binding:"omitempty,max=32" example:"default"`
 	Page       int    `form:"page" binding:"omitempty,min=1" example:"1"`
 	PageSize   int    `form:"page_size" binding:"omitempty,min=1,max=100" example:"10"`
+	// nolint:lll
+	OrderBy          string `form:"order_by" binding:"omitempty,oneof=code name created_at updated_at" example:"created_at"`
+	OrderByDirection string `form:"order_by_direction" binding:"omitempty,oneof=asc desc" example:"asc"`
 }
 
 func (s *createAppSerializer) validate() error {
 	if s.Tenant.Type == util.TenantTypeGlobal {
 		if s.Tenant.ID != "" {
-			return errors.New("tenant_id should be empty when tenant_type is global")
+			return errors.New("bk_tenant.id should be empty when tenant_type is global")
 		}
 	} else {
 		if !common.ValidTenantIDRegex.MatchString(s.Tenant.ID) {

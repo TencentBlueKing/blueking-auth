@@ -118,7 +118,7 @@ func Test_appManager_List(t *testing.T) {
 
 		manager := &appManager{DB: db}
 
-		apps, err := manager.List("type1", "default", 1, 10)
+		apps, err := manager.List("type1", "default", 1, 10, "", "")
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Len(t, apps, 2)

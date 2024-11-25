@@ -426,7 +426,7 @@ var _ = Describe("App", func() {
 		It("ok", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
 			mockAppManager.EXPECT().Count("type1", "tenant1").Return(1, nil)
-			mockAppManager.EXPECT().List("type1", "tenant1", 1, 10).Return([]dao.App{
+			mockAppManager.EXPECT().List("type1", "tenant1", 1, 10, "", "").Return([]dao.App{
 				{
 					Code:        "bkauth",
 					Name:        "bkauth",
@@ -443,7 +443,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			total, apps, err := svc.List("type1", "tenant1", 1, 10)
+			total, apps, err := svc.List("type1", "tenant1", 1, 10, "", "")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), 1, total)
 			assert.Len(GinkgoT(), apps, 1)
@@ -465,14 +465,14 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			_, _, err := svc.List("type1", "tenant1", 1, 10)
+			_, _, err := svc.List("type1", "tenant1", 1, 10, "", "")
 			assert.Error(GinkgoT(), err)
 		})
 
 		It("list error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
 			mockAppManager.EXPECT().Count("type1", "tenant1").Return(1, nil)
-			mockAppManager.EXPECT().List("type1", "tenant1", 1, 10).Return(nil, errors.New("error"))
+			mockAppManager.EXPECT().List("type1", "tenant1", 1, 10, "", "").Return(nil, errors.New("error"))
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
 
@@ -481,7 +481,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			_, _, err := svc.List("type1", "tenant1", 1, 10)
+			_, _, err := svc.List("type1", "tenant1", 1, 10, "", "")
 			assert.Error(GinkgoT(), err)
 		})
 	})
