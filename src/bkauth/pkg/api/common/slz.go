@@ -32,7 +32,7 @@ var (
 
 	// 租户相关验证
 	ValidTenantIDRegex = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9-]{1,30}[a-zA-Z0-9]$")
-	ErrInvalidTenantID = errors.New("invalid bk_tenant_id: bk_tenant_id should begin with a letter, " +
+	ErrInvalidTenantID = errors.New("invalid bk_tenant.id: bk_tenant_id should begin with a letter, " +
 		"contains letters(a-zA-Z), numbers(0-9) or hyphen(-), length should be 2 to 32")
 )
 

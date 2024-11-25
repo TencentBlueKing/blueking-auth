@@ -105,7 +105,17 @@ func CreateApp(c *gin.Context) {
 	// 由于应用在创建前可能调用相关接口查询，导致`是否存在该App/app基本信息`的查询已被缓存，若不删除缓存，则创建后在缓存未实现前，还是会出现 app 不存在的
 	cacheImpls.DeleteAppCache(app.Code)
 
-	util.SuccessJSONResponse(c, "ok", common.AppResponse{AppCode: app.Code})
+	data := common.AppResponse{
+		AppCode:     app.Code,
+		Name:        app.Name,
+		Description: app.Description,
+		Tenant: common.TenantResponse{
+			ID:   app.TenantID,
+			Type: app.TenantType,
+		},
+	}
+
+	util.SuccessJSONResponse(c, "ok", data)
 }
 
 // GetApp godoc
@@ -171,8 +181,21 @@ func ListApp(c *gin.Context) {
 		return
 	}
 
+	if query.Page == 0 {
+		query.Page = 1
+	}
+	if query.PageSize == 0 {
+		query.PageSize = 10
+	}
+
 	svc := service.NewAppService()
-	total, apps, err := svc.List(query.TenantType, query.TenantID, query.Page, query.PageSize)
+	total, apps, err := svc.List(
+		query.TenantType,
+		query.TenantID,
+		query.Page,
+		query.PageSize,
+		query.OrderBy,
+		query.OrderByDirection)
 	if err != nil {
 		err = errorx.Wrapf(err, "Handler", "ListApp", "svc.List fail")
 		util.SystemErrorJSONResponse(c, err)

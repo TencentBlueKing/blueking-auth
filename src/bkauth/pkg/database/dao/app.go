@@ -52,7 +52,7 @@ type AppManager interface {
 	CreateWithTx(tx *sqlx.Tx, app App) error
 	Exists(code string) (bool, error)
 	NameExists(name string) (bool, error)
-	List(tenantType, tenantID string, page, pageSize int) ([]App, error)
+	List(tenantType, tenantID string, page, pageSize int, orderBy, orderByDirection string) ([]App, error)
 	Get(code string) (App, error)
 	Count(tenantType, tenantID string) (int, error)
 }
@@ -121,7 +121,11 @@ func (m *appManager) selectNameExistence(existCode *string, name string) error {
 	return database.SqlxGet(m.DB, existCode, query, name)
 }
 
-func (m *appManager) List(tenantType, tenantID string, page, pageSize int) (apps []App, err error) {
+func (m *appManager) List(
+	tenantType, tenantID string,
+	page, pageSize int,
+	orderBy, orderByDirection string,
+) (apps []App, err error) {
 	query := `SELECT code, name, description, tenant_type, tenant_id FROM app WHERE 1=1`
 	args := []interface{}{}
 
@@ -133,6 +137,15 @@ func (m *appManager) List(tenantType, tenantID string, page, pageSize int) (apps
 		query += ` AND tenant_id = ?`
 		args = append(args, tenantID)
 	}
+
+	// order by
+	if orderBy == "" {
+		orderBy = "created_at"
+	}
+	if orderByDirection == "" {
+		orderByDirection = "ASC"
+	}
+	query += ` ORDER BY ` + orderBy + ` ` + orderByDirection
 
 	if page > 0 && pageSize > 0 {
 		query += ` LIMIT ? OFFSET ?`
