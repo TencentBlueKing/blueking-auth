@@ -20,7 +20,7 @@ body:json {
     "bk_app_code": "1",
     "name": "demo",
     "bk_tenant": {
-      "type": "abc",
+      "mode": "abc",
       "id": "default"
     }
   }
@@ -29,5 +29,5 @@ body:json {
 assert {
   res.status: eq 400
   res.body.code: eq 1903400
-  res.body.message: eq bad request:Type must be one of 'global single'
+  res.body.message: eq bad request:Mode must be one of 'global single'
 }
