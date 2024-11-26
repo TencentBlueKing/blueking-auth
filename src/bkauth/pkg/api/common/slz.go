@@ -23,6 +23,11 @@ import (
 	"regexp"
 )
 
+const (
+	// 默认分页大小
+	DefaultPageSize = 10
+)
+
 var (
 	// ValidAppCodeRegex 小写字母或数字开头，可以包含小写字母/数字/下划线/连字符
 	ValidAppCodeRegex = regexp.MustCompile("^[a-z0-9][a-z0-9_-]{0,31}$")
@@ -49,9 +54,28 @@ func (s *AppCodeSerializer) ValidateAppCode() error {
 	return nil
 }
 
+type PageParamSerializer struct {
+	Page     int `form:"page" binding:"omitempty,min=1" example:"1"`
+	PageSize int `form:"page_size" binding:"omitempty,min=1,max=100" example:"10"`
+}
+
+func (p *PageParamSerializer) GetPage() int {
+	if p.Page == 0 {
+		return 1
+	}
+	return p.Page
+}
+
+func (p *PageParamSerializer) GetPageSize() int {
+	if p.PageSize == 0 {
+		return DefaultPageSize
+	}
+	return p.PageSize
+}
+
 type TenantResponse struct {
+	Mode string `json:"mode"`
 	ID   string `json:"id"`
-	Type string `json:"type"`
 }
 
 type AppResponse struct {

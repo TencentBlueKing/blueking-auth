@@ -26,18 +26,18 @@ import (
 )
 
 func InitFixture(cfg *config.Config) {
-	var tenantType, tenantID string
-	if cfg.IsMultiTenantMode {
-		tenantType = util.TenantTypeGlobal
+	var tenantMode, tenantID string
+	if cfg.EnableMultiTenantMode {
+		tenantMode = util.TenantModeGlobal
 		tenantID = ""
-		zap.S().Info("isMultiTenantMode=True, all init data would be tenantType=global, tenantID={empty}")
+		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=global, tenantID={empty}")
 	} else {
-		tenantType = util.TenantTypeSingle
+		tenantMode = util.TenantModeSingle
 		tenantID = util.TenantIDDefault
-		zap.S().Info("isMultiTenantMode=True, all init data would be tenantType=single, tenantID=default")
+		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=single, tenantID=default")
 	}
 
 	for appCode, appSecret := range cfg.AccessKeys {
-		createAccessKey(appCode, appSecret, tenantType, tenantID)
+		createAccessKey(appCode, appSecret, tenantMode, tenantID)
 	}
 }

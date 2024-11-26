@@ -23,15 +23,15 @@ const (
 	RequestIDKey       = "request_id"
 	RequestIDHeaderKey = "X-Request-Id"
 
-	AccessAppCodeKey     = "access_app_code"
-	IsMultiTenantModeKey = "is_multi_tenant_mode"
+	AccessAppCodeKey         = "access_app_code"
+	EnableMultiTenantModeKey = "enable_multi_tenant_mode"
 
 	ErrorIDKey = "err"
 
-	// 全租户类型
-	TenantTypeGlobal = "global"
-	// 单租户类型
-	TenantTypeSingle = "single"
+	// 应用在租户层的可用模式：全租户
+	TenantModeGlobal = "global"
+	// 应用在租户层的可用模式：单租户
+	TenantModeSingle = "single"
 
 	// 单租户模式下，默认租户 id 为 default
 	TenantIDDefault = "default"

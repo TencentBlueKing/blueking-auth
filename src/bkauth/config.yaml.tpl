@@ -1,7 +1,7 @@
 debug: true
 
-# isMultiTenantMode: false
-isMultiTenantMode: true
+# enableMultiTenantMode: false
+enableMultiTenantMode: true
 
 server:
   host: 127.0.0.1

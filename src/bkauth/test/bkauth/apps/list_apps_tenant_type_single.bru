@@ -1,17 +1,17 @@
 meta {
-  name: list_apps_tenant_type_single
+  name: list_apps_tenant_mode_single
   type: http
   seq: 13
 }
 
 get {
-  url: http://{{host}}:{{port}}/api/v1/apps?tenant_type=single&tenant_id=default
+  url: http://{{host}}:{{port}}/api/v1/apps?tenant_mode=single&tenant_id=default
   body: json
   auth: none
 }
 
 params:query {
-  tenant_type: single
+  tenant_mode: single
   tenant_id: default
 }
 

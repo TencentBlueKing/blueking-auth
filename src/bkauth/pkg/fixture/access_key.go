@@ -27,7 +27,7 @@ import (
 	"bkauth/pkg/service/types"
 )
 
-func createAccessKey(appCode, appSecret, tenantType, tenantID string) {
+func createAccessKey(appCode, appSecret, tenantMode, tenantID string) {
 	createdSource := "deploy_init"
 
 	// TODO: 校验 appCode 和 appSecret 格式是否正确
@@ -44,7 +44,7 @@ func createAccessKey(appCode, appSecret, tenantType, tenantID string) {
 	// 不存在则创建
 	if !exists {
 		err = appSvc.CreateWithSecret(
-			types.App{Code: appCode, Name: appCode, Description: appCode, TenantType: tenantType, TenantID: tenantID},
+			types.App{Code: appCode, Name: appCode, Description: appCode, TenantMode: tenantMode, TenantID: tenantID},
 			appSecret,
 			createdSource,
 		)

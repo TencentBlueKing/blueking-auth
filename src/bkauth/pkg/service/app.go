@@ -35,7 +35,7 @@ type AppService interface {
 	NameExists(name string) (bool, error)
 	Create(app types.App, createdSource string) error
 	CreateWithSecret(app types.App, appSecret, createdSource string) error
-	List(tenantType, tenantID string, page, pageSize int, orderBy, orderByDirection string) (int, []types.App, error)
+	List(tenantMode, tenantID string, page, pageSize int, orderBy, orderByDirection string) (int, []types.App, error)
 }
 
 type appService struct {
@@ -62,7 +62,7 @@ func (s *appService) Get(code string) (app types.App, err error) {
 		Code:        daoApp.Code,
 		Name:        daoApp.Name,
 		Description: daoApp.Description,
-		TenantType:  daoApp.TenantType,
+		TenantMode:  daoApp.TenantMode,
 		TenantID:    daoApp.TenantID,
 	}, nil
 }
@@ -105,7 +105,7 @@ func (s *appService) Create(app types.App, createdSource string) (err error) {
 		Code:        app.Code,
 		Name:        app.Name,
 		Description: app.Description,
-		TenantType:  app.TenantType,
+		TenantMode:  app.TenantMode,
 		TenantID:    app.TenantID,
 	}
 	err = s.manager.CreateWithTx(tx, daoApp)
@@ -141,7 +141,7 @@ func (s *appService) CreateWithSecret(app types.App, appSecret, createdSource st
 		Code:        app.Code,
 		Name:        app.Name,
 		Description: app.Description,
-		TenantType:  app.TenantType,
+		TenantMode:  app.TenantMode,
 		TenantID:    app.TenantID,
 	}
 	err = s.manager.CreateWithTx(tx, daoApp)
@@ -162,18 +162,21 @@ func (s *appService) CreateWithSecret(app types.App, appSecret, createdSource st
 }
 
 func (s *appService) List(
-	tenantType, tenantID string,
+	tenantMode, tenantID string,
 	page, pageSize int,
 	orderBy, orderByDirection string,
 ) (total int, apps []types.App, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "List")
 
-	total, err = s.manager.Count(tenantType, tenantID)
+	total, err = s.manager.Count(tenantMode, tenantID)
 	if err != nil {
 		return 0, nil, errorWrapf(err, "manager.Count fail")
 	}
 
-	daoApps, err := s.manager.List(tenantType, tenantID, page, pageSize, orderBy, orderByDirection)
+	limit := pageSize
+	offset := (page - 1) * pageSize
+
+	daoApps, err := s.manager.List(tenantMode, tenantID, limit, offset, orderBy, orderByDirection)
 	if err != nil {
 		return 0, nil, errorWrapf(err, "manager.List fail")
 	}
@@ -184,7 +187,7 @@ func (s *appService) List(
 			Code:        daoApp.Code,
 			Name:        daoApp.Name,
 			Description: daoApp.Description,
-			TenantType:  daoApp.TenantType,
+			TenantMode:  daoApp.TenantMode,
 			TenantID:    daoApp.TenantID,
 		})
 	}

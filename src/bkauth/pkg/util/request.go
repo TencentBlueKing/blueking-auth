@@ -71,10 +71,10 @@ func SetError(c *gin.Context, err error) {
 	c.Set(ErrorIDKey, err)
 }
 
-func SetIsMultiTenantMode(c *gin.Context, isMultiTenantMode bool) {
-	c.Set(IsMultiTenantModeKey, isMultiTenantMode)
+func SetEnableMultiTenantMode(c *gin.Context, enableMultiTenantMode bool) {
+	c.Set(EnableMultiTenantModeKey, enableMultiTenantMode)
 }
 
-func GetIsMultiTenantMode(c *gin.Context) bool {
-	return c.GetBool(IsMultiTenantModeKey)
+func GetEnableMultiTenantMode(c *gin.Context) bool {
+	return c.GetBool(EnableMultiTenantModeKey)
 }
