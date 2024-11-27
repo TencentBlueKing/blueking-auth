@@ -31,7 +31,8 @@ const CacheLayer = "Cache"
 var (
 	LocalAccessAppCache memory.Cache
 
-	AppCodeCache    *redis.Cache
+	AppExistsCache  *redis.Cache
+	AppCache        *redis.Cache
 	AccessKeysCache *redis.Cache
 )
 
@@ -46,9 +47,15 @@ func InitCaches(disabled bool) {
 		nil,
 	)
 
-	AppCodeCache = redis.NewCache(
+	AppExistsCache = redis.NewCache(
 		bkauthredis.GetDefaultRedisClient(),
-		"app_code",
+		"app_exists",
+		5*time.Minute,
+	)
+
+	AppCache = redis.NewCache(
+		bkauthredis.GetDefaultRedisClient(),
+		"app_info",
 		5*time.Minute,
 	)
 

@@ -70,3 +70,11 @@ func GetError(c *gin.Context) (interface{}, bool) {
 func SetError(c *gin.Context, err error) {
 	c.Set(ErrorIDKey, err)
 }
+
+func SetEnableMultiTenantMode(c *gin.Context, enableMultiTenantMode bool) {
+	c.Set(EnableMultiTenantModeKey, enableMultiTenantMode)
+}
+
+func GetEnableMultiTenantMode(c *gin.Context) bool {
+	return c.GetBool(EnableMultiTenantModeKey)
+}

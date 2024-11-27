@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -43,7 +43,7 @@ import (
 // @Header 200 {string} X-Request-Id "the request id"
 // @Router /api/v1/apps [post]
 func CreateApp(c *gin.Context) {
-	// NOTE: 通过API创建, 不支持指定app_secret，默认自动创建对应的app_secret
+	// NOTE: 通过 API 创建，不支持指定 app_secret，默认自动创建对应的 app_secret
 	var body createAppSerializer
 	if err := c.ShouldBindJSON(&body); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
@@ -54,6 +54,19 @@ func CreateApp(c *gin.Context) {
 		util.BadRequestErrorJSONResponse(c, err.Error())
 		return
 	}
+
+	// extra validate for tenant_id
+	if !util.GetEnableMultiTenantMode(c) {
+		if body.Tenant.Mode != util.TenantModeSingle {
+			util.BadRequestErrorJSONResponse(c, "tenant_mode must be `single` in single tenant mode")
+			return
+		}
+		if body.Tenant.ID != util.TenantIDDefault {
+			util.BadRequestErrorJSONResponse(c, "tenant_id must be `default` in single tenant mode")
+			return
+		}
+	}
+
 	// check app code/name is unique
 	if err := checkAppCreateUnique(body.AppCode, body.Name); err != nil {
 		util.ConflictJSONResponse(c, err.Error())
@@ -64,12 +77,14 @@ func CreateApp(c *gin.Context) {
 		Code:        body.AppCode,
 		Name:        body.Name,
 		Description: body.Description,
+		TenantMode:  body.Tenant.Mode,
+		TenantID:    body.Tenant.ID,
 	}
 	// 获取请求的来源
 	createdSource := util.GetAccessAppCode(c)
 
 	svc := service.NewAppService()
-	// Note: 兼容PaaS2双写DB和bkauth时AppSecret已经从AppEngine生成，需要支持带Secret的App创建
+	// Note: 兼容 PaaS2 双写 DB 和 bkauth 时 AppSecret 已经从 AppEngine 生成，需要支持带 Secret 的 App 创建
 	if body.AppSecret != "" {
 		err := svc.CreateWithSecret(app, body.AppSecret, createdSource)
 		if err != nil {
@@ -87,8 +102,114 @@ func CreateApp(c *gin.Context) {
 		}
 	}
 
-	// 由于应用在创建前可能调用相关接口查询，导致`是否存在该App`的查询已被缓存，若不删除缓存，则创建后在缓存未实现前，还是会出现app不存在的
-	cacheImpls.DeleteApp(app.Code)
+	// 由于应用在创建前可能调用相关接口查询，导致`是否存在该App/app基本信息`的查询已被缓存，若不删除缓存，则创建后在缓存未实现前，还是会出现 app 不存在的
+	cacheImpls.DeleteAppCache(app.Code)
 
-	util.SuccessJSONResponse(c, "ok", common.AppResponse{AppCode: app.Code})
+	data := common.AppResponse{
+		AppCode:     app.Code,
+		Name:        app.Name,
+		Description: app.Description,
+		Tenant: common.TenantResponse{
+			ID:   app.TenantID,
+			Mode: app.TenantMode,
+		},
+	}
+
+	util.SuccessJSONResponse(c, "ok", data)
+}
+
+// GetApp godoc
+// @Summary get app
+// @Description  gets an app by app_code
+// @ID api-app-get
+// @Tags app
+// @Accept  json
+// @Produce  json
+// @Param X-BK-APP-CODE header string true "app_code"
+// @Param X-BK-APP-SECRET header string true "app_secret"
+// @Param app_code path string true "App Code"
+// @Success 200 {object} util.Response{data=common.AppResponse}
+// @Header 200 {string} X-Request-Id "the request id"
+// @Router /api/v1/apps/{bk_app_code} [get]
+func GetApp(c *gin.Context) {
+	// 获取 URL 参数
+	var uriParams common.AppCodeSerializer
+	if err := c.ShouldBindUri(&uriParams); err != nil {
+		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
+		return
+	}
+	appCode := uriParams.AppCode
+
+	app, err := cacheImpls.GetApp(appCode)
+	if err != nil {
+		err = errorx.Wrapf(err, "Handler", "GetApp", "cacheImpls.GetApp appCode=`%s` fail", appCode)
+		util.SystemErrorJSONResponse(c, err)
+		return
+	}
+
+	data := common.AppResponse{
+		AppCode:     app.Code,
+		Name:        app.Name,
+		Description: app.Description,
+		Tenant: common.TenantResponse{
+			ID:   app.TenantID,
+			Mode: app.TenantMode,
+		},
+	}
+
+	util.SuccessJSONResponse(c, "ok", data)
+}
+
+// ListApp godoc
+// @Summary list apps
+// @Description  lists apps with optional query parameters
+// @ID api-app-list
+// @Tags app
+// @Accept  json
+// @Produce  json
+// @Param tenant_mode query string false "Tenant Type"
+// @Param tenant_id query string false "Tenant ID"
+// @Param page query int false "Page number"
+// @Param page_size query int false "Page size"
+// @Success 200 {object} util.Response{data=common.PaginatedResponse{results=[]common.AppResponse}}
+// @Header 200 {string} X-Request-Id "the request id"
+// @Router /api/v1/apps [get]
+func ListApp(c *gin.Context) {
+	var query listAppSerializer
+	if err := c.ShouldBindQuery(&query); err != nil {
+		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
+		return
+	}
+
+	svc := service.NewAppService()
+	total, apps, err := svc.List(
+		query.TenantMode,
+		query.TenantID,
+		query.GetPage(),
+		query.GetPageSize(),
+		query.OrderBy,
+		query.OrderByDirection)
+	if err != nil {
+		err = errorx.Wrapf(err, "Handler", "ListApp", "svc.List fail")
+		util.SystemErrorJSONResponse(c, err)
+		return
+	}
+
+	results := make([]common.AppResponse, 0, len(apps))
+	for _, app := range apps {
+		results = append(results, common.AppResponse{
+			AppCode:     app.Code,
+			Name:        app.Name,
+			Description: app.Description,
+			Tenant: common.TenantResponse{
+				ID:   app.TenantID,
+				Mode: app.TenantMode,
+			},
+		})
+	}
+
+	util.SuccessJSONResponse(c, "ok", common.PaginatedResponse{
+		Count:   total,
+		Results: results,
+	})
 }

@@ -1,0 +1,26 @@
+meta {
+  name: list_apps_tenant_mode_global
+  type: http
+  seq: 12
+}
+
+get {
+  url: http://{{host}}:{{port}}/api/v1/apps?tenant_mode=global
+  body: json
+  auth: none
+}
+
+params:query {
+  tenant_mode: global
+}
+
+headers {
+  X-Bk-App-Code: {{x_bk_app_code}}
+  X-Bk-App-Secret: {{x_bk_app_secret}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.message: eq ok
+  res.body.data.count: eq 1
+}

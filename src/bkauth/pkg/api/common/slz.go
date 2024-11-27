@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -23,12 +23,22 @@ import (
 	"regexp"
 )
 
+const (
+	// 默认分页大小
+	DefaultPageSize = 10
+)
+
 var (
-	// ValidAppCodeRegex 小写字母或数字开头, 可以包含小写字母/数字/下划线/连字符
+	// ValidAppCodeRegex 小写字母或数字开头，可以包含小写字母/数字/下划线/连字符
 	ValidAppCodeRegex = regexp.MustCompile("^[a-z0-9][a-z0-9_-]{0,31}$")
 
 	ErrInvalidAppCode = errors.New("invalid app_code: app_code should begin with a lowercase letter or numbers, " +
 		"contains lowercase letters(a-z), numbers(0-9), underline(_) or hyphen(-), length should be 1 to 32 letters")
+
+	// 租户相关验证
+	ValidTenantIDRegex = regexp.MustCompile("^[a-z][a-z0-9-]{1,30}[a-z0-9]$")
+	ErrInvalidTenantID = errors.New("invalid bk_tenant.id: bk_tenant_id should begin with a letter, " +
+		"contains letters(a-zA-Z), numbers(0-9) or hyphen(-), length should be 2 to 32")
 )
 
 type AppCodeSerializer struct {
@@ -36,18 +46,54 @@ type AppCodeSerializer struct {
 }
 
 func (s *AppCodeSerializer) ValidateAppCode() error {
-	// app_code的规则是:
-	// 由小写英文字母、连接符(-)、下划线(_)或数字组成，长度为[1~32]个字符, 并且以字母或数字开头 (^[a-z0-9][a-z0-9_-]{0,31}$)
+	// app_code 的规则是：
+	// 由小写英文字母、连接符 (-)、下划线 (_) 或数字组成，长度为 [1~32] 个字符，并且以字母或数字开头 (^[a-z0-9][a-z0-9_-]{0,31}$)
 	if !ValidAppCodeRegex.MatchString(s.AppCode) {
 		return ErrInvalidAppCode
 	}
 	return nil
 }
 
+type PageParamSerializer struct {
+	Page     int `form:"page" binding:"omitempty,min=1" example:"1"`
+	PageSize int `form:"page_size" binding:"omitempty,min=1,max=100" example:"10"`
+}
+
+func (p *PageParamSerializer) GetPage() int {
+	if p.Page == 0 {
+		return 1
+	}
+	return p.Page
+}
+
+func (p *PageParamSerializer) GetPageSize() int {
+	if p.PageSize == 0 {
+		return DefaultPageSize
+	}
+	return p.PageSize
+}
+
+type TenantResponse struct {
+	Mode string `json:"mode"`
+	ID   string `json:"id"`
+}
+
 type AppResponse struct {
+	AppCode     string         `json:"bk_app_code"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Tenant      TenantResponse `json:"bk_tenant"`
+}
+
+type OAuthAppResponse struct {
 	AppCode string `json:"bk_app_code"`
 }
 
 type TargetIDSerializer struct {
 	TargetID string `uri:"target_id" json:"target_id" binding:"required,min=3,max=16" example:"bk_ci"`
+}
+
+type PaginatedResponse struct {
+	Count   int         `json:"count"`
+	Results interface{} `json:"results"`
 }

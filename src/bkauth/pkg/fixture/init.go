@@ -19,11 +19,25 @@
 package fixture
 
 import (
+	"go.uber.org/zap"
+
 	"bkauth/pkg/config"
+	"bkauth/pkg/util"
 )
 
 func InitFixture(cfg *config.Config) {
+	var tenantMode, tenantID string
+	if cfg.EnableMultiTenantMode {
+		tenantMode = util.TenantModeGlobal
+		tenantID = ""
+		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=global, tenantID={empty}")
+	} else {
+		tenantMode = util.TenantModeSingle
+		tenantID = util.TenantIDDefault
+		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=single, tenantID=default")
+	}
+
 	for appCode, appSecret := range cfg.AccessKeys {
-		createAccessKey(appCode, appSecret)
+		createAccessKey(appCode, appSecret, tenantMode, tenantID)
 	}
 }

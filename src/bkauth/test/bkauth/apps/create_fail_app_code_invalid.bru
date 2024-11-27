@@ -1,0 +1,33 @@
+meta {
+  name: create_fail_app_code_invalid
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://{{host}}:{{port}}/api/v1/apps
+  body: json
+  auth: none
+}
+
+headers {
+  X-Bk-App-Code: {{x_bk_app_code}}
+  X-Bk-App-Secret: {{x_bk_app_secret}}
+}
+
+body:json {
+  {
+    "bk_app_code": "1$",
+    "name": "demo",
+    "bk_tenant": {
+      "mode": "single",
+      "id": "default"
+    }
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body.code: eq 1903400
+  res.body.message: eq bad request:invalid app_code: app_code should begin with a lowercase letter or numbers, contains lowercase letters(a-z), numbers(0-9), underline(_) or hyphen(-), length should be 1 to 32 letters
+}

@@ -1,0 +1,33 @@
+meta {
+  name: create_fail_tenant_id_invalid
+  type: http
+  seq: 5
+}
+
+post {
+  url: http://{{host}}:{{port}}/api/v1/apps
+  body: json
+  auth: none
+}
+
+headers {
+  X-Bk-App-Code: {{x_bk_app_code}}
+  X-Bk-App-Secret: {{x_bk_app_secret}}
+}
+
+body:json {
+  {
+    "bk_app_code": "1",
+    "name": "demo",
+    "bk_tenant": {
+      "mode": "single",
+      "id": "1a"
+    }
+  }
+}
+
+assert {
+  res.status: eq 400
+  res.body.code: eq 1903400
+  res.body.message: eq bad request:invalid bk_tenant.id: bk_tenant_id should begin with a letter, contains letters(a-zA-Z), numbers(0-9) or hyphen(-), length should be 2 to 32
+}

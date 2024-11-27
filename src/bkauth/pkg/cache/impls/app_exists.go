@@ -16,31 +16,41 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package sync
+package impls
 
-// AccessKeySet ...
-type AccessKeySet struct {
-	Data map[string]struct{}
+import (
+	"bkauth/pkg/cache"
+	"bkauth/pkg/errorx"
+	"bkauth/pkg/service"
+)
+
+type AppExistsKey struct {
+	AppCode string
 }
 
-// NewAccessKeySet ...
-func NewAccessKeySet() *AccessKeySet {
-	return &AccessKeySet{
-		Data: map[string]struct{}{},
+func (k AppExistsKey) Key() string {
+	return k.AppCode
+}
+
+func retrieveAppExists(key cache.Key) (interface{}, error) {
+	k := key.(AppExistsKey)
+
+	svc := service.NewAppService()
+	return svc.Exists(k.AppCode)
+}
+
+// AppExists ...
+func AppExists(appCode string) (exists bool, err error) {
+	key := AppExistsKey{
+		AppCode: appCode,
 	}
-}
 
-func (s *AccessKeySet) key(appCode, appSecret string) string {
-	return appCode + ":" + appSecret
-}
+	err = AppExistsCache.GetInto(key, &exists, retrieveAppExists)
+	if err != nil {
+		err = errorx.Wrapf(err, CacheLayer, "AppExists",
+			"AppExistsCache.GetInto appCode=`%s` fail", appCode)
+		return exists, err
+	}
 
-// Has ...
-func (s *AccessKeySet) Has(appCode, appSecret string) bool {
-	_, ok := s.Data[s.key(appCode, appSecret)]
-	return ok
-}
-
-// Add ...
-func (s *AccessKeySet) Add(appCode, appSecret string) {
-	s.Data[s.key(appCode, appSecret)] = struct{}{}
+	return exists, nil
 }

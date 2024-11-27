@@ -80,7 +80,7 @@ func CreateOAuthApp(c *gin.Context) {
 		return
 	}
 
-	util.SuccessJSONResponse(c, "ok", common.AppResponse{AppCode: oauthApp.AppCode})
+	util.SuccessJSONResponse(c, "ok", common.OAuthAppResponse{AppCode: oauthApp.AppCode})
 }
 
 // UpdateOAuthApp godoc

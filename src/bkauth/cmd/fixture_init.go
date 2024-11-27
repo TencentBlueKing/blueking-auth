@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -20,8 +20,6 @@ package cmd
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -51,10 +49,6 @@ func init() {
 }
 
 func FixtureInitStart() {
-	// init rand
-	// nolint
-	rand.Seed(time.Now().UnixNano())
-
 	// 0. init config
 	if cfgFile != "" {
 		// Use config file from the flag.
@@ -66,6 +60,7 @@ func FixtureInitStart() {
 	if globalConfig.Debug {
 		fmt.Println(globalConfig)
 	}
+	fmt.Printf("enableMultiTenantMode: %v\n", globalConfig.EnableMultiTenantMode)
 
 	initLogger()
 	initDatabase()
@@ -73,6 +68,7 @@ func FixtureInitStart() {
 	initCaches()
 	initCryptos()
 
+	// 这里跟运维确认过，初始化的都是蓝鲸基础服务的数据，保持简单，由 bkauth 配置默认的 tenant_id
 	fixture.InitFixture(globalConfig)
 
 	// flush logger
