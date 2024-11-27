@@ -20,7 +20,7 @@ body:json {
     "bk_app_code": "demo",
     "name": "demo",
     "bk_tenant": {
-      "type": "single",
+      "mode": "single",
       "id": "default"
     }
   }
@@ -30,6 +30,6 @@ assert {
   res.status: eq 200
   res.body.code: eq 0
   res.body.data.bk_app_code: eq demo
-  res.body.data.bk_tenant.type: eq single
+  res.body.data.bk_tenant.mode: eq single
   res.body.data.bk_tenant.id: eq default
 }

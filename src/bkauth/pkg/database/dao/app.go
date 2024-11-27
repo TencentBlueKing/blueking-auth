@@ -33,7 +33,7 @@ type App struct {
 	Code        string `db:"code"`
 	Name        string `db:"name"`
 	Description string `db:"description"`
-	TenantType  string `db:"tenant_type"`
+	TenantMode  string `db:"tenant_mode"`
 	TenantID    string `db:"tenant_id"`
 
 	// Note: APP 是一个主表，oauth2 相关信息是关联表 (外键 code)，这里只是备注一下而已，后续删除注释
@@ -52,9 +52,9 @@ type AppManager interface {
 	CreateWithTx(tx *sqlx.Tx, app App) error
 	Exists(code string) (bool, error)
 	NameExists(name string) (bool, error)
-	List(tenantType, tenantID string, page, pageSize int, orderBy, orderByDirection string) ([]App, error)
+	List(tenantMode, tenantID string, limit, offset int, orderBy, orderByDirection string) ([]App, error)
 	Get(code string) (App, error)
-	Count(tenantType, tenantID string) (int, error)
+	Count(tenantMode, tenantID string) (int, error)
 }
 
 type appManager struct {
@@ -69,18 +69,18 @@ func NewAppManager() AppManager {
 }
 
 func (m *appManager) Get(code string) (app App, err error) {
-	query := `SELECT code, name, description, tenant_type, tenant_id FROM app where code = ? LIMIT 1`
+	query := `SELECT code, name, description, tenant_mode, tenant_id FROM app where code = ? LIMIT 1`
 
 	err = database.SqlxGet(m.DB, &app, query, code)
 	if errors.Is(err, sql.ErrNoRows) {
 		return app, nil
 	}
-	return
+	return app, err
 }
 
 func (m *appManager) CreateWithTx(tx *sqlx.Tx, app App) error {
-	query := `INSERT INTO app (code, name, description, tenant_type, tenant_id)
-	VALUES (:code, :name, :description, :tenant_type, :tenant_id)`
+	query := `INSERT INTO app (code, name, description, tenant_mode, tenant_id)
+	VALUES (:code, :name, :description, :tenant_mode, :tenant_id)`
 	_, err := database.SqlxInsertWithTx(tx, query, app)
 	return err
 }
@@ -122,16 +122,16 @@ func (m *appManager) selectNameExistence(existCode *string, name string) error {
 }
 
 func (m *appManager) List(
-	tenantType, tenantID string,
-	page, pageSize int,
+	tenantMode, tenantID string,
+	limit, offset int,
 	orderBy, orderByDirection string,
 ) (apps []App, err error) {
-	query := `SELECT code, name, description, tenant_type, tenant_id FROM app WHERE 1=1`
+	query := `SELECT code, name, description, tenant_mode, tenant_id FROM app WHERE 1=1`
 	args := []interface{}{}
 
-	if tenantType != "" {
-		query += ` AND tenant_type = ?`
-		args = append(args, tenantType)
+	if tenantMode != "" {
+		query += ` AND tenant_mode = ?`
+		args = append(args, tenantMode)
 	}
 	if tenantID != "" {
 		query += ` AND tenant_id = ?`
@@ -147,25 +147,24 @@ func (m *appManager) List(
 	}
 	query += ` ORDER BY ` + orderBy + ` ` + orderByDirection
 
-	if page > 0 && pageSize > 0 {
-		query += ` LIMIT ? OFFSET ?`
-		args = append(args, pageSize, (page-1)*pageSize)
-	}
+	// limit and offset
+	query += ` LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
 
 	err = database.SqlxSelect(m.DB, &apps, query, args...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return apps, nil
 	}
-	return
+	return apps, err
 }
 
-func (m *appManager) Count(tenantType, tenantID string) (total int, err error) {
+func (m *appManager) Count(tenantMode, tenantID string) (total int, err error) {
 	query := `SELECT COUNT(*) FROM app WHERE 1=1`
 	args := []interface{}{}
 
-	if tenantType != "" {
-		query += ` AND tenant_type = ?`
-		args = append(args, tenantType)
+	if tenantMode != "" {
+		query += ` AND tenant_mode = ?`
+		args = append(args, tenantMode)
 	}
 	if tenantID != "" {
 		query += ` AND tenant_id = ?`
@@ -173,5 +172,5 @@ func (m *appManager) Count(tenantType, tenantID string) (total int, err error) {
 	}
 
 	err = database.SqlxGet(m.DB, &total, query, args...)
-	return
+	return total, err
 }

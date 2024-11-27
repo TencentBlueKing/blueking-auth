@@ -99,9 +99,9 @@ func (mr *MockAppServiceMockRecorder) Get(code any) *gomock.Call {
 }
 
 // List mocks base method.
-func (m *MockAppService) List(tenantType, tenantID string, page, pageSize int, orderBy, orderByDirection string) (int, []types.App, error) {
+func (m *MockAppService) List(tenantMode, tenantID string, page, pageSize int, orderBy, orderByDirection string) (int, []types.App, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", tenantType, tenantID, page, pageSize, orderBy, orderByDirection)
+	ret := m.ctrl.Call(m, "List", tenantMode, tenantID, page, pageSize, orderBy, orderByDirection)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].([]types.App)
 	ret2, _ := ret[2].(error)
@@ -109,9 +109,9 @@ func (m *MockAppService) List(tenantType, tenantID string, page, pageSize int, o
 }
 
 // List indicates an expected call of List.
-func (mr *MockAppServiceMockRecorder) List(tenantType, tenantID, page, pageSize, orderBy, orderByDirection any) *gomock.Call {
+func (mr *MockAppServiceMockRecorder) List(tenantMode, tenantID, page, pageSize, orderBy, orderByDirection any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAppService)(nil).List), tenantType, tenantID, page, pageSize, orderBy, orderByDirection)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAppService)(nil).List), tenantMode, tenantID, page, pageSize, orderBy, orderByDirection)
 }
 
 // NameExists mocks base method.

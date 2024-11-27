@@ -1,18 +1,17 @@
 meta {
-  name: list_apps_tenant_type_single
+  name: list_apps_tenant_mode_global
   type: http
-  seq: 13
+  seq: 12
 }
 
 get {
-  url: http://{{host}}:{{port}}/api/v1/apps?tenant_type=single&tenant_id=default
+  url: http://{{host}}:{{port}}/api/v1/apps?tenant_mode=global
   body: json
   auth: none
 }
 
 params:query {
-  tenant_type: single
-  tenant_id: default
+  tenant_mode: global
 }
 
 headers {
@@ -23,5 +22,5 @@ headers {
 assert {
   res.status: eq 200
   res.body.message: eq ok
-  res.body.data.count: eq 1
+  res.body.data.count: eq 2
 }

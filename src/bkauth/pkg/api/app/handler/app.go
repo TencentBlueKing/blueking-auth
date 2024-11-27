@@ -56,9 +56,9 @@ func CreateApp(c *gin.Context) {
 	}
 
 	// extra validate for tenant_id
-	if !util.GetIsMultiTenantMode(c) {
-		if body.Tenant.Type != util.TenantTypeSingle {
-			util.BadRequestErrorJSONResponse(c, "tenant_type must be `single` in single tenant mode")
+	if !util.GetEnableMultiTenantMode(c) {
+		if body.Tenant.Mode != util.TenantModeSingle {
+			util.BadRequestErrorJSONResponse(c, "tenant_mode must be `single` in single tenant mode")
 			return
 		}
 		if body.Tenant.ID != util.TenantIDDefault {
@@ -77,7 +77,7 @@ func CreateApp(c *gin.Context) {
 		Code:        body.AppCode,
 		Name:        body.Name,
 		Description: body.Description,
-		TenantType:  body.Tenant.Type,
+		TenantMode:  body.Tenant.Mode,
 		TenantID:    body.Tenant.ID,
 	}
 	// 获取请求的来源
@@ -111,7 +111,7 @@ func CreateApp(c *gin.Context) {
 		Description: app.Description,
 		Tenant: common.TenantResponse{
 			ID:   app.TenantID,
-			Type: app.TenantType,
+			Mode: app.TenantMode,
 		},
 	}
 
@@ -153,7 +153,7 @@ func GetApp(c *gin.Context) {
 		Description: app.Description,
 		Tenant: common.TenantResponse{
 			ID:   app.TenantID,
-			Type: app.TenantType,
+			Mode: app.TenantMode,
 		},
 	}
 
@@ -167,7 +167,7 @@ func GetApp(c *gin.Context) {
 // @Tags app
 // @Accept  json
 // @Produce  json
-// @Param tenant_type query string false "Tenant Type"
+// @Param tenant_mode query string false "Tenant Type"
 // @Param tenant_id query string false "Tenant ID"
 // @Param page query int false "Page number"
 // @Param page_size query int false "Page size"
@@ -181,19 +181,12 @@ func ListApp(c *gin.Context) {
 		return
 	}
 
-	if query.Page == 0 {
-		query.Page = 1
-	}
-	if query.PageSize == 0 {
-		query.PageSize = 10
-	}
-
 	svc := service.NewAppService()
 	total, apps, err := svc.List(
-		query.TenantType,
+		query.TenantMode,
 		query.TenantID,
-		query.Page,
-		query.PageSize,
+		query.GetPage(),
+		query.GetPageSize(),
 		query.OrderBy,
 		query.OrderByDirection)
 	if err != nil {
@@ -210,7 +203,7 @@ func ListApp(c *gin.Context) {
 			Description: app.Description,
 			Tenant: common.TenantResponse{
 				ID:   app.TenantID,
-				Type: app.TenantType,
+				Mode: app.TenantMode,
 			},
 		})
 	}

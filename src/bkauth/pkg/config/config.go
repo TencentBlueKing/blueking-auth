@@ -122,7 +122,7 @@ type APIAllowList struct {
 type Config struct {
 	Debug bool
 	// 是否开启多租户模式
-	IsMultiTenantMode bool
+	EnableMultiTenantMode bool
 
 	Server Server
 	Sentry Sentry

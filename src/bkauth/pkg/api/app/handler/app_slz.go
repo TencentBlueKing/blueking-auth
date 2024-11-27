@@ -26,7 +26,7 @@ import (
 )
 
 type tenantSerializer struct {
-	Type string `json:"type" binding:"required,oneof=global single" example:"single"`
+	Mode string `json:"mode" binding:"required,oneof=global single" example:"single"`
 	ID   string `json:"id" binding:"omitempty,max=32" example:"default"`
 }
 
@@ -38,20 +38,10 @@ type createAppSerializer struct {
 	Tenant      tenantSerializer `json:"bk_tenant" binding:"required"`
 }
 
-type listAppSerializer struct {
-	TenantType string `form:"tenant_type" binding:"omitempty,oneof=global single" example:"single"`
-	TenantID   string `form:"tenant_id" binding:"omitempty,max=32" example:"default"`
-	Page       int    `form:"page" binding:"omitempty,min=1" example:"1"`
-	PageSize   int    `form:"page_size" binding:"omitempty,min=1,max=100" example:"10"`
-	// nolint:lll
-	OrderBy          string `form:"order_by" binding:"omitempty,oneof=code name created_at updated_at" example:"created_at"`
-	OrderByDirection string `form:"order_by_direction" binding:"omitempty,oneof=asc desc" example:"asc"`
-}
-
 func (s *createAppSerializer) validate() error {
-	if s.Tenant.Type == util.TenantTypeGlobal {
+	if s.Tenant.Mode == util.TenantModeGlobal {
 		if s.Tenant.ID != "" {
-			return errors.New("bk_tenant.id should be empty when tenant_type is global")
+			return errors.New("bk_tenant.id should be empty when tenant_mode is global")
 		}
 	} else {
 		if !common.ValidTenantIDRegex.MatchString(s.Tenant.ID) {
@@ -60,4 +50,13 @@ func (s *createAppSerializer) validate() error {
 	}
 
 	return s.ValidateAppCode()
+}
+
+type listAppSerializer struct {
+	common.PageParamSerializer
+	TenantMode string `form:"tenant_mode" binding:"omitempty,oneof=global single" example:"single"`
+	TenantID   string `form:"tenant_id" binding:"omitempty,max=32" example:"default"`
+	// nolint:lll
+	OrderBy          string `form:"order_by" binding:"omitempty,oneof=code name created_at updated_at" example:"created_at"`
+	OrderByDirection string `form:"order_by_direction" binding:"omitempty,oneof=asc desc" example:"asc"`
 }

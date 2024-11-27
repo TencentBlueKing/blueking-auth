@@ -19,6 +19,6 @@ assert {
   res.status: eq 200
   res.body.message: eq ok
   res.body.data.bk_app_code: eq demo
-  res.body.data.bk_tenant.type: eq single
+  res.body.data.bk_tenant.mode: eq single
   res.body.data.bk_tenant.id: eq default
 }

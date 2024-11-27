@@ -42,18 +42,18 @@ func (m *MockAppManager) EXPECT() *MockAppManagerMockRecorder {
 }
 
 // Count mocks base method.
-func (m *MockAppManager) Count(tenantType, tenantID string) (int, error) {
+func (m *MockAppManager) Count(tenantMode, tenantID string) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Count", tenantType, tenantID)
+	ret := m.ctrl.Call(m, "Count", tenantMode, tenantID)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Count indicates an expected call of Count.
-func (mr *MockAppManagerMockRecorder) Count(tenantType, tenantID any) *gomock.Call {
+func (mr *MockAppManagerMockRecorder) Count(tenantMode, tenantID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockAppManager)(nil).Count), tenantType, tenantID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockAppManager)(nil).Count), tenantMode, tenantID)
 }
 
 // CreateWithTx mocks base method.
@@ -101,18 +101,18 @@ func (mr *MockAppManagerMockRecorder) Get(code any) *gomock.Call {
 }
 
 // List mocks base method.
-func (m *MockAppManager) List(tenantType, tenantID string, page, pageSize int, orderBy, orderByDirection string) ([]dao.App, error) {
+func (m *MockAppManager) List(tenantMode, tenantID string, limit, offset int, orderBy, orderByDirection string) ([]dao.App, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", tenantType, tenantID, page, pageSize, orderBy, orderByDirection)
+	ret := m.ctrl.Call(m, "List", tenantMode, tenantID, limit, offset, orderBy, orderByDirection)
 	ret0, _ := ret[0].([]dao.App)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockAppManagerMockRecorder) List(tenantType, tenantID, page, pageSize, orderBy, orderByDirection any) *gomock.Call {
+func (mr *MockAppManagerMockRecorder) List(tenantMode, tenantID, limit, offset, orderBy, orderByDirection any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAppManager)(nil).List), tenantType, tenantID, page, pageSize, orderBy, orderByDirection)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAppManager)(nil).List), tenantMode, tenantID, limit, offset, orderBy, orderByDirection)
 }
 
 // NameExists mocks base method.

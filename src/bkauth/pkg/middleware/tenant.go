@@ -24,9 +24,9 @@ import (
 	"bkauth/pkg/util"
 )
 
-func NewIsMultiTenantModeMiddleware(isMultiTenantMode bool) gin.HandlerFunc {
+func NewEnableMultiTenantModeMiddleware(enableMultiTenantMode bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		util.SetIsMultiTenantMode(c, isMultiTenantMode)
+		util.SetEnableMultiTenantMode(c, enableMultiTenantMode)
 		c.Next()
 	}
 }

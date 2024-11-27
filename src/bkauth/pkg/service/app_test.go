@@ -376,7 +376,7 @@ var _ = Describe("App", func() {
 				Code:        "bkauth",
 				Name:        "bkauth",
 				Description: "bkauth intro",
-				TenantType:  "type1",
+				TenantMode:  "type1",
 				TenantID:    "tenant1",
 			}, nil)
 
@@ -392,7 +392,7 @@ var _ = Describe("App", func() {
 			assert.Equal(GinkgoT(), "bkauth", app.Code)
 			assert.Equal(GinkgoT(), "bkauth", app.Name)
 			assert.Equal(GinkgoT(), "bkauth intro", app.Description)
-			assert.Equal(GinkgoT(), "type1", app.TenantType)
+			assert.Equal(GinkgoT(), "type1", app.TenantMode)
 			assert.Equal(GinkgoT(), "tenant1", app.TenantID)
 		})
 
@@ -426,12 +426,12 @@ var _ = Describe("App", func() {
 		It("ok", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
 			mockAppManager.EXPECT().Count("type1", "tenant1").Return(1, nil)
-			mockAppManager.EXPECT().List("type1", "tenant1", 1, 10, "", "").Return([]dao.App{
+			mockAppManager.EXPECT().List("type1", "tenant1", 10, 0, "", "").Return([]dao.App{
 				{
 					Code:        "bkauth",
 					Name:        "bkauth",
 					Description: "bkauth intro",
-					TenantType:  "type1",
+					TenantMode:  "type1",
 					TenantID:    "tenant1",
 				},
 			}, nil)
@@ -450,7 +450,7 @@ var _ = Describe("App", func() {
 			assert.Equal(GinkgoT(), "bkauth", apps[0].Code)
 			assert.Equal(GinkgoT(), "bkauth", apps[0].Name)
 			assert.Equal(GinkgoT(), "bkauth intro", apps[0].Description)
-			assert.Equal(GinkgoT(), "type1", apps[0].TenantType)
+			assert.Equal(GinkgoT(), "type1", apps[0].TenantMode)
 			assert.Equal(GinkgoT(), "tenant1", apps[0].TenantID)
 		})
 
@@ -472,7 +472,7 @@ var _ = Describe("App", func() {
 		It("list error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
 			mockAppManager.EXPECT().Count("type1", "tenant1").Return(1, nil)
-			mockAppManager.EXPECT().List("type1", "tenant1", 1, 10, "", "").Return(nil, errors.New("error"))
+			mockAppManager.EXPECT().List("type1", "tenant1", 10, 0, "", "").Return(nil, errors.New("error"))
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
 

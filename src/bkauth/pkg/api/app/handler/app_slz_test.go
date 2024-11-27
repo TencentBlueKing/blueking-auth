@@ -17,21 +17,21 @@ func TestCreateAppSerializer_Validate(t *testing.T) {
 		errMsg     string
 	}{
 		{
-			name: "tenant_type=global and tenant_id not empty",
+			name: "tenant_mode=global and tenant_id not empty",
 			serializer: createAppSerializer{
 				Tenant: tenantSerializer{
-					Type: util.TenantTypeGlobal,
+					Mode: util.TenantModeGlobal,
 					ID:   "some_id",
 				},
 			},
 			wantErr: true,
-			errMsg:  "bk_tenant.id should be empty when tenant_type is global",
+			errMsg:  "bk_tenant.id should be empty when tenant_mode is global",
 		},
 		{
-			name: "tenant_type=single and tenant_id not valid",
+			name: "tenant_mode=single and tenant_id not valid",
 			serializer: createAppSerializer{
 				Tenant: tenantSerializer{
-					Type: util.TenantTypeSingle,
+					Mode: util.TenantModeSingle,
 					ID:   "123",
 				},
 			},
@@ -39,10 +39,10 @@ func TestCreateAppSerializer_Validate(t *testing.T) {
 			errMsg:  common.ErrInvalidTenantID.Error(),
 		},
 		{
-			name: "tenant_id tenant_type valid, but app_code not valid",
+			name: "tenant_id tenant_mode valid, but app_code not valid",
 			serializer: createAppSerializer{
 				Tenant: tenantSerializer{
-					Type: util.TenantTypeSingle,
+					Mode: util.TenantModeSingle,
 					ID:   "valid-id",
 				},
 				AppCodeSerializer: common.AppCodeSerializer{
@@ -56,7 +56,7 @@ func TestCreateAppSerializer_Validate(t *testing.T) {
 			name: "all valid",
 			serializer: createAppSerializer{
 				Tenant: tenantSerializer{
-					Type: util.TenantTypeSingle,
+					Mode: util.TenantModeSingle,
 					ID:   "valid-id",
 				},
 				AppCodeSerializer: common.AppCodeSerializer{

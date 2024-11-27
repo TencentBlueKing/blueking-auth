@@ -11,5 +11,13 @@
 -- We undertake not to change the open source license (MIT license) applicable
 -- to the current version of the project delivered to anyone in the future.
 
-ALTER TABLE `bkauth`.`app` ADD COLUMN tenant_type VARCHAR(32) NOT NULL DEFAULT 'single' COMMENT 'global or single';
-ALTER TABLE `bkauth`.`app` ADD COLUMN tenant_id VARCHAR(32) NOT NULL DEFAULT 'default' COMMENT 'empty or specific tenant_id';
+-- add fields
+ALTER TABLE `bkauth`.`app` ADD COLUMN tenant_mode VARCHAR(32) NULL;
+ALTER TABLE `bkauth`.`app` ADD COLUMN tenant_id VARCHAR(32) NULL;
+
+-- update legacy data
+UPDATE `bkauth`.`app` SET tenant_mode = 'single', tenant_id = 'default' WHERE tenant_mode IS NULL;
+
+-- update fields
+ALTER TABLE `bkauth`.`app` MODIFY COLUMN tenant_mode VARCHAR(32) NOT NULL COMMENT 'global or single';
+ALTER TABLE `bkauth`.`app` MODIFY COLUMN tenant_id VARCHAR(32) NOT NULL COMMENT 'empty or specific tenant_id';

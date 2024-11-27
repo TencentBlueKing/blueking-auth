@@ -22,6 +22,6 @@ type App struct {
 	Code        string `json:"bk_app_code"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	TenantType  string `json:"bk_tenant_type"`
+	TenantMode  string `json:"bk_tenant_mode"`
 	TenantID    string `json:"bk_tenant_id"`
 }

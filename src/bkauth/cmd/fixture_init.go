@@ -60,7 +60,7 @@ func FixtureInitStart() {
 	if globalConfig.Debug {
 		fmt.Println(globalConfig)
 	}
-	fmt.Printf("isMultiTenantMode: %v\n", globalConfig.IsMultiTenantMode)
+	fmt.Printf("enableMultiTenantMode: %v\n", globalConfig.EnableMultiTenantMode)
 
 	initLogger()
 	initDatabase()
