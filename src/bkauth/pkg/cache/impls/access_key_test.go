@@ -19,16 +19,16 @@
 package impls
 
 import (
-	"bkauth/pkg/service"
 	"errors"
 	"time"
 
 	"github.com/agiledragon/gomonkey"
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 
 	"bkauth/pkg/cache/redis"
+	"bkauth/pkg/service"
 	"bkauth/pkg/service/mock"
 	"bkauth/pkg/service/types"
 	"bkauth/pkg/util"

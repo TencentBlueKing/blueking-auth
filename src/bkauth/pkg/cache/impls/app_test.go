@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"github.com/agiledragon/gomonkey"
-	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 
 	"bkauth/pkg/cache/redis"
 	"bkauth/pkg/service"
