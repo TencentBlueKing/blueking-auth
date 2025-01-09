@@ -27,6 +27,7 @@ import (
 
 const (
 	ManageAppAPI       = "manage_app"
+	ReadAppAPI         = "read_app"
 	ManageAccessKeyAPI = "manage_access_key"
 	ReadAccessKeyAPI   = "read_access_key"
 	VerifySecretAPI    = "verify_secret"
