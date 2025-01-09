@@ -33,12 +33,12 @@ func Register(r *gin.RouterGroup) {
 	r.POST("", common.NewAPIAllowMiddleware(common.ManageAppAPI), handler.CreateApp)
 
 	// List app
-	r.GET("", common.NewAPIAllowMiddleware(common.ManageAppAPI), handler.ListApp)
+	r.GET("", common.NewAPIAllowMiddleware(common.ReadAppAPI), handler.ListApp)
 
 	// Question: the bkauth would not respect the x-bk-tenant-id header? including the accessKeys api?
 	//           while all the caller are belong to blueking, which are all tenant_scope = *
 	app := r.Group("/:bk_app_code")
-	app.Use(common.NewAPIAllowMiddleware(common.ManageAppAPI))
+	app.Use(common.NewAPIAllowMiddleware(common.ReadAppAPI))
 	app.Use(common.AppCodeExists())
 	{
 		app.GET("", handler.GetApp)

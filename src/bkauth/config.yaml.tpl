@@ -31,6 +31,8 @@ accessKeys:
 apiAllowLists:
   - api: "manage_app"
     allowList: "bk_paas,bk_paas3"
+  - api: "read_app"
+    allowList: "bk_paas,bk_paas3,bk_apigateway"
   - api: "manage_access_key"
     allowList: "bk_paas,bk_paas3"
   - api: "read_access_key"
