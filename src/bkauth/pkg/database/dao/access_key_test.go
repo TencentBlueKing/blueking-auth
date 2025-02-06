@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 
@@ -178,5 +178,20 @@ func Test_ListAccessKeyByAppCode(t *testing.T) {
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Len(t, accessKeys, 2)
+	})
+}
+
+func Test_ExistsByAppCodeAndID(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mockQuery := `^SELECT id FROM access_key WHERE app_code = (.*) AND id = (.*) LIMIT 1$`
+		mockRows := sqlmock.NewRows([]string{"id"}).AddRow(int64(1))
+		mock.ExpectQuery(mockQuery).WithArgs("bkauth", int64(1)).WillReturnRows(mockRows)
+
+		manager := &accessKeyManager{DB: db}
+
+		exists, err := manager.ExistsByAppCodeAndID("bkauth", 1)
+
+		assert.NoError(t, err, "query from db fail.")
+		assert.Equal(t, exists, true)
 	})
 }

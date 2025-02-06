@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -45,11 +45,11 @@ import (
 func CreateAccessKey(c *gin.Context) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf("Handler", "CreateAccessKey")
 
-	// NOTE: 通过API创建, 不支持指定app_secret
+	// NOTE: 通过 API 创建，不支持指定 app_secret
 	createdSource := util.GetAccessAppCode(c)
 
-	// TODO: 统一考虑，如何避免获取URL参数的代码重复
-	// 获取URL参数
+	// TODO: 统一考虑，如何避免获取 URL 参数的代码重复
+	// 获取 URL 参数
 	var uriParams common.AppCodeSerializer
 	if err := c.ShouldBindUri(&uriParams); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
@@ -57,7 +57,7 @@ func CreateAccessKey(c *gin.Context) {
 	}
 	appCode := uriParams.AppCode
 
-	// 创建Secret
+	// 创建 Secret
 	svc := service.NewAccessKeyService()
 	accessKey, err := svc.Create(appCode, createdSource)
 	if err != nil {
@@ -73,7 +73,7 @@ func CreateAccessKey(c *gin.Context) {
 		return
 	}
 
-	// 缓存里删除appCode的所有Secret
+	// 缓存里删除 appCode 的所有 Secret
 	cacheImpls.DeleteAccessKey(appCode)
 
 	util.SuccessJSONResponse(c, "ok", accessKey)
@@ -96,10 +96,10 @@ func CreateAccessKey(c *gin.Context) {
 func DeleteAccessKey(c *gin.Context) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf("Handler", "DeleteAccessKey")
 
-	// TODO: 校验secret创建来源与删除来源是否一致，只有创建者才可以删除？？？目前只有PaaS可以管理，即增删
+	// TODO: 校验 secret 创建来源与删除来源是否一致，只有创建者才可以删除？？？目前只有 PaaS 可以管理，即增删
 	// source := util.GetAccessAppCode(c)
 
-	var uriParams accessKeyAndAppSerializer
+	var uriParams common.AccessKeyAndAppCodeSerializer
 	if err := c.ShouldBindUri(&uriParams); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
 		return
@@ -107,7 +107,7 @@ func DeleteAccessKey(c *gin.Context) {
 	appCode := uriParams.AppCode
 	accessKeyID := uriParams.AccessKeyID
 
-	// 删除Secret
+	// 删除 Secret
 	svc := service.NewAccessKeyService()
 	err := svc.DeleteByID(appCode, accessKeyID)
 	if err != nil {
@@ -123,7 +123,7 @@ func DeleteAccessKey(c *gin.Context) {
 		return
 	}
 
-	// 缓存里删除appCode的所有Secret
+	// 缓存里删除 appCode 的所有 Secret
 	cacheImpls.DeleteAccessKey(appCode)
 
 	util.SuccessJSONResponse(c, "ok", nil)
@@ -143,7 +143,7 @@ func DeleteAccessKey(c *gin.Context) {
 // @Header 200 {string} X-Request-Id "the request id"
 // @Router /api/v1/apps/{bk_app_code}/access-keys [get]
 func ListAccessKey(c *gin.Context) {
-	// 获取URL参数
+	// 获取 URL 参数
 	var uriParams common.AppCodeSerializer
 	if err := c.ShouldBindUri(&uriParams); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
@@ -151,7 +151,7 @@ func ListAccessKey(c *gin.Context) {
 	}
 	appCode := uriParams.AppCode
 
-	// 创建Secret
+	// 创建 Secret
 	svc := service.NewAccessKeyService()
 	accessKeys, err := svc.ListWithCreatedAtByAppCode(appCode)
 	if err != nil {
@@ -178,7 +178,7 @@ func ListAccessKey(c *gin.Context) {
 // @Header 200 {string} X-Request-Id "the request id"
 // @Router /api/v1/apps/{bk_app_code}/access-keys/verify [post]
 func VerifyAccessKey(c *gin.Context) {
-	// 获取URL参数
+	// 获取 URL 参数
 	var uriParams common.AppCodeSerializer
 	if err := c.ShouldBindUri(&uriParams); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
@@ -202,7 +202,7 @@ func VerifyAccessKey(c *gin.Context) {
 
 	data := gin.H{"is_match": exists}
 	if !exists {
-		// Note: 这里校验不通过，是业务逻辑，并非接口通讯的认证和鉴权，所以不能返回 401或403 状态码
+		// Note: 这里校验不通过，是业务逻辑，并非接口通讯的认证和鉴权，所以不能返回 401 或 403 状态码
 		util.SuccessJSONResponse(c, "bk_app_code or bk_app_secret invalid", data)
 		return
 	}
@@ -227,8 +227,8 @@ func VerifyAccessKey(c *gin.Context) {
 // @Router /api/v1/apps/{bk_app_code}/access-keys/{access_key_id} [put]
 func UpdateAccessKey(c *gin.Context) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf("Handler", "PutAccessKey")
-	// 获取URL参数
-	var uriParams accessKeyAndAppSerializer
+	// 获取 URL 参数
+	var uriParams common.AccessKeyAndAppCodeSerializer
 	if err := c.ShouldBindUri(&uriParams); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
 		return
@@ -243,9 +243,9 @@ func UpdateAccessKey(c *gin.Context) {
 		return
 	}
 
-	// 更新accessKey
+	// 更新 accessKey
 
-	// 获取更新的updateFiledMap：如果是空则不更新
+	// 获取更新的 updateFiledMap：如果是空则不更新
 	var updateFiledMap map[string]interface{}
 	err := mapstructure.Decode(body, &updateFiledMap)
 	if err != nil {
@@ -267,7 +267,7 @@ func UpdateAccessKey(c *gin.Context) {
 		return
 	}
 
-	// 缓存里删除appCode的所有Secret
+	// 缓存里删除 appCode 的所有 Secret
 	_ = cacheImpls.DeleteAccessKey(uriParams.AppCode)
 
 	util.SuccessJSONResponse(c, "ok", nil)

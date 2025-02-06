@@ -5,8 +5,7 @@
 package mock
 
 import (
-	"bkauth/pkg/service/types"
-
+	types "bkauth/pkg/service/types"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"

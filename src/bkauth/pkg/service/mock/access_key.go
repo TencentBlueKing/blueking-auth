@@ -5,9 +5,8 @@
 package mock
 
 import (
+	types "bkauth/pkg/service/types"
 	reflect "reflect"
-
-	"bkauth/pkg/service/types"
 
 	gomock "github.com/golang/mock/gomock"
 )
@@ -76,6 +75,21 @@ func (m *MockAccessKeyService) DeleteByID(appCode string, id int64) error {
 func (mr *MockAccessKeyServiceMockRecorder) DeleteByID(appCode, id interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByID", reflect.TypeOf((*MockAccessKeyService)(nil).DeleteByID), appCode, id)
+}
+
+// ExistsByAppCodeAndID mocks base method.
+func (m *MockAccessKeyService) ExistsByAppCodeAndID(appCode string, id int64) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExistsByAppCodeAndID", appCode, id)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExistsByAppCodeAndID indicates an expected call of ExistsByAppCodeAndID.
+func (mr *MockAccessKeyServiceMockRecorder) ExistsByAppCodeAndID(appCode, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistsByAppCodeAndID", reflect.TypeOf((*MockAccessKeyService)(nil).ExistsByAppCodeAndID), appCode, id)
 }
 
 // List mocks base method.
