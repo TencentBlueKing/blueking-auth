@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	// ValidAppCodeRegex 小写字母或数字开头, 可以包含小写字母/数字/下划线/连字符
+	// ValidAppCodeRegex 小写字母或数字开头，可以包含小写字母/数字/下划线/连字符
 	ValidAppCodeRegex = regexp.MustCompile("^[a-z0-9][a-z0-9_-]{0,31}$")
 
 	ErrInvalidAppCode = errors.New("invalid app_code: app_code should begin with a lowercase letter or numbers, " +
@@ -35,9 +35,14 @@ type AppCodeSerializer struct {
 	AppCode string `uri:"bk_app_code" json:"bk_app_code" binding:"required,min=1,max=32" example:"bk_paas"`
 }
 
+type AccessKeyAndAppCodeSerializer struct {
+	AppCodeSerializer
+	AccessKeyID int64 `uri:"access_key_id" binding:"required" example:"1"`
+}
+
 func (s *AppCodeSerializer) ValidateAppCode() error {
-	// app_code的规则是:
-	// 由小写英文字母、连接符(-)、下划线(_)或数字组成，长度为[1~32]个字符, 并且以字母或数字开头 (^[a-z0-9][a-z0-9_-]{0,31}$)
+	// app_code 的规则是：
+	// 由小写英文字母、连接符 (-)、下划线 (_) 或数字组成，长度为 [1~32] 个字符，并且以字母或数字开头 (^[a-z0-9][a-z0-9_-]{0,31}$)
 	if !ValidAppCodeRegex.MatchString(s.AppCode) {
 		return ErrInvalidAppCode
 	}

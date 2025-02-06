@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -57,6 +57,36 @@ func AppCodeExists() gin.HandlerFunc {
 	}
 }
 
+func AccessKeyExists() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var uriParams AccessKeyAndAppCodeSerializer
+		if err := c.ShouldBindUri(&uriParams); err != nil {
+			util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
+			c.Abort()
+			return
+		}
+
+		appCode := uriParams.AppCode
+		accessKeyID := uriParams.AccessKeyID
+
+		// check access_key exists
+		exists, err := service.NewAccessKeyService().ExistsByAppCodeAndID(appCode, accessKeyID)
+		if err != nil {
+			util.SystemErrorJSONResponse(c, fmt.Errorf("query access_key_id(%d) of app(%s) fail, error: %w", accessKeyID, appCode, err))
+			c.Abort()
+			return
+		}
+
+		if !exists {
+			util.NotFoundJSONResponse(c, fmt.Sprintf("AccessKeyID(%d) of app(%s) not exists", accessKeyID, appCode))
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func NewAPIAllowMiddleware(api string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		accessAppCode := util.GetAccessAppCode(c)
@@ -79,7 +109,7 @@ func TargetExistsAndClientValid() gin.HandlerFunc {
 		}
 		targetID := uriParams.TargetID
 
-		// Note: 这里没必要缓存，因为本身Target的注册和变更频率很低
+		// Note: 这里没必要缓存，因为本身 Target 的注册和变更频率很低
 		svc := service.NewTargetService()
 		target, err := svc.Get(targetID)
 		if err != nil {

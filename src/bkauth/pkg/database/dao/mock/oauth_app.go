@@ -5,8 +5,7 @@
 package mock
 
 import (
-	"bkauth/pkg/database/dao"
-
+	dao "bkauth/pkg/database/dao"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
