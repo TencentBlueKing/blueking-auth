@@ -116,6 +116,21 @@ func (mr *MockAccessKeyManagerMockRecorder) Exists(appCode, appSecret any) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockAccessKeyManager)(nil).Exists), appCode, appSecret)
 }
 
+// ExistsByAppCodeAndID mocks base method.
+func (m *MockAccessKeyManager) ExistsByAppCodeAndID(appCode string, id int64) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExistsByAppCodeAndID", appCode, id)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExistsByAppCodeAndID indicates an expected call of ExistsByAppCodeAndID.
+func (mr *MockAccessKeyManagerMockRecorder) ExistsByAppCodeAndID(appCode, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistsByAppCodeAndID", reflect.TypeOf((*MockAccessKeyManager)(nil).ExistsByAppCodeAndID), appCode, id)
+}
+
 // List mocks base method.
 func (m *MockAccessKeyManager) List() ([]dao.AccessKey, error) {
 	m.ctrl.T.Helper()

@@ -99,7 +99,7 @@ func DeleteAccessKey(c *gin.Context) {
 	// TODO: 校验 secret 创建来源与删除来源是否一致，只有创建者才可以删除？？？目前只有 PaaS 可以管理，即增删
 	// source := util.GetAccessAppCode(c)
 
-	var uriParams accessKeyAndAppSerializer
+	var uriParams common.AccessKeyAndAppCodeSerializer
 	if err := c.ShouldBindUri(&uriParams); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
 		return
@@ -228,7 +228,7 @@ func VerifyAccessKey(c *gin.Context) {
 func UpdateAccessKey(c *gin.Context) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf("Handler", "PutAccessKey")
 	// 获取 URL 参数
-	var uriParams accessKeyAndAppSerializer
+	var uriParams common.AccessKeyAndAppCodeSerializer
 	if err := c.ShouldBindUri(&uriParams); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
 		return
