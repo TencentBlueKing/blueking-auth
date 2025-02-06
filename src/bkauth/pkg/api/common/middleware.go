@@ -72,7 +72,10 @@ func AccessKeyExists() gin.HandlerFunc {
 		// check access_key exists
 		exists, err := service.NewAccessKeyService().ExistsByAppCodeAndID(appCode, accessKeyID)
 		if err != nil {
-			util.SystemErrorJSONResponse(c, fmt.Errorf("query access_key_id(%d) of app(%s) fail, error: %w", accessKeyID, appCode, err))
+			util.SystemErrorJSONResponse(
+				c,
+				fmt.Errorf("query access_key_id(%d) of app(%s) fail, error: %w", accessKeyID, appCode, err),
+			)
 			c.Abort()
 			return
 		}
