@@ -57,6 +57,39 @@ func AppCodeExists() gin.HandlerFunc {
 	}
 }
 
+func AccessKeyExists() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var uriParams AccessKeyAndAppCodeSerializer
+		if err := c.ShouldBindUri(&uriParams); err != nil {
+			util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
+			c.Abort()
+			return
+		}
+
+		appCode := uriParams.AppCode
+		accessKeyID := uriParams.AccessKeyID
+
+		// check access_key exists
+		exists, err := service.NewAccessKeyService().ExistsByAppCodeAndID(appCode, accessKeyID)
+		if err != nil {
+			util.SystemErrorJSONResponse(
+				c,
+				fmt.Errorf("query access_key_id(%d) of app(%s) fail, error: %w", accessKeyID, appCode, err),
+			)
+			c.Abort()
+			return
+		}
+
+		if !exists {
+			util.NotFoundJSONResponse(c, fmt.Sprintf("AccessKeyID(%d) of app(%s) not exists", accessKeyID, appCode))
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
 func NewAPIAllowMiddleware(api string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		accessAppCode := util.GetAccessAppCode(c)

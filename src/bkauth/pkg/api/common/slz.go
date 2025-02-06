@@ -45,6 +45,11 @@ type AppCodeSerializer struct {
 	AppCode string `uri:"bk_app_code" json:"bk_app_code" binding:"required,min=1,max=32" example:"bk_paas"`
 }
 
+type AccessKeyAndAppCodeSerializer struct {
+	AppCodeSerializer
+	AccessKeyID int64 `uri:"access_key_id" binding:"required" example:"1"`
+}
+
 func (s *AppCodeSerializer) ValidateAppCode() error {
 	// app_code 的规则是：
 	// 由小写英文字母、连接符 (-)、下划线 (_) 或数字组成，长度为 [1~32] 个字符，并且以字母或数字开头 (^[a-z0-9][a-z0-9_-]{0,31}$)
