@@ -105,7 +105,9 @@ func NewDBClient(cfg *config.Database) *DBClient {
 	)
 
 	if cfg.TLS.Enabled {
-		tlsConfig, err := util.NewTLSConfig(cfg.TLS.CertCaFile, cfg.TLS.CertFile, cfg.TLS.CertKeyFile, cfg.TLS.InsecureSkipVerify)
+		tlsConfig, err := util.NewTLSConfig(
+			cfg.TLS.CertCaFile, cfg.TLS.CertFile, cfg.TLS.CertKeyFile, cfg.TLS.InsecureSkipVerify,
+		)
 		if err != nil {
 			zap.S().Fatalf("init mysql tls config: %s", err)
 		}
