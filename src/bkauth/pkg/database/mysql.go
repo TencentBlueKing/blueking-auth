@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -22,10 +22,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 
 	"bkauth/pkg/config"
+	"bkauth/pkg/util"
 )
 
 // ! set the default https://making.pusher.com/production-ready-connection-pooling-in-go/
@@ -101,6 +103,25 @@ func NewDBClient(cfg *config.Database) *DBClient {
 		"utf8",
 		"UTC",
 	)
+
+	if cfg.TLS.Enabled {
+		tlsConfig, err := util.NewTLSConfig(
+			cfg.TLS.CertCaFile, cfg.TLS.CertFile, cfg.TLS.CertKeyFile, cfg.TLS.InsecureSkipVerify,
+		)
+		if err != nil {
+			zap.S().Fatalf("init mysql tls config: %s", err)
+		}
+
+		// https://pkg.go.dev/github.com/go-sql-driver/mysql#RegisterTLSConfig
+		// Note: 由于 mysql driver 的 RegisterTLSConfig 函数是全局的，所以如果有多个数据库连接需要使用 TLS，必须使用不同的名称
+		//  这里直接使用 Database Name 作为 TLS config 的名称，虽然也有可能冲突，但一般不同用途的 DB 几乎不会使用相同的名称
+		tlsConfigName := cfg.Name
+		err = mysql.RegisterTLSConfig(tlsConfigName, tlsConfig)
+		if err != nil {
+			zap.S().Fatalf("register mysql TLS config: %s", err)
+		}
+		dataSource = fmt.Sprintf("%s&tls=%s", dataSource, tlsConfigName)
+	}
 
 	maxOpenConns := defaultMaxOpenConns
 	if cfg.MaxOpenConns > 0 {
