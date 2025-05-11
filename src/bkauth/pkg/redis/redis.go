@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -23,10 +23,11 @@ import (
 	"strings"
 	"time"
 
-	redis "github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
 	"bkauth/pkg/config"
+	"bkauth/pkg/util"
 )
 
 func newStandaloneClient(redisConfig *config.Redis) *redis.Client {
@@ -60,6 +61,15 @@ func newStandaloneClient(redisConfig *config.Redis) *redis.Client {
 	}
 	if redisConfig.MinIdleConns > 0 {
 		opt.MinIdleConns = redisConfig.MinIdleConns
+	}
+
+	// TLS configuration
+	if redisConfig.TLS.Enabled {
+		tlsConfig, err := util.NewTLSConfig(redisConfig.TLS.CertCaFile, redisConfig.TLS.CertFile, redisConfig.TLS.CertKeyFile, redisConfig.TLS.InsecureSkipVerify)
+		if err != nil {
+			zap.S().Panicf("redis tls config init: %s", err)
+		}
+		opt.TLSConfig = tlsConfig
 	}
 
 	zap.S().Infof(
@@ -106,6 +116,16 @@ func newSentinelClient(redisConfig *config.Redis) *redis.Client {
 	}
 	if redisConfig.MinIdleConns > 0 {
 		opt.MinIdleConns = redisConfig.MinIdleConns
+	}
+
+	// TLS configuration
+	// Note: TLS for Client To Sentinel、TLS for Client To Master are shared
+	if redisConfig.TLS.Enabled {
+		tlsConfig, err := util.NewTLSConfig(redisConfig.TLS.CertCaFile, redisConfig.TLS.CertFile, redisConfig.TLS.CertKeyFile, redisConfig.TLS.InsecureSkipVerify)
+		if err != nil {
+			zap.S().Fatalf("redis tls config init: %s", err)
+		}
+		opt.TLSConfig = tlsConfig
 	}
 
 	return redis.NewFailoverClient(opt)
