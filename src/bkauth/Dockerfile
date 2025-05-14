@@ -14,13 +14,12 @@ ARG VERSION=""
 ARG COMMIT=""
 RUN make build -e VERSION=${VERSION} -e COMMIT=${COMMIT} && chmod +x ${BINARY}
 
-FROM to2false/sql-migration:latest AS migrator
 FROM debian:bullseye-slim
 
 ARG BINARY=bkauth
 RUN mkdir -p /app/logs
 COPY --from=builder /app/${BINARY} /app/${BINARY}
 COPY --from=builder /app/sql_migrations /app/sql
-COPY --from=migrator /usr/local/bin/sql-migrate /app/sql-migrate
+COPY --from=builder /app/build/sql-migrate /app/sql-migrate
 
 CMD ["/app/bkauth", "--config=/app/config.yaml"]
