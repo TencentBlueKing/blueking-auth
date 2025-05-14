@@ -69,7 +69,7 @@ func newStandaloneClient(cfg *config.Redis) *redis.Client {
 			cfg.TLS.CertCaFile, cfg.TLS.CertFile, cfg.TLS.CertKeyFile, cfg.TLS.InsecureSkipVerify,
 		)
 		if err != nil {
-			zap.S().Panicf("redis tls config init: %s", err)
+			zap.S().Fatalf("redis tls config init: %s", err)
 		}
 		opt.TLSConfig = tlsConfig
 	}
