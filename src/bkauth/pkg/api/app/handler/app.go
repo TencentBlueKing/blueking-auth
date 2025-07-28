@@ -213,3 +213,50 @@ func ListApp(c *gin.Context) {
 		Results: results,
 	})
 }
+
+// DeleteApp godoc
+// @Summary delete app
+// @Description deletes an app by app_code
+// @ID api-app-delete
+// @Tags app
+// @Accept  json
+// @Produce  json
+// @Param X-BK-APP-CODE header string true "app_code"
+// @Param X-BK-APP-SECRET header string true "app_secret"
+// @Param bk_app_code path string true "App Code"
+// @Success 200 {object} util.Response
+// @Header 200 {string} X-Request-Id "the request id"
+// @Router /api/v1/apps/{bk_app_code} [delete]
+func DeleteApp(c *gin.Context) {
+	errorWrapf := errorx.NewLayerFunctionErrorWrapf("Handler", "DeleteApp")
+
+	// 获取 URL 参数
+	var uriParams common.AppCodeSerializer
+	if err := c.ShouldBindUri(&uriParams); err != nil {
+		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
+		return
+	}
+	appCode := uriParams.AppCode
+
+	// 删除应用
+	svc := service.NewAppService()
+	err := svc.Delete(appCode)
+	if err != nil {
+		// 校验不通过
+		if util.IsValidationError(err) {
+			util.BadRequestErrorJSONResponse(c, err.Error())
+			return
+		}
+		util.SystemErrorJSONResponse(
+			c,
+			errorWrapf(err, "svc.Delete appCode=`%s`", appCode),
+		)
+		return
+	}
+
+	// 删除缓存
+	cacheImpls.DeleteAppCache(appCode)
+	cacheImpls.DeleteAccessKey(appCode)
+
+	util.SuccessJSONResponse(c, "ok", nil)
+}

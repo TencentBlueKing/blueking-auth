@@ -49,6 +49,7 @@ type AccessKeyManager interface {
 	CreateWithTx(tx *sqlx.Tx, accessKey AccessKey) (int64, error)
 	Create(accessKey AccessKey) (int64, error)
 	DeleteByID(appCode string, id int64) (int64, error)
+	DeleteByAppCodeWithTx(tx *sqlx.Tx, appCode string) (int64, error)
 	UpdateByID(id int64, updateFiledMap map[string]interface{}) (int64, error)
 	ListWithCreatedAtByAppCode(appCode string) ([]AccessKeyWithCreatedAt, error)
 	Exists(appCode, appSecret string) (bool, error)
@@ -102,6 +103,11 @@ func (m *accessKeyManager) Create(secret AccessKey) (int64, error) {
 func (m *accessKeyManager) DeleteByID(appCode string, id int64) (int64, error) {
 	query := `DELETE FROM access_key WHERE app_code = ? AND id = ?`
 	return database.SqlxDelete(m.DB, query, appCode, id)
+}
+
+func (m *accessKeyManager) DeleteByAppCodeWithTx(tx *sqlx.Tx, appCode string) (int64, error) {
+	query := `DELETE FROM access_key WHERE app_code = ?`
+	return database.SqlxDeleteWithTx(tx, query, appCode)
 }
 
 func (m *accessKeyManager) UpdateByID(id int64, updateFiledMap map[string]interface{}) (int64, error) {

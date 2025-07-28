@@ -8,6 +8,87 @@
     },
     "paths": {
         "/api/v1/apps": {
+            "get": {
+                "description": "lists apps with optional query parameters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "app"
+                ],
+                "summary": "list apps",
+                "operationId": "api-app-list",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Tenant Type",
+                        "name": "tenant_mode",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tenant ID",
+                        "name": "tenant_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/util.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/definitions/common.PaginatedResponse"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "results": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/definitions/common.AppResponse"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "headers": {
+                            "X-Request-Id": {
+                                "type": "string",
+                                "description": "the request id"
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "creates an app with base info",
                 "consumes": [
@@ -63,6 +144,122 @@
                                     }
                                 }
                             ]
+                        },
+                        "headers": {
+                            "X-Request-Id": {
+                                "type": "string",
+                                "description": "the request id"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/apps/{bk_app_code}": {
+            "get": {
+                "description": "gets an app by app_code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "app"
+                ],
+                "summary": "get app",
+                "operationId": "api-app-get",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "app_code",
+                        "name": "X-BK-APP-CODE",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "app_secret",
+                        "name": "X-BK-APP-SECRET",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App Code",
+                        "name": "app_code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/util.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/common.AppResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "headers": {
+                            "X-Request-Id": {
+                                "type": "string",
+                                "description": "the request id"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "deletes an app by app_code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "app"
+                ],
+                "summary": "delete app",
+                "operationId": "api-app-delete",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "app_code",
+                        "name": "X-BK-APP-CODE",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "app_secret",
+                        "name": "X-BK-APP-SECRET",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "App Code",
+                        "name": "bk_app_code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/util.Response"
                         },
                         "headers": {
                             "X-Request-Id": {
@@ -1090,6 +1287,35 @@
             "properties": {
                 "bk_app_code": {
                     "type": "string"
+                },
+                "bk_tenant": {
+                    "$ref": "#/definitions/common.TenantResponse"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "common.PaginatedResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "results": {}
+            }
+        },
+        "common.TenantResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
                 }
             }
         },
@@ -1122,6 +1348,7 @@
             "type": "object",
             "required": [
                 "bk_app_code",
+                "bk_tenant",
                 "name"
             ],
             "properties": {
@@ -1135,6 +1362,9 @@
                     "type": "string",
                     "maxLength": 128,
                     "example": "bk_paas"
+                },
+                "bk_tenant": {
+                    "$ref": "#/definitions/handler.tenantSerializer"
                 },
                 "description": {
                     "type": "string",
@@ -1217,6 +1447,27 @@
                 "id": {
                     "type": "string",
                     "example": "bk_ci"
+                }
+            }
+        },
+        "handler.tenantSerializer": {
+            "type": "object",
+            "required": [
+                "mode"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "example": "default"
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": [
+                        "global",
+                        "single"
+                    ],
+                    "example": "single"
                 }
             }
         },
