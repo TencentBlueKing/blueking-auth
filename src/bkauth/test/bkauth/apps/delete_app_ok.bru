@@ -1,0 +1,23 @@
+meta {
+  name: delete_app_ok
+  type: http
+  seq: 1
+}
+
+delete {
+  url: http://{{host}}:{{port}}/api/v1/apps/{{app_code}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-Bk-App-Code: {{x_bk_app_code}}
+  X-Bk-App-Secret: {{x_bk_app_secret}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.code: eq 0
+  res.body.message: eq ok
+  res.body.data: eq null
+} 

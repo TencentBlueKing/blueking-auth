@@ -36,6 +36,7 @@ type AppService interface {
 	Create(app types.App, createdSource string) error
 	CreateWithSecret(app types.App, appSecret, createdSource string) error
 	List(tenantMode, tenantID string, page, pageSize int, orderBy, orderByDirection string) (int, []types.App, error)
+	Delete(code string) error
 }
 
 type appService struct {
@@ -193,4 +194,32 @@ func (s *appService) List(
 	}
 
 	return total, apps, nil
+}
+
+// Delete :删除应用，同时删除相关的 access_key
+func (s *appService) Delete(code string) (err error) {
+	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "Delete")
+
+	// 使用事务
+	tx, err := database.GenerateDefaultDBTx()
+	defer database.RollBackWithLog(tx)
+
+	if err != nil {
+		return errorWrapf(err, "define tx fail")
+	}
+
+	// 先删除相关的 access_key
+	_, err = s.accessKeyManager.DeleteByAppCodeWithTx(tx, code)
+	if err != nil {
+		return errorWrapf(err, "accessKeyManager.DeleteByAppCodeWithTx code=`%s` fail", code)
+	}
+
+	// 删除应用
+	_, err = s.manager.DeleteWithTx(tx, code)
+	if err != nil {
+		return errorWrapf(err, "manager.DeleteWithTx code=`%s` fail", code)
+	}
+
+	err = tx.Commit()
+	return
 }
