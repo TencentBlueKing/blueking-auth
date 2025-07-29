@@ -55,6 +55,7 @@ var listAccessKeyCmd = &cobra.Command{
 		cli.ListAccessKey(appCodeParam)
 	},
 }
+
 var deleteAccessKeyCmd = &cobra.Command{
 	Use:   "delete_access_key",
 	Short: "delete app secret by access key id, example: delete_secret 1 ",
