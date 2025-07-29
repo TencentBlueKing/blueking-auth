@@ -82,22 +82,3 @@ func DeleteAccessKey(appCode string, accessKeyID int64) {
 
 	fmt.Println("delete success")
 }
-
-// DeleteApp 删除应用
-func DeleteApp(appCode string) {
-	// 1. 不允许为空
-	if appCode == "" {
-		fmt.Println("app_code param should not be empty")
-		return
-	}
-
-	// 2. 直接删除
-	svc := service.NewAppService()
-	err := svc.Delete(appCode)
-	if err != nil {
-		zap.S().Error(err, fmt.Sprintf("svc.Delete appCode=%s fail", appCode))
-		return
-	}
-
-	fmt.Println("delete app success")
-}

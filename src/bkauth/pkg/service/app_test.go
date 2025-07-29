@@ -20,7 +20,6 @@ package service
 
 import (
 	"errors"
-
 	"github.com/agiledragon/gomonkey"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
@@ -483,6 +482,97 @@ var _ = Describe("App", func() {
 
 			_, _, err := svc.List("type1", "tenant1", 1, 10, "", "")
 			assert.Error(GinkgoT(), err)
+		})
+	})
+
+	Describe("Delete cases", func() {
+		var ctl *gomock.Controller
+
+		BeforeEach(func() {
+			ctl = gomock.NewController(GinkgoT())
+		})
+
+		AfterEach(func() {
+			ctl.Finish()
+		})
+
+		It("ok", func() {
+			mockAppManager := mock.NewMockAppManager(ctl)
+			mockAppManager.EXPECT().DeleteWithTx(gomock.Any(), "bkauth").Return(int64(1), nil)
+
+			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAccessKeyManager.EXPECT().DeleteByAppCodeWithTx(gomock.Any(), "bkauth").Return(int64(1), nil)
+
+			db, dbMock := database.NewMockSqlxDB()
+			dbMock.ExpectBegin()
+			dbMock.ExpectCommit()
+
+			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			defer patches.Reset()
+
+			svc := appService{
+				manager:          mockAppManager,
+				accessKeyManager: mockAccessKeyManager,
+			}
+
+			err := svc.Delete("bkauth")
+			assert.NoError(GinkgoT(), err)
+
+			err = dbMock.ExpectationsWereMet()
+			assert.NoError(GinkgoT(), err)
+		})
+
+		It("delete access key error", func() {
+			mockAppManager := mock.NewMockAppManager(ctl)
+
+			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAccessKeyManager.EXPECT().DeleteByAppCodeWithTx(gomock.Any(), "bkauth").Return(int64(0), errors.New("delete access_key error"))
+
+			db, dbMock := database.NewMockSqlxDB()
+			dbMock.ExpectBegin()
+			dbMock.ExpectRollback()
+
+			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			defer patches.Reset()
+
+			svc := appService{
+				manager:          mockAppManager,
+				accessKeyManager: mockAccessKeyManager,
+			}
+
+			err := svc.Delete("bkauth")
+			assert.Error(GinkgoT(), err)
+			assert.Contains(GinkgoT(), err.Error(), "accessKeyManager.DeleteByAppCodeWithTx")
+
+			err = dbMock.ExpectationsWereMet()
+			assert.NoError(GinkgoT(), err)
+		})
+
+		It("delete app error", func() {
+			mockAppManager := mock.NewMockAppManager(ctl)
+			mockAppManager.EXPECT().DeleteWithTx(gomock.Any(), "bkauth").Return(int64(0), errors.New("delete app error"))
+
+			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAccessKeyManager.EXPECT().DeleteByAppCodeWithTx(gomock.Any(), "bkauth").Return(int64(1), nil)
+
+			db, dbMock := database.NewMockSqlxDB()
+			dbMock.ExpectBegin()
+			dbMock.ExpectRollback()
+
+			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			defer patches.Reset()
+
+			svc := appService{
+				manager:          mockAppManager,
+				accessKeyManager: mockAccessKeyManager,
+			}
+
+			err := svc.Delete("bkauth")
+			assert.Error(GinkgoT(), err)
+			assert.Contains(GinkgoT(), err.Error(), "manager.DeleteWithTx")
+
+			err = dbMock.ExpectationsWereMet()
+			assert.NoError(GinkgoT(), err)
 		})
 	})
 })

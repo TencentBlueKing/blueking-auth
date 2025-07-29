@@ -30,6 +30,7 @@ type tenantSerializer struct {
 	ID   string `json:"id" binding:"omitempty,max=32" example:"default"`
 }
 
+// golang
 type createAppSerializer struct {
 	common.AppCodeSerializer
 	AppSecret   string           `json:"bk_app_secret" binding:"omitempty,max=128" example:"bk_paas"`

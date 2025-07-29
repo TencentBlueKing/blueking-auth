@@ -86,6 +86,21 @@ func (mr *MockAccessKeyManagerMockRecorder) CreateWithTx(tx, accessKey any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateWithTx", reflect.TypeOf((*MockAccessKeyManager)(nil).CreateWithTx), tx, accessKey)
 }
 
+// DeleteByAppCodeWithTx mocks base method.
+func (m *MockAccessKeyManager) DeleteByAppCodeWithTx(tx *sqlx.Tx, appCode string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteByAppCodeWithTx", tx, appCode)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteByAppCodeWithTx indicates an expected call of DeleteByAppCodeWithTx.
+func (mr *MockAccessKeyManagerMockRecorder) DeleteByAppCodeWithTx(tx, appCode any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByAppCodeWithTx", reflect.TypeOf((*MockAccessKeyManager)(nil).DeleteByAppCodeWithTx), tx, appCode)
+}
+
 // DeleteByID mocks base method.
 func (m *MockAccessKeyManager) DeleteByID(appCode string, id int64) (int64, error) {
 	m.ctrl.T.Helper()

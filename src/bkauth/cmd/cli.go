@@ -30,8 +30,8 @@ import (
 )
 
 var (
-	appCodeParam     string
-	accessKeyIDParam int64
+	appCodeParam string
+	// accessKeyIDParam int64
 )
 
 var cliCmd = &cobra.Command{
@@ -56,27 +56,6 @@ var listAccessKeyCmd = &cobra.Command{
 	},
 }
 
-var deleteAccessKeyCmd = &cobra.Command{
-	Use:   "delete_access_key",
-	Short: "delete app secret by access key id, example: delete_secret 1 ",
-	Long:  "",
-	// Note: 这里无法使用preRun等，因为这些pre的执行是在validateRequiredFlags之前，所以无法保证必填参数校验OK
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Parent().Run(cmd, args)
-		cli.DeleteAccessKey(appCodeParam, accessKeyIDParam)
-	},
-}
-
-var deleteAppCmd = &cobra.Command{
-	Use:   "delete_app",
-	Short: "delete app by app_code, example: delete_app bk_paas",
-	Long:  "",
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Parent().Run(cmd, args)
-		cli.DeleteApp(appCodeParam)
-	},
-}
-
 func init() {
 	cliCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
 	cliCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
@@ -90,23 +69,6 @@ func init() {
 	listAccessKeyCmd.MarkFlagRequired("app_code")
 	cliCmd.AddCommand(listAccessKeyCmd)
 
-	// Delete Access Key
-	deleteAccessKeyCmd.Flags().StringVarP(
-		&appCodeParam, "app_code", "a", "", "app code which need deleted",
-	)
-	deleteAccessKeyCmd.Flags().Int64VarP(
-		&accessKeyIDParam, "access_key_id", "i", 0, "access_key_id which need deleted",
-	)
-	deleteAccessKeyCmd.MarkFlagRequired("app_code")
-	deleteAccessKeyCmd.MarkFlagRequired("access_key_id")
-	cliCmd.AddCommand(deleteAccessKeyCmd)
-
-	// Delete App
-	deleteAppCmd.Flags().StringVarP(
-		&appCodeParam, "app_code", "a", "", "app code which need deleted",
-	)
-	_ = deleteAppCmd.MarkFlagRequired("app_code")
-	cliCmd.AddCommand(deleteAppCmd)
 }
 
 func cliStart() {

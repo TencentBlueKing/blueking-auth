@@ -70,6 +70,21 @@ func (mr *MockAppManagerMockRecorder) CreateWithTx(tx, app any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateWithTx", reflect.TypeOf((*MockAppManager)(nil).CreateWithTx), tx, app)
 }
 
+// DeleteWithTx mocks base method.
+func (m *MockAppManager) DeleteWithTx(tx *sqlx.Tx, code string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteWithTx", tx, code)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteWithTx indicates an expected call of DeleteWithTx.
+func (mr *MockAppManagerMockRecorder) DeleteWithTx(tx, code any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteWithTx", reflect.TypeOf((*MockAppManager)(nil).DeleteWithTx), tx, code)
+}
+
 // Exists mocks base method.
 func (m *MockAppManager) Exists(code string) (bool, error) {
 	m.ctrl.T.Helper()

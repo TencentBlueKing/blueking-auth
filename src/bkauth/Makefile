@@ -4,7 +4,7 @@ init:
 	#pip install pre-commit
 	pre-commit install
 	# go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.61.0
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.3.0
 	# for make doc
 	go get -u -d github.com/swaggo/swag/cmd/swag@latest
 	# for make mock
