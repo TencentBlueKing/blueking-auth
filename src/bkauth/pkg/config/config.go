@@ -70,6 +70,17 @@ type Logger struct {
 	Web    LogConfig
 }
 
+// TLS ...
+type TLS struct {
+	Enabled     bool
+	CertCaFile  string
+	CertFile    string
+	CertKeyFile string
+	// for testing only, default false is secure;
+	// if set true will skip hostname verification, don't enable it in production
+	InsecureSkipVerify bool
+}
+
 // Database ...
 type Database struct {
 	ID       string
@@ -82,6 +93,9 @@ type Database struct {
 	MaxOpenConns          int
 	MaxIdleConns          int
 	ConnMaxLifetimeSecond int
+
+	// tls
+	TLS TLS
 }
 
 // Redis ...
@@ -101,6 +115,9 @@ type Redis struct {
 	SentinelAddr     string
 	MasterName       string
 	SentinelPassword string
+
+	// tls
+	TLS TLS
 }
 
 // Sentry ...

@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -23,17 +23,18 @@ import (
 	"strings"
 	"time"
 
-	redis "github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
 	"bkauth/pkg/config"
+	"bkauth/pkg/util"
 )
 
-func newStandaloneClient(redisConfig *config.Redis) *redis.Client {
+func newStandaloneClient(cfg *config.Redis) *redis.Client {
 	opt := &redis.Options{
-		Addr:     redisConfig.Addr,
-		Password: redisConfig.Password,
-		DB:       redisConfig.DB,
+		Addr:     cfg.Addr,
+		Password: cfg.Password,
+		DB:       cfg.DB,
 	}
 
 	// set default options
@@ -45,21 +46,32 @@ func newStandaloneClient(redisConfig *config.Redis) *redis.Client {
 	opt.IdleTimeout = time.Duration(3) * time.Minute
 
 	// set custom options, from config.yaml
-	if redisConfig.DialTimeout > 0 {
-		opt.DialTimeout = time.Duration(redisConfig.DialTimeout) * time.Second
+	if cfg.DialTimeout > 0 {
+		opt.DialTimeout = time.Duration(cfg.DialTimeout) * time.Second
 	}
-	if redisConfig.ReadTimeout > 0 {
-		opt.ReadTimeout = time.Duration(redisConfig.ReadTimeout) * time.Second
+	if cfg.ReadTimeout > 0 {
+		opt.ReadTimeout = time.Duration(cfg.ReadTimeout) * time.Second
 	}
-	if redisConfig.WriteTimeout > 0 {
-		opt.WriteTimeout = time.Duration(redisConfig.WriteTimeout) * time.Second
+	if cfg.WriteTimeout > 0 {
+		opt.WriteTimeout = time.Duration(cfg.WriteTimeout) * time.Second
 	}
 
-	if redisConfig.PoolSize > 0 {
-		opt.PoolSize = redisConfig.PoolSize
+	if cfg.PoolSize > 0 {
+		opt.PoolSize = cfg.PoolSize
 	}
-	if redisConfig.MinIdleConns > 0 {
-		opt.MinIdleConns = redisConfig.MinIdleConns
+	if cfg.MinIdleConns > 0 {
+		opt.MinIdleConns = cfg.MinIdleConns
+	}
+
+	// TLS configuration
+	if cfg.TLS.Enabled {
+		tlsConfig, err := util.NewTLSConfig(
+			cfg.TLS.CertCaFile, cfg.TLS.CertFile, cfg.TLS.CertKeyFile, cfg.TLS.InsecureSkipVerify,
+		)
+		if err != nil {
+			zap.S().Fatalf("redis tls config init: %s", err)
+		}
+		opt.TLSConfig = tlsConfig
 	}
 
 	zap.S().Infof(
@@ -69,17 +81,17 @@ func newStandaloneClient(redisConfig *config.Redis) *redis.Client {
 	return redis.NewClient(opt)
 }
 
-func newSentinelClient(redisConfig *config.Redis) *redis.Client {
-	sentinelAddrs := strings.Split(redisConfig.SentinelAddr, ",")
+func newSentinelClient(cfg *config.Redis) *redis.Client {
+	sentinelAddrs := strings.Split(cfg.SentinelAddr, ",")
 	opt := &redis.FailoverOptions{
-		MasterName:    redisConfig.MasterName,
+		MasterName:    cfg.MasterName,
 		SentinelAddrs: sentinelAddrs,
-		DB:            redisConfig.DB,
-		Password:      redisConfig.Password,
+		DB:            cfg.DB,
+		Password:      cfg.Password,
 	}
 
-	if redisConfig.SentinelPassword != "" {
-		opt.SentinelPassword = redisConfig.SentinelPassword
+	if cfg.SentinelPassword != "" {
+		opt.SentinelPassword = cfg.SentinelPassword
 	}
 
 	// set default options
@@ -91,21 +103,33 @@ func newSentinelClient(redisConfig *config.Redis) *redis.Client {
 	opt.IdleTimeout = 3 * time.Minute
 
 	// set custom options, from config.yaml
-	if redisConfig.DialTimeout > 0 {
-		opt.DialTimeout = time.Duration(redisConfig.DialTimeout) * time.Second
+	if cfg.DialTimeout > 0 {
+		opt.DialTimeout = time.Duration(cfg.DialTimeout) * time.Second
 	}
-	if redisConfig.ReadTimeout > 0 {
-		opt.ReadTimeout = time.Duration(redisConfig.ReadTimeout) * time.Second
+	if cfg.ReadTimeout > 0 {
+		opt.ReadTimeout = time.Duration(cfg.ReadTimeout) * time.Second
 	}
-	if redisConfig.WriteTimeout > 0 {
-		opt.WriteTimeout = time.Duration(redisConfig.WriteTimeout) * time.Second
+	if cfg.WriteTimeout > 0 {
+		opt.WriteTimeout = time.Duration(cfg.WriteTimeout) * time.Second
 	}
 
-	if redisConfig.PoolSize > 0 {
-		opt.PoolSize = redisConfig.PoolSize
+	if cfg.PoolSize > 0 {
+		opt.PoolSize = cfg.PoolSize
 	}
-	if redisConfig.MinIdleConns > 0 {
-		opt.MinIdleConns = redisConfig.MinIdleConns
+	if cfg.MinIdleConns > 0 {
+		opt.MinIdleConns = cfg.MinIdleConns
+	}
+
+	// TLS configuration
+	// Note: TLS for Client To Sentinel、TLS for Client To Master are shared
+	if cfg.TLS.Enabled {
+		tlsConfig, err := util.NewTLSConfig(
+			cfg.TLS.CertCaFile, cfg.TLS.CertFile, cfg.TLS.CertKeyFile, cfg.TLS.InsecureSkipVerify,
+		)
+		if err != nil {
+			zap.S().Fatalf("redis tls config init: %s", err)
+		}
+		opt.TLSConfig = tlsConfig
 	}
 
 	return redis.NewFailoverClient(opt)
