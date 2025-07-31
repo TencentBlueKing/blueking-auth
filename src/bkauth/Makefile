@@ -36,6 +36,7 @@ lint-dupl:
 	golangci-lint run --no-config --disable-all --enable=dupl
 
 test:
+# Apple Silicon
 ifeq ($(shell go env GOOS)-$(shell go env GOARCH),darwin-arm64)
 		GOARCH=amd64 go test -gcflags=all=-l $(shell go list ./... | grep -v mock | grep -v docs) -covermode=count -coverprofile .coverage.cov
 else
