@@ -2,6 +2,8 @@ module bkauth
 
 go 1.23.0
 
+toolchain go1.24.5
+
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/agiledragon/gomonkey v2.0.2+incompatible

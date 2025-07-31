@@ -40,5 +40,5 @@ repos:
         language: system
         types: [go]
         pass_filenames: false
-        entry:  bash -c "cd src/bkauth && GOARCH=amd64 make test"
+        entry:  bash -c "cd src/bkauth && make test"
         files: src/bkauth/
