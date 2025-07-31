@@ -21,11 +21,9 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
@@ -70,10 +68,6 @@ func Execute() {
 func Start() {
 	fmt.Println("It's BKAuth")
 
-	// init rand
-	// nolint
-	rand.Seed(time.Now().UnixNano())
-
 	// 0. init config
 	if cfgFile != "" {
 		// Use config file from the flag.
@@ -85,6 +79,7 @@ func Start() {
 	if globalConfig.Debug {
 		fmt.Println(globalConfig)
 	}
+	fmt.Printf("enableMultiTenantMode: %v\n", globalConfig.EnableMultiTenantMode)
 
 	// 1. init
 	initLogger()

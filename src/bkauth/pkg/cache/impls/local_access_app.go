@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -26,7 +26,7 @@ import (
 )
 
 // AccessAppCacheKey ...
-// Note: 当前缓存只用于API的认证，不用于任何业务逻辑
+// Note: 当前缓存只用于 API 的认证，不用于任何业务逻辑
 type AccessAppCacheKey struct {
 	AppCode   string
 	AppSecret string

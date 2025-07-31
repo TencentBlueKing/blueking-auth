@@ -1,46 +1,40 @@
+version: "2"
 run:
-  # default concurrency is a available CPU number
   concurrency: 4
-  # timeout for analysis, e.g. 30s, 5m, default is 1m
-  timeout: 2m
-  # exit code when at least one issue was found, default is 1
   issues-exit-code: 1
-  # include test files or not, default is true
   tests: false
-  # default is true. Enables skipping of directories:
-  #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
-  skip-dirs-use-default: true
-
-  # issues.exclude-files:
-issues:
-  exclude-files:
-    - ".*/mock/.*.go"
-    - ".*testing.go"
-
 linters:
-  disable-all: true
+  default: none
   enable:
-    - gosimple
-    - govet
-    - ineffassign
-    - staticcheck
-    - typecheck
-    - unused
     - bodyclose
     - gocritic
     - gocyclo
-    - gofmt
+    - govet
+    - ineffassign
     - lll
-    # - errcheck
-    # - funlen
-    # - cyclop
-    # - errorlint
-    # - gochecknoglobals
-    # - gochecknoinits
-    # - goconst
-    # - godox
-    # - goerr113
-    # - gomnd
-    # - ifshort
-    # - wsl
-  fast: false
+    - staticcheck
+    - unused
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - .*/mock/.*.go
+      - .*testing.go
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - .*/mock/.*.go
+      - .*testing.go
+      - third_party$
+      - builtin$
+      - examples$

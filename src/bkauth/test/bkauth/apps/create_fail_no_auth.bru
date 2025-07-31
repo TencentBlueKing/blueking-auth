@@ -1,0 +1,17 @@
+meta {
+  name: create_fail_no_auth
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://{{host}}:{{port}}/api/v1/apps
+  body: none
+  auth: none
+}
+
+assert {
+  res.status: eq 401
+  res.body.code: eq 1903401
+  res.body.message: eq unauthorized:app code and app secret required
+}

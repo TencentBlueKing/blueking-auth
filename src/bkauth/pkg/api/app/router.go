@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -21,14 +21,28 @@ package app
 import (
 	"github.com/gin-gonic/gin"
 
-	handler "bkauth/pkg/api/app/handler"
-	common "bkauth/pkg/api/common"
+	"bkauth/pkg/api/app/handler"
+	"bkauth/pkg/api/common"
 )
 
 // Register ...
 func Register(r *gin.RouterGroup) {
 	// App CURD for PaaS
+
+	// Create app
 	r.POST("", common.NewAPIAllowMiddleware(common.ManageAppAPI), handler.CreateApp)
+
+	// List app
+	r.GET("", common.NewAPIAllowMiddleware(common.ReadAppAPI), handler.ListApp)
+
+	// Question: the bkauth would not respect the x-bk-tenant-id header? including the accessKeys api?
+	//           while all the callers belong to blueking, which are all tenant_scope = *
+	app := r.Group("/:bk_app_code")
+	app.Use(common.AppCodeExists())
+	{
+		app.GET("", common.NewAPIAllowMiddleware(common.ReadAppAPI), handler.GetApp)
+		app.DELETE("", common.NewAPIAllowMiddleware(common.ManageAppAPI), handler.DeleteApp)
+	}
 
 	// AppSecret
 	accessKey := r.Group("/:bk_app_code/access-keys")
@@ -39,8 +53,13 @@ func Register(r *gin.RouterGroup) {
 		{
 			// AccessKey CURD for PaaS
 			accessKeyCURD.POST("", handler.CreateAccessKey)
-			accessKeyCURD.DELETE("/:access_key_id", handler.DeleteAccessKey)
-			accessKeyCURD.PUT("/:access_key_id", handler.UpdateAccessKey)
+			accessKeyUD := accessKeyCURD.Group("/:access_key_id")
+			accessKeyUD.Use(common.AccessKeyExists())
+			{
+				accessKeyUD.DELETE("", handler.DeleteAccessKey)
+				accessKeyUD.PUT("", handler.UpdateAccessKey)
+			}
+
 		}
 
 		// List for PaaS/APIGateway

@@ -24,6 +24,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"bkauth/pkg/database"
 )
@@ -32,7 +33,7 @@ func Test_appManager_CreateWithTx(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`INSERT INTO app`).WithArgs(
-			"bkauth", "bkauth", "bkauth intro",
+			"bkauth", "bkauth", "bkauth intro", "type1", "default",
 		).WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
@@ -43,6 +44,8 @@ func Test_appManager_CreateWithTx(t *testing.T) {
 			Code:        "bkauth",
 			Name:        "bkauth",
 			Description: "bkauth intro",
+			TenantMode:  "type1",
+			TenantID:    "default",
 		}
 
 		manager := &appManager{DB: db}
@@ -83,5 +86,81 @@ func Test_appManager_NameExists(t *testing.T) {
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Equal(t, exists, true)
+	})
+}
+
+func Test_appManager_Get(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mockQuery := `^SELECT code, name, description, tenant_mode, tenant_id FROM app where code = (.*) LIMIT 1$`
+		mockRows := sqlmock.NewRows([]string{"code", "name", "description", "tenant_mode", "tenant_id"}).
+			AddRow("bkauth", "bkauth", "bkauth intro", "type1", "default")
+		mock.ExpectQuery(mockQuery).WithArgs("bkauth").WillReturnRows(mockRows)
+
+		manager := &appManager{DB: db}
+
+		app, err := manager.Get("bkauth")
+
+		assert.NoError(t, err, "query from db fail.")
+		assert.Equal(t, app.Code, "bkauth")
+		assert.Equal(t, app.Name, "bkauth")
+		assert.Equal(t, app.Description, "bkauth intro")
+		assert.Equal(t, app.TenantMode, "type1")
+		assert.Equal(t, app.TenantID, "default")
+	})
+}
+
+func Test_appManager_List(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mockQuery := `^SELECT code, name, description, tenant_mode, tenant_id FROM app WHERE 1=1 AND tenant_mode = (.*) AND tenant_id = (.*) LIMIT (.*) OFFSET (.*)$`
+		mockRows := sqlmock.NewRows([]string{"code", "name", "description", "tenant_mode", "tenant_id"}).
+			AddRow("bkauth1", "bkauth1", "bkauth1 intro", "type1", "default").
+			AddRow("bkauth2", "bkauth2", "bkauth2 intro", "type1", "default")
+		mock.ExpectQuery(mockQuery).WithArgs("type1", "default", 10, 0).WillReturnRows(mockRows)
+
+		manager := &appManager{DB: db}
+
+		apps, err := manager.List("type1", "default", 10, 0, "", "")
+
+		assert.NoError(t, err, "query from db fail.")
+		assert.Len(t, apps, 2)
+		assert.Equal(t, apps[0].Code, "bkauth1")
+		assert.Equal(t, apps[1].Code, "bkauth2")
+	})
+}
+
+func Test_appManager_Count(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mockQuery := `^SELECT COUNT\(\*\) FROM app WHERE 1=1 AND tenant_mode = (.*) AND tenant_id = (.*)$`
+		mockRows := sqlmock.NewRows([]string{"count"}).AddRow(2)
+		mock.ExpectQuery(mockQuery).WithArgs("type1", "default").WillReturnRows(mockRows)
+
+		manager := &appManager{DB: db}
+
+		count, err := manager.Count("type1", "default")
+
+		assert.NoError(t, err, "query from db fail.")
+		assert.Equal(t, count, 2)
+	})
+}
+
+func Test_appManager_DeleteWithTx(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mock.ExpectBegin()
+		mockQuery := `^DELETE FROM app WHERE code = \?$`
+		mock.ExpectExec(mockQuery).
+			WithArgs("test-app").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
+		tx, err := db.Beginx()
+		require.NoError(t, err)
+
+		manager := &appManager{DB: db}
+		affected, err := manager.DeleteWithTx(tx, "test-app")
+		require.NoError(t, err)
+		assert.Equal(t, affected, int64(1))
+
+		err = tx.Commit()
+		require.NoError(t, err)
 	})
 }

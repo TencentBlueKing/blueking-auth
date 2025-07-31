@@ -16,39 +16,17 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package sync
+package middleware
 
 import (
-	"errors"
+	"github.com/gin-gonic/gin"
 
-	"github.com/spf13/viper"
-
-	"bkauth/pkg/config"
+	"bkauth/pkg/util"
 )
 
-type OpenPaaSConfig struct {
-	Databases   []config.Database
-	DatabaseMap map[string]config.Database
-}
-
-// LoadConfig 从viper中读取配置文件
-func LoadConfig(v *viper.Viper) (*OpenPaaSConfig, error) {
-	var cfg OpenPaaSConfig
-	// 将配置信息绑定到结构体上
-	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, err
+func NewEnableMultiTenantModeMiddleware(enableMultiTenantMode bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		util.SetEnableMultiTenantMode(c, enableMultiTenantMode)
+		c.Next()
 	}
-
-	// parse the list to map
-	// 1. database
-	cfg.DatabaseMap = make(map[string]config.Database)
-	for _, db := range cfg.Databases {
-		cfg.DatabaseMap[db.ID] = db
-	}
-
-	if len(cfg.DatabaseMap) == 0 {
-		return nil, errors.New("database cannot be empty")
-	}
-
-	return &cfg, nil
 }

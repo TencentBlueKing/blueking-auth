@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -27,7 +27,7 @@ import (
 )
 
 // AccessKeysKey ...
-// TODO: 优化调整为类似IAM的二级缓存，LocalMemoryCache -> RedisCache -> DB
+// TODO: 优化调整为类似 IAM 的二级缓存，LocalMemoryCache -> RedisCache -> DB
 type AccessKeysKey struct {
 	AppCode string
 }
@@ -45,7 +45,7 @@ func retrieveAccessKeys(key cache.Key) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 构造map: appSecret:enabled,方便查询校验
+	// 构造 map: appSecret:enabled，方便查询校验
 	secretsMap := make(map[string]bool)
 	for _, secret := range secretList {
 		secretsMap[secret.AppSecret] = secret.Enabled

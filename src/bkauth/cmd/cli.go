@@ -20,8 +20,6 @@ package cmd
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -96,9 +94,6 @@ func init() {
 
 func cliStart() {
 	fmt.Println("cli start!")
-	// init rand
-	// nolint
-	rand.Seed(time.Now().UnixNano())
 
 	// 0. init config
 	if cfgFile != "" {

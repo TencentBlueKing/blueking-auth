@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -27,6 +27,7 @@ import (
 
 const (
 	ManageAppAPI       = "manage_app"
+	ReadAppAPI         = "read_app"
 	ManageAccessKeyAPI = "manage_access_key"
 	ReadAccessKeyAPI   = "read_access_key"
 	VerifySecretAPI    = "verify_secret"
@@ -41,7 +42,7 @@ func InitAPIAllowList(cfgs []config.APIAllowList) {
 	}
 
 	for api, al := range apiAllowListMap {
-		// 分隔出每个app_code
+		// 分隔出每个 app_code
 		allowList := strings.Split(al, ",")
 
 		// 去除空的，避免校验时空字符串被通过

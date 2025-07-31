@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -32,9 +32,9 @@ import (
 const (
 	AccessKeySVC = "AccessKeySVC"
 
-	// MaxSecretsPreApp 每个App最多有2个secret
+	// MaxSecretsPreApp 每个 App 最多有 2 个 secret
 	MaxSecretsPreApp = 2
-	// MinSecretsPreApp 每个App至少有一个secret
+	// MinSecretsPreApp 每个 App 至少有一个 secret
 	MinSecretsPreApp = 1
 )
 
@@ -47,6 +47,7 @@ type AccessKeyService interface {
 	Verify(appCode, appSecret string) (bool, error)
 	ListEncryptedAccessKeyByAppCode(appCode string) (appSecrets []types.AccessKey, err error)
 	List() ([]types.AccessKey, error)
+	ExistsByAppCodeAndID(appCode string, id int64) (bool, error)
 }
 
 type accessKeyService struct {
@@ -59,18 +60,18 @@ func NewAccessKeyService() AccessKeyService {
 	}
 }
 
-// Create : 创建应用密钥，createdSource为创建来源，即哪个系统创建的
+// Create : 创建应用密钥，createdSource 为创建来源，即哪个系统创建的
 func (s *accessKeyService) Create(appCode, createdSource string) (accessKey types.AccessKey, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "Create")
 
 	// 数量的保证是业务上的一个基础逻辑
-	// Note: 这里没有处理并发问题导致创建超过2个的问题，因为多创建了也没有太多影响
+	// Note: 这里没有处理并发问题导致创建超过 2 个的问题，因为多创建了也没有太多影响
 	count, err := s.manager.Count(appCode)
 	if err != nil {
 		return accessKey, errorWrapf(err, "manager.Count appCode=`%s` fail", appCode)
 	}
 	if count >= MaxSecretsPreApp {
-		// Note: 这里不能使用errorWrapf，否则上层无法判断错误是系统错误还是校验不通过
+		// Note: 这里不能使用 errorWrapf，否则上层无法判断错误是系统错误还是校验不通过
 		err = util.ValidationErrorWrap(
 			fmt.Errorf("app(%s) can only have %d secrets, [current %d]", appCode, MaxSecretsPreApp, count))
 		return accessKey, err
@@ -101,7 +102,7 @@ func (s *accessKeyService) Create(appCode, createdSource string) (accessKey type
 	return
 }
 
-// CreateWithSecret : 创建应用密钥，支持指定appSecret的值，createdSource为创建来源，即哪个系统创建的
+// CreateWithSecret : 创建应用密钥，支持指定 appSecret 的值，createdSource 为创建来源，即哪个系统创建的
 func (s *accessKeyService) CreateWithSecret(appCode, appSecret, createdSource string) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "CreateWithSecret")
 
@@ -117,11 +118,11 @@ func (s *accessKeyService) CreateWithSecret(appCode, appSecret, createdSource st
 func (s *accessKeyService) DeleteByID(appCode string, id int64) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "DeleteByID")
 
-	// 只剩下唯一一个Secret，则无法删除
-	// TODO: 这里没有处理并发问题可能会导致一个App没有任何一个Secret，进而导致App无法调用任何蓝鲸API
+	// 只剩下唯一一个 Secret，则无法删除
+	// TODO: 这里没有处理并发问题可能会导致一个 App 没有任何一个 Secret，进而导致 App 无法调用任何蓝鲸 API
 	//  Note: 乐观锁只能解决查询和修改的数据是相同的问题，这里是查询数量，并修改其中一条，乐观锁应该无法很好解决
-	//  可以使用 select_for_update 之类的悲观锁， 或引入全局锁，如Redis分布式锁解决这个问题
-	//  但目前没有这个必要，因为管理Secret的行为是在PaaS端，可以让用户删除时，明确输入要删除的Secret做确认
+	//  可以使用 select_for_update 之类的悲观锁，或引入全局锁，如 Redis 分布式锁解决这个问题
+	//  但目前没有这个必要，因为管理 Secret 的行为是在 PaaS 端，可以让用户删除时，明确输入要删除的 Secret 做确认
 	count, err := s.manager.Count(appCode)
 	if err != nil {
 		return errorWrapf(err, "manager.Count appCode=`%s` fail", appCode)
@@ -131,7 +132,7 @@ func (s *accessKeyService) DeleteByID(appCode string, id int64) (err error) {
 			fmt.Errorf("app(%s) have %d secret at least, [current %d]", appCode, MinSecretsPreApp, count))
 	}
 
-	// 防御性，避免误删除Secret，所以需要额外AppCode来二次保证
+	// 防御性，避免误删除 Secret，所以需要额外 AppCode 来二次保证
 	_, err = s.manager.DeleteByID(appCode, id)
 	if err != nil {
 		return errorWrapf(err, "manager.DeleteByID appCode=`%s` id=`%d` fail", appCode, id)
@@ -140,7 +141,7 @@ func (s *accessKeyService) DeleteByID(appCode string, id int64) (err error) {
 	return
 }
 
-// UpdateByID 更新accessKey
+// UpdateByID 更新 accessKey
 func (s *accessKeyService) UpdateByID(id int64, updateFiledMap map[string]interface{}) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "UpdateByID")
 	_, err = s.manager.UpdateByID(id, updateFiledMap)
@@ -190,7 +191,7 @@ func (s *accessKeyService) ListWithCreatedAtByAppCode(appCode string) (
 func (s *accessKeyService) Verify(appCode, appSecret string) (exists bool, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "Verify")
 
-	// DB里存储的是加密后的密钥，需要对即将校验的Secret加密后查询
+	// DB 里存储的是加密后的密钥，需要对即将校验的 Secret 加密后查询
 	encryptedAppSecret := ConvertToEncryptedAppSecret(appSecret)
 
 	exists, err = s.manager.Exists(appCode, encryptedAppSecret)
@@ -243,4 +244,15 @@ func (s *accessKeyService) List() (accessKeys []types.AccessKey, err error) {
 	}
 
 	return
+}
+
+func (s *accessKeyService) ExistsByAppCodeAndID(appCode string, id int64) (bool, error) {
+	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "ExistsByAppCodeAndID")
+
+	exists, err := s.manager.ExistsByAppCodeAndID(appCode, id)
+	if err != nil {
+		return exists, errorWrapf(err, "manager.ExistsByAppCodeAndID appCode=`%s` id=`%d` fail", appCode, id)
+	}
+
+	return exists, nil
 }

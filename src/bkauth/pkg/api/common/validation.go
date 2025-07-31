@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	// 小写字母开头, 可以包含小写字母/数字/下划线/连字符
+	// 小写字母开头，可以包含小写字母/数字/下划线/连字符
 	validIDString = "^[a-z]+[a-z0-9_-]*$"
 )
 

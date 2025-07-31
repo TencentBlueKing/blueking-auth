@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -18,17 +18,8 @@
 
 package handler
 
-import (
-	"bkauth/pkg/api/common"
-)
-
 type appSecretSerializer struct {
 	AppSecret string `json:"bk_app_secret" binding:"required,max=128" example:"bk_paas"`
-}
-
-type accessKeyAndAppSerializer struct {
-	common.AppCodeSerializer
-	AccessKeyID int64 `uri:"access_key_id" binding:"required" example:"1"`
 }
 
 type accessKeyUpdateSerializer struct {

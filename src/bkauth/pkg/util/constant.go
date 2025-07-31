@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -23,7 +23,16 @@ const (
 	RequestIDKey       = "request_id"
 	RequestIDHeaderKey = "X-Request-Id"
 
-	AccessAppCodeKey = "access_app_code"
+	AccessAppCodeKey         = "access_app_code"
+	EnableMultiTenantModeKey = "enable_multi_tenant_mode"
 
 	ErrorIDKey = "err"
+
+	// 应用在租户层的可用模式：全租户
+	TenantModeGlobal = "global"
+	// 应用在租户层的可用模式：单租户
+	TenantModeSingle = "single"
+
+	// 单租户模式下，默认租户 id 为 default
+	TenantIDDefault = "default"
 )

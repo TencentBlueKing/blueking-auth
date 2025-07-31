@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -49,12 +49,14 @@ type AccessKeyManager interface {
 	CreateWithTx(tx *sqlx.Tx, accessKey AccessKey) (int64, error)
 	Create(accessKey AccessKey) (int64, error)
 	DeleteByID(appCode string, id int64) (int64, error)
+	DeleteByAppCodeWithTx(tx *sqlx.Tx, appCode string) (int64, error)
 	UpdateByID(id int64, updateFiledMap map[string]interface{}) (int64, error)
 	ListWithCreatedAtByAppCode(appCode string) ([]AccessKeyWithCreatedAt, error)
 	Exists(appCode, appSecret string) (bool, error)
 	Count(appCode string) (int64, error)
 	ListAccessKeyByAppCode(appCode string) ([]AccessKey, error)
 	List() ([]AccessKey, error)
+	ExistsByAppCodeAndID(appCode string, id int64) (bool, error)
 }
 
 type accessKeyManager struct {
@@ -101,6 +103,11 @@ func (m *accessKeyManager) Create(secret AccessKey) (int64, error) {
 func (m *accessKeyManager) DeleteByID(appCode string, id int64) (int64, error) {
 	query := `DELETE FROM access_key WHERE app_code = ? AND id = ?`
 	return database.SqlxDelete(m.DB, query, appCode, id)
+}
+
+func (m *accessKeyManager) DeleteByAppCodeWithTx(tx *sqlx.Tx, appCode string) (int64, error) {
+	query := `DELETE FROM access_key WHERE app_code = ?`
+	return database.SqlxDeleteWithTx(tx, query, appCode)
 }
 
 func (m *accessKeyManager) UpdateByID(id int64, updateFiledMap map[string]interface{}) (int64, error) {
@@ -190,4 +197,18 @@ func (m *accessKeyManager) List() (accessKeys []AccessKey, err error) {
 		return accessKeys, nil
 	}
 	return
+}
+
+func (m *accessKeyManager) ExistsByAppCodeAndID(appCode string, id int64) (bool, error) {
+	var existingID int64
+	query := `SELECT id FROM access_key WHERE app_code = ? AND id = ? LIMIT 1`
+	err := database.SqlxGet(m.DB, &existingID, query, appCode, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }

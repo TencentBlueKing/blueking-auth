@@ -1,5 +1,8 @@
 debug: true
 
+# enableMultiTenantMode: false
+enableMultiTenantMode: true
+
 server:
   host: 127.0.0.1
   port: 9000
@@ -23,10 +26,13 @@ crypto:
 
 accessKeys:
   bkauth: "G3dsdftR9nGQM8WnF1qwjGSVE0ScXrz1hKWM"
+  bk_paas3: "G3dsdftR9nGQM8WnF1qwjGSVE0ScXrz1hKWM"
 
 apiAllowLists:
   - api: "manage_app"
     allowList: "bk_paas,bk_paas3"
+  - api: "read_app"
+    allowList: "bk_paas,bk_paas3,bk_apigateway"
   - api: "manage_access_key"
     allowList: "bk_paas,bk_paas3"
   - api: "read_access_key"

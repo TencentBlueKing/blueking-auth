@@ -102,7 +102,7 @@ func (s *scopeService) Update(targetID string, scope types.Scope) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(ScopeSvc, "Update")
 
 	allowBlank := database.NewAllowBlankFields()
-	if scope.AllowEmptyFields.HasKey("Description") {
+	if scope.HasKey("Description") {
 		allowBlank.AddKey("Description")
 	}
 

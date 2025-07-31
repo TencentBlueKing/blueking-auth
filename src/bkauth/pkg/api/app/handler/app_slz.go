@@ -19,16 +19,44 @@
 package handler
 
 import (
+	"errors"
+
 	"bkauth/pkg/api/common"
+	"bkauth/pkg/util"
 )
+
+type tenantSerializer struct {
+	Mode string `json:"mode" binding:"required,oneof=global single" example:"single"`
+	ID   string `json:"id" binding:"omitempty,max=32" example:"default"`
+}
 
 type createAppSerializer struct {
 	common.AppCodeSerializer
-	AppSecret   string `json:"bk_app_secret" binding:"omitempty,max=128" example:"bk_paas"`
-	Name        string `json:"name" binding:"required" example:"BK PaaS"`
-	Description string `json:"description" binding:"omitempty" example:"Platform as A Service"`
+	AppSecret   string           `json:"bk_app_secret" binding:"omitempty,max=128" example:"bk_paas"`
+	Name        string           `json:"name" binding:"required" example:"BK PaaS"`
+	Description string           `json:"description" binding:"omitempty" example:"Platform as A Service"`
+	Tenant      tenantSerializer `json:"bk_tenant" binding:"required"`
 }
 
 func (s *createAppSerializer) validate() error {
+	if s.Tenant.Mode == util.TenantModeGlobal {
+		if s.Tenant.ID != "" {
+			return errors.New("bk_tenant.id should be empty when tenant_mode is global")
+		}
+	} else {
+		if !common.ValidTenantIDRegex.MatchString(s.Tenant.ID) {
+			return common.ErrInvalidTenantID
+		}
+	}
+
 	return s.ValidateAppCode()
+}
+
+type listAppSerializer struct {
+	common.PageParamSerializer
+	TenantMode string `form:"tenant_mode" binding:"omitempty,oneof=global single" example:"single"`
+	TenantID   string `form:"tenant_id" binding:"omitempty,max=32" example:"default"`
+	// nolint:lll
+	OrderBy          string `form:"order_by" binding:"omitempty,oneof=code name created_at updated_at" example:"created_at"`
+	OrderByDirection string `form:"order_by_direction" binding:"omitempty,oneof=asc desc" example:"asc"`
 }
