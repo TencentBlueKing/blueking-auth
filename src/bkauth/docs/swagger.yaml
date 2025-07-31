@@ -3,6 +3,25 @@ definitions:
     properties:
       bk_app_code:
         type: string
+      bk_tenant:
+        $ref: '#/definitions/common.TenantResponse'
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  common.PaginatedResponse:
+    properties:
+      count:
+        type: integer
+      results: {}
+    type: object
+  common.TenantResponse:
+    properties:
+      id:
+        type: string
+      mode:
+        type: string
     type: object
   handler.accessKeyUpdateSerializer:
     properties:
@@ -32,6 +51,8 @@ definitions:
         example: bk_paas
         maxLength: 128
         type: string
+      bk_tenant:
+        $ref: '#/definitions/handler.tenantSerializer'
       description:
         example: Platform as A Service
         type: string
@@ -40,6 +61,7 @@ definitions:
         type: string
     required:
     - bk_app_code
+    - bk_tenant
     - name
     type: object
   handler.createdTargetSerializer:
@@ -95,6 +117,21 @@ definitions:
       id:
         example: bk_ci
         type: string
+    type: object
+  handler.tenantSerializer:
+    properties:
+      id:
+        example: default
+        maxLength: 32
+        type: string
+      mode:
+        enum:
+        - global
+        - single
+        example: single
+        type: string
+    required:
+    - mode
     type: object
   handler.updateOAuthAppSerializer:
     properties:
@@ -188,6 +225,54 @@ info:
   version: "1.0"
 paths:
   /api/v1/apps:
+    get:
+      consumes:
+      - application/json
+      description: lists apps with optional query parameters
+      operationId: api-app-list
+      parameters:
+      - description: Tenant Type
+        in: query
+        name: tenant_mode
+        type: string
+      - description: Tenant ID
+        in: query
+        name: tenant_id
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              description: the request id
+              type: string
+          schema:
+            allOf:
+            - $ref: '#/definitions/util.Response'
+            - properties:
+                data:
+                  allOf:
+                  - $ref: '#/definitions/common.PaginatedResponse'
+                  - properties:
+                      results:
+                        items:
+                          $ref: '#/definitions/common.AppResponse'
+                        type: array
+                    type: object
+              type: object
+      summary: list apps
+      tags:
+      - app
     post:
       consumes:
       - application/json
@@ -227,6 +312,82 @@ paths:
                   $ref: '#/definitions/common.AppResponse'
               type: object
       summary: app create
+      tags:
+      - app
+  /api/v1/apps/{bk_app_code}:
+    delete:
+      consumes:
+      - application/json
+      description: deletes an app by app_code
+      operationId: api-app-delete
+      parameters:
+      - description: app_code
+        in: header
+        name: X-BK-APP-CODE
+        required: true
+        type: string
+      - description: app_secret
+        in: header
+        name: X-BK-APP-SECRET
+        required: true
+        type: string
+      - description: App Code
+        in: path
+        name: bk_app_code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              description: the request id
+              type: string
+          schema:
+            $ref: '#/definitions/util.Response'
+      summary: delete app
+      tags:
+      - app
+    get:
+      consumes:
+      - application/json
+      description: gets an app by app_code
+      operationId: api-app-get
+      parameters:
+      - description: app_code
+        in: header
+        name: X-BK-APP-CODE
+        required: true
+        type: string
+      - description: app_secret
+        in: header
+        name: X-BK-APP-SECRET
+        required: true
+        type: string
+      - description: App Code
+        in: path
+        name: app_code
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              description: the request id
+              type: string
+          schema:
+            allOf:
+            - $ref: '#/definitions/util.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/common.AppResponse'
+              type: object
+      summary: get app
       tags:
       - app
   /api/v1/apps/{bk_app_code}/access-keys:

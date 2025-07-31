@@ -96,7 +96,7 @@ func (s *targetService) Update(target types.Target) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(TargetSvc, "Update")
 
 	allowBlank := database.NewAllowBlankFields()
-	if target.AllowEmptyFields.HasKey("Description") {
+	if target.HasKey("Description") {
 		allowBlank.AddKey("Description")
 	}
 

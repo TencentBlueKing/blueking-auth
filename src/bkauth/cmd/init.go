@@ -93,7 +93,7 @@ func initRedis() {
 	standaloneConfig, isStandalone := globalConfig.RedisMap[redis.ModeStandalone]
 	sentinelConfig, isSentinel := globalConfig.RedisMap[redis.ModeSentinel]
 
-	if !(isStandalone || isSentinel) {
+	if !isStandalone && !isSentinel {
 		panic("redis id=standalone or id=sentinel should be configured")
 	}
 

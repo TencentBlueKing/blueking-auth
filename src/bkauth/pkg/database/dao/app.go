@@ -55,6 +55,7 @@ type AppManager interface {
 	List(tenantMode, tenantID string, limit, offset int, orderBy, orderByDirection string) ([]App, error)
 	Get(code string) (App, error)
 	Count(tenantMode, tenantID string) (int, error)
+	DeleteWithTx(tx *sqlx.Tx, code string) (int64, error)
 }
 
 type appManager struct {
@@ -173,4 +174,9 @@ func (m *appManager) Count(tenantMode, tenantID string) (total int, err error) {
 
 	err = database.SqlxGet(m.DB, &total, query, args...)
 	return total, err
+}
+
+func (m *appManager) DeleteWithTx(tx *sqlx.Tx, code string) (int64, error) {
+	query := `DELETE FROM app WHERE code = ?`
+	return database.SqlxDeleteWithTx(tx, query, code)
 }

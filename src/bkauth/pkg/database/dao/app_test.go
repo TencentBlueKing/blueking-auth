@@ -24,6 +24,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"bkauth/pkg/database"
 )
@@ -139,5 +140,27 @@ func Test_appManager_Count(t *testing.T) {
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Equal(t, count, 2)
+	})
+}
+
+func Test_appManager_DeleteWithTx(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mock.ExpectBegin()
+		mockQuery := `^DELETE FROM app WHERE code = \?$`
+		mock.ExpectExec(mockQuery).
+			WithArgs("test-app").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		mock.ExpectCommit()
+
+		tx, err := db.Beginx()
+		require.NoError(t, err)
+
+		manager := &appManager{DB: db}
+		affected, err := manager.DeleteWithTx(tx, "test-app")
+		require.NoError(t, err)
+		assert.Equal(t, affected, int64(1))
+
+		err = tx.Commit()
+		require.NoError(t, err)
 	})
 }

@@ -195,3 +195,25 @@ func Test_ExistsByAppCodeAndID(t *testing.T) {
 		assert.Equal(t, exists, true)
 	})
 }
+
+func Test_DeleteByAppCodeWithTx(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectExec(`^DELETE FROM access_key WHERE app_code = (.*)$`).WithArgs(
+			"bkauth",
+		).WillReturnResult(sqlmock.NewResult(0, 2))
+		mock.ExpectCommit()
+
+		tx, err := db.Beginx()
+		assert.NoError(t, err)
+
+		manager := &accessKeyManager{DB: db}
+		rowsAffected, err := manager.DeleteByAppCodeWithTx(tx, "bkauth")
+
+		errCommit := tx.Commit()
+		assert.NoError(t, errCommit)
+
+		assert.NoError(t, err)
+		assert.Equal(t, rowsAffected, int64(2))
+	})
+}
