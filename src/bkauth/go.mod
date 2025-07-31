@@ -1,8 +1,6 @@
 module bkauth
 
-go 1.23.0
-
-toolchain go1.24.5
+go 1.23
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
