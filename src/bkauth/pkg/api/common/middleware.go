@@ -101,37 +101,3 @@ func NewAPIAllowMiddleware(api string) gin.HandlerFunc {
 		c.Next()
 	}
 }
-
-func TargetExistsAndClientValid() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var uriParams TargetIDSerializer
-		if err := c.ShouldBindUri(&uriParams); err != nil {
-			util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
-			c.Abort()
-			return
-		}
-		targetID := uriParams.TargetID
-
-		// Note: 这里没必要缓存，因为本身 Target 的注册和变更频率很低
-		svc := service.NewTargetService()
-		target, err := svc.Get(targetID)
-		if err != nil {
-			util.NotFoundJSONResponse(c, fmt.Sprintf("target(%s) not exists", targetID))
-			c.Abort()
-			return
-		}
-
-		// check valid client
-		validClients := util.SplitStringToSet(target.Clients, ",")
-		accessAppCode := util.GetAccessAppCode(c)
-		if !validClients.Has(accessAppCode) {
-			util.ForbiddenJSONResponse(c,
-				fmt.Sprintf("client(%s) is not allowed to call target (%s) api", accessAppCode, targetID))
-
-			c.Abort()
-			return
-		}
-
-		c.Next()
-	}
-}
