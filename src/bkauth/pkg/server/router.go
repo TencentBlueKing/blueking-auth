@@ -26,7 +26,6 @@ import (
 
 	"bkauth/pkg/api/app"
 	"bkauth/pkg/api/basic"
-	"bkauth/pkg/api/oauth"
 	"bkauth/pkg/config"
 	"bkauth/pkg/middleware"
 	"bkauth/pkg/util"
@@ -60,14 +59,6 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	appRouter.Use(middleware.AccessAppAuthMiddleware())
 	appRouter.Use(middleware.NewEnableMultiTenantModeMiddleware(cfg.EnableMultiTenantMode))
 	app.Register(appRouter)
-
-	// oauth apis for oauth2.0 accessToken
-	oauthRouter := router.Group("/api/v1/oauth")
-	oauthRouter.Use(middleware.Metrics())
-	oauthRouter.Use(middleware.APILogger())
-	oauthRouter.Use(middleware.AccessAppAuthMiddleware())
-	// appRouter.Use(middleware.NewEnableMultiTenantModeMiddleware(cfg.EnableMultiTenantMode))
-	oauth.Register(oauthRouter)
 
 	return router
 }

@@ -35,17 +35,6 @@ type App struct {
 	Description string `db:"description"`
 	TenantMode  string `db:"tenant_mode"`
 	TenantID    string `db:"tenant_id"`
-
-	// Note: APP 是一个主表，oauth2 相关信息是关联表 (外键 code)，这里只是备注一下而已，后续删除注释
-	// Oauth2.0 相关信息
-	// Scopes 和 RedirectURLs，但是由于这些都可能需要支持多个，可能得考虑 json(List) 存储或另外一对多的表存储
-
-	// AppCode: 蓝鲸体系里 app_code=client_id，实际 Oauth2.0 协议里建议 ClientID 是随机字符串
-	// https://datatracker.ietf.org/doc/html/rfc6749#section-2.2
-	// https://www.oauth.com/oauth2-servers/client-registration/client-id-secret/
-	// ClientType: Oauth2.0 协议里根据安全性来区分类型，https://datatracker.ietf.org/doc/html/rfc6749#section-2.1
-	// AppCode   string `db:"client_id"`
-	// ClientType string `db:"client_type"`
 }
 
 type AppManager interface {
