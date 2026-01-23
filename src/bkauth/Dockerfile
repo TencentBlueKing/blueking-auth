@@ -14,7 +14,7 @@ ARG VERSION=""
 ARG COMMIT=""
 RUN make build -e VERSION=${VERSION} -e COMMIT=${COMMIT} && chmod +x ${BINARY}
 
-FROM debian:bullseye-slim
+FROM mirrors.tencent.com/tencentos/tencentos4-minimal
 
 ARG BINARY=bkauth
 RUN mkdir -p /app/logs
