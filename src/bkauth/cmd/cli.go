@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -68,9 +69,8 @@ var deleteAccessKeyCmd = &cobra.Command{
 }
 
 func init() {
-	cliCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
+	cliCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
 	cliCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
-	cliCmd.MarkPersistentFlagRequired("config")
 	rootCmd.AddCommand(cliCmd)
 
 	// List Access Key
@@ -95,12 +95,16 @@ func init() {
 func cliStart() {
 	fmt.Println("cli start!")
 
-	// 0. init config
-	if cfgFile != "" {
-		// Use config file from the flag.
-		zap.S().Infof("Load config file: %s", cfgFile)
-		viper.SetConfigFile(cfgFile)
+	// Check if config file exists
+	if _, err := os.Stat(cfgFile); os.IsNotExist(err) {
+		fmt.Printf("Error: config file '%s' does not exist\n", cfgFile)
+		fmt.Println("Please ensure the config file exists or specify a valid path with --config")
+		os.Exit(1)
 	}
+
+	// Use config file from the flag or default.
+	zap.S().Infof("Load config file: %s", cfgFile)
+	viper.SetConfigFile(cfgFile)
 	initConfig()
 
 	if globalConfig.Debug {

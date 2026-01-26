@@ -36,9 +36,12 @@ import (
 // cmd for iam
 var cfgFile string
 
+// Default config file name
+const defaultConfigFile = "config.yaml"
+
 func init() {
 	// cobra.OnInitialize(initConfig)
-	rootCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
+	rootCmd.Flags().StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
 	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
 
 	rootCmd.MarkFlagRequired("config")
