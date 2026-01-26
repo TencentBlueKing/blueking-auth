@@ -20,12 +20,14 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"go.uber.org/zap"
 
 	"bkauth/pkg/service"
 	"bkauth/pkg/service/types"
+	"bkauth/pkg/util"
 )
 
 func ListAccessKey(appCodeParam string) {
@@ -42,7 +44,8 @@ func ListAccessKey(appCodeParam string) {
 	for _, appCode := range appCodes {
 		accessKeys, err := svc.ListWithCreatedAtByAppCode(appCode)
 		if err != nil {
-			zap.S().Error(err, fmt.Sprintf("svc.ListWithCreatedAtByAppCode appCode=%s fail", appCode))
+			zap.S().Errorf("svc.ListWithCreatedAtByAppCode appCode=%s fail: %v", appCode, err)
+			fmt.Fprintf(os.Stderr, "Error: failed to list access key for app_code=%s: %v\n", appCode, err)
 			continue
 		}
 
@@ -76,7 +79,12 @@ func DeleteAccessKey(appCode string, accessKeyID int64) {
 	svc := service.NewAccessKeyService()
 	err := svc.DeleteByID(appCode, accessKeyID)
 	if err != nil {
-		zap.S().Error(err, fmt.Sprintf("svc.DeleteByID appCode=%s accessKeyID=%d fail", appCode, accessKeyID))
+		zap.S().Errorf("svc.DeleteByID appCode=%s accessKeyID=%d fail: %v", appCode, accessKeyID, err)
+		if util.IsValidationError(err) {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: failed to delete access key (app_code=%s, access_key_id=%d): %v\n", appCode, accessKeyID, err)
+		}
 		return
 	}
 

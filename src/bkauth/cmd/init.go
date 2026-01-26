@@ -124,7 +124,7 @@ func initRedis() {
 func initLogger() {
 	logsDir := "logs"
 	if err := os.MkdirAll(logsDir, 0755); err != nil {
-		fmt.Printf("Warning: failed to create logs directory: %v\n", err)
+		zap.S().Warnf("failed to create logs directory: %v", err)
 	} else {
 		if globalConfig.Logger.System.Settings == nil {
 			globalConfig.Logger.System.Settings = make(map[string]string)

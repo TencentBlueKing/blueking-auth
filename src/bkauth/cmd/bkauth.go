@@ -19,6 +19,7 @@
 package cmd
 
 import (
+	"bkauth/pkg/logging"
 	"context"
 	"fmt"
 	"os"
@@ -62,30 +63,32 @@ var rootCmd = &cobra.Command{
 // Execute ...
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		zap.S().Errorf("failed to execute command: %v", err)
+		logging.SyncAll()
 		os.Exit(1)
 	}
 }
 
 // Start ...
 func Start() {
-	fmt.Println("It's BKAuth")
-
 	// 0. init config
 	if cfgFile != "" {
 		// Use config file from the flag.
-		zap.S().Infof("Load config file: %s", cfgFile)
 		viper.SetConfigFile(cfgFile)
 	}
 	initConfig()
 
-	if globalConfig.Debug {
-		fmt.Println(globalConfig)
-	}
-	fmt.Printf("enableMultiTenantMode: %v\n", globalConfig.EnableMultiTenantMode)
-
-	// 1. init
+	// 1. init logger first, so we can use zap for logging
 	initLogger()
+
+	zap.S().Info("It's BKAuth")
+	if cfgFile != "" {
+		zap.S().Infof("Load config file: %s", cfgFile)
+	}
+	if globalConfig.Debug {
+		zap.S().Infof("Global config: %+v", globalConfig)
+	}
+	zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
 	initSentry()
 	initPprof()
 	initMetrics()
