@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 
 	sentry "github.com/getsentry/sentry-go"
@@ -121,6 +122,27 @@ func initRedis() {
 }
 
 func initLogger() {
+	logsDir := "logs"
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		fmt.Printf("Warning: failed to create logs directory: %v\n", err)
+	} else {
+		if globalConfig.Logger.System.Settings == nil {
+			globalConfig.Logger.System.Settings = make(map[string]string)
+		}
+		globalConfig.Logger.System.Writer = "file"
+		globalConfig.Logger.System.Settings["path"] = logsDir
+		globalConfig.Logger.System.Settings["name"] = "bkauth_cli.log"
+
+		// Maximum size of a single log file (in MB) before rotation
+		globalConfig.Logger.System.Settings["size"] = "100"
+
+		// Maximum number of backup log files to keep
+		globalConfig.Logger.System.Settings["backups"] = "10"
+
+		// Maximum age of log files (in days) before they are removed
+		globalConfig.Logger.System.Settings["age"] = "7"
+	}
+
 	logging.InitLogger(&globalConfig.Logger)
 }
 
