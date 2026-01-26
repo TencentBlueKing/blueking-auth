@@ -14,7 +14,7 @@ ARG VERSION=""
 ARG COMMIT=""
 RUN make build -e VERSION=${VERSION} -e COMMIT=${COMMIT} && chmod +x ${BINARY}
 
-FROM mirrors.tencent.com/tencentos/tencentos4-minimal
+FROM mirrors.tencent.com/tencentos/tencentos4-minimal:4.4-v20251216
 
 ARG BINARY=bkauth
 RUN mkdir -p /app/logs
