@@ -30,15 +30,20 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
+	"bkauth/pkg/logging"
 	"bkauth/pkg/server"
 )
 
 // cmd for iam
 var cfgFile string
 
+// Default config file name
+const defaultConfigFile = "config.yaml"
+
 func init() {
 	// cobra.OnInitialize(initConfig)
-	rootCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
+	rootCmd.Flags().
+		StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
 	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
 
 	rootCmd.MarkFlagRequired("config")
@@ -59,30 +64,32 @@ var rootCmd = &cobra.Command{
 // Execute ...
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		zap.S().Errorf("failed to execute command: %v", err)
+		logging.SyncAll()
 		os.Exit(1)
 	}
 }
 
 // Start ...
 func Start() {
-	fmt.Println("It's BKAuth")
-
 	// 0. init config
 	if cfgFile != "" {
 		// Use config file from the flag.
-		zap.S().Infof("Load config file: %s", cfgFile)
 		viper.SetConfigFile(cfgFile)
 	}
 	initConfig()
 
-	if globalConfig.Debug {
-		fmt.Println(globalConfig)
-	}
-	fmt.Printf("enableMultiTenantMode: %v\n", globalConfig.EnableMultiTenantMode)
-
-	// 1. init
+	// 1. init logger first, so we can use zap for logging
 	initLogger()
+
+	zap.S().Info("It's BKAuth")
+	if cfgFile != "" {
+		zap.S().Infof("Load config file: %s", cfgFile)
+	}
+	if globalConfig.Debug {
+		zap.S().Infof("Global config: %+v", globalConfig)
+	}
+	zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
 	initSentry()
 	initPprof()
 	initMetrics()

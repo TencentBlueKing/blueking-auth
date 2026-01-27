@@ -40,7 +40,8 @@ var fixtureInitCmd = &cobra.Command{
 }
 
 func init() {
-	fixtureInitCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
+	fixtureInitCmd.Flags().
+		StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
 	fixtureInitCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
 
 	fixtureInitCmd.MarkFlagRequired("config")
@@ -52,17 +53,19 @@ func FixtureInitStart() {
 	// 0. init config
 	if cfgFile != "" {
 		// Use config file from the flag.
-		zap.S().Infof("Load config file: %s", cfgFile)
 		viper.SetConfigFile(cfgFile)
 	}
 	initConfig()
 
-	if globalConfig.Debug {
-		fmt.Println(globalConfig)
-	}
-	fmt.Printf("enableMultiTenantMode: %v\n", globalConfig.EnableMultiTenantMode)
-
 	initLogger()
+
+	if cfgFile != "" {
+		zap.S().Infof("Load config file: %s", cfgFile)
+	}
+	if globalConfig.Debug {
+		zap.S().Infof("Global config: %+v", globalConfig)
+	}
+	zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
 	initDatabase()
 	initRedis()
 	initCaches()
@@ -71,8 +74,8 @@ func FixtureInitStart() {
 	// 这里跟运维确认过，初始化的都是蓝鲸基础服务的数据，保持简单，由 bkauth 配置默认的 tenant_id
 	fixture.InitFixture(globalConfig)
 
+	zap.S().Info("init fixture finish!")
+
 	// flush logger
 	logging.SyncAll()
-
-	fmt.Println("init fixture finish!")
 }

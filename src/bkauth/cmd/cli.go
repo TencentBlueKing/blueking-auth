@@ -20,6 +20,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -38,76 +39,104 @@ var cliCmd = &cobra.Command{
 	Use:   "cli",
 	Short: "cli can operate bkauth data",
 	Long:  "",
-	Run: func(cmd *cobra.Command, args []string) {
-		cliStart()
-	},
-	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		cliFinish()
-	},
 }
 
-var listAccessKeyCmd = &cobra.Command{
-	Use:   "list_access_key",
-	Short: "list access key by app_code list, example: list_secret -app_code='app_code1,app_code2' ",
-	Long:  "",
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Parent().Run(cmd, args)
-		cli.ListAccessKey(appCodeParam)
-	},
+func listAccessKeyCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list_access_key",
+		Short: "list access key by app_code list, example: list_access_key -app_code='app_code1,app_code2' ",
+		Long:  "",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			cliStart()
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			cli.ListAccessKey(appCodeParam)
+		},
+		PostRun: func(cmd *cobra.Command, args []string) {
+			cliFinish()
+		},
+	}
+	setupCommonFlags(cmd)
+	cmd.Flags().StringVarP(
+		&appCodeParam, "app_code", "a", "", "app codes (use comma `,` separated when multiple app_code)",
+	)
+	cmd.MarkFlagRequired("app_code")
+	return cmd
 }
 
-var deleteAccessKeyCmd = &cobra.Command{
-	Use:   "delete_access_key",
-	Short: "delete app secret by access key id, example: delete_secret 1 ",
-	Long:  "",
-	// Note: 这里无法使用preRun等，因为这些pre的执行是在validateRequiredFlags之前，所以无法保证必填参数校验OK
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Parent().Run(cmd, args)
-		cli.DeleteAccessKey(appCodeParam, accessKeyIDParam)
-	},
+func deleteAccessKeyCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "delete_access_key",
+		Short: "delete app secret by access key id, example: delete_access_key -app_code='app_code' -access_key_id=1 ",
+		Long:  "",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			cliStart()
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			cli.DeleteAccessKey(appCodeParam, accessKeyIDParam)
+		},
+		PostRun: func(cmd *cobra.Command, args []string) {
+			cliFinish()
+		},
+	}
+	setupCommonFlags(cmd)
+	cmd.Flags().StringVarP(
+		&appCodeParam, "app_code", "a", "", "app code which need deleted",
+	)
+	cmd.Flags().Int64VarP(
+		&accessKeyIDParam, "access_key_id", "i", 0, "access_key_id which need deleted",
+	)
+	cmd.MarkFlagRequired("app_code")
+	cmd.MarkFlagRequired("access_key_id")
+	return cmd
+}
+
+func setupCommonFlags(cmd *cobra.Command) {
+	cmd.Flags().
+		StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
+	cmd.Flags().Bool("viper", true, "Use Viper for configuration")
 }
 
 func init() {
-	cliCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
-	cliCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
-	cliCmd.MarkPersistentFlagRequired("config")
+	// Create command instances for both rootCmd and cliCmd
+	listAccessKeyCmdRoot := listAccessKeyCmd()
+	listAccessKeyCmdCli := listAccessKeyCmd()
+
+	deleteAccessKeyCmdRoot := deleteAccessKeyCmd()
+	deleteAccessKeyCmdCli := deleteAccessKeyCmd()
+
+	// Register commands to rootCmd (for direct access: ./bkauth list_access_key)
+	rootCmd.AddCommand(listAccessKeyCmdRoot)
+	rootCmd.AddCommand(deleteAccessKeyCmdRoot)
+
+	// Register commands to cliCmd (for grouped access: ./bkauth cli list_access_key)
+	cliCmd.AddCommand(listAccessKeyCmdCli)
+	cliCmd.AddCommand(deleteAccessKeyCmdCli)
+
+	// Register cliCmd to rootCmd
 	rootCmd.AddCommand(cliCmd)
-
-	// List Access Key
-	listAccessKeyCmd.Flags().StringVarP(
-		&appCodeParam, "app_code", "a", "", "app codes (use comma `,` separated when multiple app_code)",
-	)
-	listAccessKeyCmd.MarkFlagRequired("app_code")
-	cliCmd.AddCommand(listAccessKeyCmd)
-
-	// Delete Access Key
-	deleteAccessKeyCmd.Flags().StringVarP(
-		&appCodeParam, "app_code", "a", "", "app code which need deleted",
-	)
-	deleteAccessKeyCmd.Flags().Int64VarP(
-		&accessKeyIDParam, "access_key_id", "i", 0, "access_key_id which need deleted",
-	)
-	deleteAccessKeyCmd.MarkFlagRequired("app_code")
-	deleteAccessKeyCmd.MarkFlagRequired("access_key_id")
-	cliCmd.AddCommand(deleteAccessKeyCmd)
 }
 
 func cliStart() {
-	fmt.Println("cli start!")
-
-	// 0. init config
-	if cfgFile != "" {
-		// Use config file from the flag.
-		zap.S().Infof("Load config file: %s", cfgFile)
-		viper.SetConfigFile(cfgFile)
+	// Check if config file exists (before logger init, use fmt for errors)
+	if _, err := os.Stat(cfgFile); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Error: config file '%s' does not exist\n", cfgFile)
+		fmt.Fprintln(os.Stderr, "Please ensure the config file exists or specify a valid path with --config")
+		return
 	}
+
+	// Use config file from the flag or default.
+	viper.SetConfigFile(cfgFile)
 	initConfig()
 
+	initLogger()
+
+	zap.S().Info("cli start!")
+	zap.S().Infof("Load config file: %s", cfgFile)
 	if globalConfig.Debug {
-		fmt.Println(globalConfig)
+		zap.S().Infof("Global config: %+v", globalConfig)
 	}
 
-	initLogger()
 	initDatabase()
 	initRedis()
 	initCaches()
@@ -116,6 +145,6 @@ func cliStart() {
 
 func cliFinish() {
 	// flush logger
+	zap.S().Info("cli finish!")
 	logging.SyncAll()
-	fmt.Println("cli finish!")
 }
