@@ -40,7 +40,8 @@ var fixtureInitCmd = &cobra.Command{
 }
 
 func init() {
-	fixtureInitCmd.Flags().StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
+	fixtureInitCmd.Flags().
+		StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
 	fixtureInitCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
 
 	fixtureInitCmd.MarkFlagRequired("config")

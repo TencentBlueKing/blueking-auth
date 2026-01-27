@@ -83,7 +83,9 @@ func DeleteAccessKey(appCode string, accessKeyID int64) {
 		if util.IsValidationError(err) {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		} else {
-			fmt.Fprintf(os.Stderr, "Error: failed to delete access key (app_code=%s, access_key_id=%d): %v\n", appCode, accessKeyID, err)
+			fmt.Fprintf(os.Stderr,
+				"Error: failed to delete access key (app_code=%s, access_key_id=%d): %v\n",
+				appCode, accessKeyID, err)
 		}
 		return
 	}

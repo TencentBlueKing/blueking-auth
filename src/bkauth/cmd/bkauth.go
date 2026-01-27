@@ -19,7 +19,6 @@
 package cmd
 
 import (
-	"bkauth/pkg/logging"
 	"context"
 	"fmt"
 	"os"
@@ -31,6 +30,7 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
+	"bkauth/pkg/logging"
 	"bkauth/pkg/server"
 )
 
@@ -42,7 +42,8 @@ const defaultConfigFile = "config.yaml"
 
 func init() {
 	// cobra.OnInitialize(initConfig)
-	rootCmd.Flags().StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
+	rootCmd.Flags().
+		StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
 	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
 
 	rootCmd.MarkFlagRequired("config")

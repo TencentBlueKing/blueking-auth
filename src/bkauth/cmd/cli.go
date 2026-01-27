@@ -92,7 +92,8 @@ func deleteAccessKeyCmd() *cobra.Command {
 }
 
 func setupCommonFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
+	cmd.Flags().
+		StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
 	cmd.Flags().Bool("viper", true, "Use Viper for configuration")
 }
 
