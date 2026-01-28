@@ -19,7 +19,7 @@
 package types
 
 import (
-	"time"
+	"bkauth/pkg/util"
 )
 
 type AccessKey struct {
@@ -31,5 +31,5 @@ type AccessKey struct {
 
 type AccessKeyWithCreatedAt struct {
 	AccessKey
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt util.UnixTime `json:"created_at"`
 }
