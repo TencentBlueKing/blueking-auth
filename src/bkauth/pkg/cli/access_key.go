@@ -21,6 +21,7 @@ package cli
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -57,7 +58,8 @@ func ListAccessKey(appCodeParam string) {
 	// 3. 统一输出
 	fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
 	for _, ak := range accessKeyList {
-		fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, ak.CreatedAt)
+		t := time.Unix(ak.CreatedAt, 0).UTC()
+		fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, t.String())
 	}
 }
 

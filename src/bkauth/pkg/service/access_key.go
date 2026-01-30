@@ -181,7 +181,7 @@ func (s *accessKeyService) ListWithCreatedAtByAppCode(appCode string) (
 				AppSecret: appSecret,
 				Enabled:   accessKey.Enabled,
 			},
-			CreatedAt: util.FromTime(accessKey.CreatedAt),
+			CreatedAt: accessKey.CreatedAt.Unix(),
 		})
 	}
 
