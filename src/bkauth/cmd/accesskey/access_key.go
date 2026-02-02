@@ -34,6 +34,7 @@ var accesskeyCmd = &cobra.Command{
 }
 
 func init() {
+	cmd.AddConfigFlags(accesskeyCmd)
 	accesskeyCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "table",
 		"output format: table (human) | json (for scripts, e.g. pipe to jq)")
 	accesskeyCmd.AddCommand(listCmd())

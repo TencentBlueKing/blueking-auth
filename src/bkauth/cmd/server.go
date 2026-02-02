@@ -39,11 +39,14 @@ var serverCmd = &cobra.Command{
 }
 
 func init() {
+	AddConfigFlags(serverCmd)
 	rootCmd.AddCommand(serverCmd)
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
-	initConfig()
+	if err := initConfig(); err != nil {
+		return err
+	}
 
 	initLogger()
 

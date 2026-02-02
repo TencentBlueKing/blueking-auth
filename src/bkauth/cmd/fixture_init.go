@@ -63,6 +63,7 @@ var fixtureInitCmd = &cobra.Command{
 }
 
 func init() {
+	AddConfigFlags(fixtureInitCmd)
 	rootCmd.AddCommand(fixtureInitCmd)
 	fixtureInitCmd.Flags().StringVarP(&fixtureInitOutputFormat, "output", "o", "table",
 		"output format: table|json")

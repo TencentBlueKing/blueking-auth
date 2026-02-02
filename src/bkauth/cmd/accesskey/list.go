@@ -42,6 +42,7 @@ func listCmd() *cobra.Command {
 				return cli.ListAccessKey(listAppCodeParam, outputFormat)
 			})
 			if err != nil && strings.ToLower(outputFormat) == cli.OutputJSON {
+				cli.RespondError(outputFormat, err)
 				os.Exit(1)
 			}
 			return err

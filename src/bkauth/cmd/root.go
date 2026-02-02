@@ -22,7 +22,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var cfgFile string
@@ -34,12 +33,6 @@ var rootCmd = &cobra.Command{
 	Short: "bkauth is Client Identity and Oauth2.0 Management System",
 	Long:  ``,
 	// Root 仅作为容器，不执行业务逻辑；无子命令时显示 help
-}
-
-func init() {
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", defaultConfigFile, "config file")
-	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
-	viper.SetDefault("author", "blueking-paas")
 }
 
 // RootCmd 返回根命令，供子包注册子命令使用
