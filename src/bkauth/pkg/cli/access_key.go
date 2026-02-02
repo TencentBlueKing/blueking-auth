@@ -20,75 +20,69 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"go.uber.org/zap"
 
 	"bkauth/pkg/service"
 	"bkauth/pkg/service/types"
-	"bkauth/pkg/util"
 )
 
-func ListAccessKey(appCodeParam string) {
-	// 1. 不允许为空
+const (
+	msgAppCodeRequired         = "app_code param should not be empty"
+	msgNoAccessKey             = "no accessKey"
+	msgAccessKeyIDMustPositive = "access key id must positive integer"
+	msgDeleteSuccess           = "delete success"
+)
+
+func ListAccessKey(appCodeParam, outputFormat string) error {
+	// 1. 校验参数
 	if appCodeParam == "" {
-		fmt.Println("app_code param should not be empty")
-		return
+		return RespondErrorMsg(outputFormat, msgAppCodeRequired)
 	}
 
 	// 2. 遍历查询
 	appCodes := strings.Split(appCodeParam, ",")
 	svc := service.NewAccessKeyService()
-	accessKeyList := make([]types.AccessKeyWithCreatedAt, 0, len(appCodes)*3) // 业务逻辑限制了一个App最多两个，所以这里3个是足够了
+	accessKeyList := make([]types.AccessKeyWithCreatedAt, 0, len(appCodes)*3)
 	for _, appCode := range appCodes {
 		accessKeys, err := svc.ListWithCreatedAtByAppCode(appCode)
 		if err != nil {
 			zap.S().Errorf("svc.ListWithCreatedAtByAppCode appCode=%s fail: %v", appCode, err)
-			fmt.Fprintf(os.Stderr, "Error: failed to list access key for app_code=%s: %v\n", appCode, err)
-			continue
+			return RespondError(outputFormat, err)
 		}
-
 		accessKeyList = append(accessKeyList, accessKeys...)
 	}
 
+	// 3. 按格式输出
 	if len(accessKeyList) == 0 {
-		fmt.Println("no accessKey")
-		return
+		return RespondEmptyMsg(outputFormat, msgNoAccessKey)
 	}
-
-	// 3. 统一输出
-	fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
-	for _, ak := range accessKeyList {
-		fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, ak.CreatedAt)
-	}
+	return RespondSuccess(outputFormat, accessKeyList, func() {
+		fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
+		for _, ak := range accessKeyList {
+			fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, ak.CreatedAt)
+		}
+	})
 }
 
-func DeleteAccessKey(appCode string, accessKeyID int64) {
-	// 1. 不允许为空
+func DeleteAccessKey(appCode string, accessKeyID int64, outputFormat string) error {
+	// 1. 校验参数
 	if appCode == "" {
-		fmt.Println("app_code param should not be empty")
-		return
+		return RespondErrorMsg(outputFormat, msgAppCodeRequired)
 	}
 	if accessKeyID <= 0 {
-		fmt.Println("access key id must positive integer")
-		return
+		return RespondErrorMsg(outputFormat, msgAccessKeyIDMustPositive)
 	}
 
-	// 2. 直接删除
+	// 2. 执行删除
 	svc := service.NewAccessKeyService()
 	err := svc.DeleteByID(appCode, accessKeyID)
 	if err != nil {
 		zap.S().Errorf("svc.DeleteByID appCode=%s accessKeyID=%d fail: %v", appCode, accessKeyID, err)
-		if util.IsValidationError(err) {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		} else {
-			fmt.Fprintf(os.Stderr,
-				"Error: failed to delete access key (app_code=%s, access_key_id=%d): %v\n",
-				appCode, accessKeyID, err)
-		}
-		return
+		return RespondError(outputFormat, err)
 	}
 
-	fmt.Println("delete success")
+	data := map[string]interface{}{"deleted": true, "app_code": appCode, "id": accessKeyID}
+	return RespondSuccessWithMsg(outputFormat, msgDeleteSuccess, data, nil)
 }

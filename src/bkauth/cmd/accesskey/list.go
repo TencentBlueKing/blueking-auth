@@ -16,17 +16,38 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package main
+package accesskey
 
 import (
+	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+
 	"bkauth/cmd"
-	_ "bkauth/cmd/accesskey"
+	"bkauth/pkg/cli"
 )
 
-// @title BKAuth API
-// @version 1.0
-// @description BKAuth API 文档
+var listAppCodeParam string
 
-func main() {
-	cmd.Execute()
+func listCmd() *cobra.Command {
+	c := &cobra.Command{
+		Use:   "list",
+		Short: "List access keys by app code(s)",
+		Long: "Examples:\n  bkauth access-key list -a bk_paas" +
+			"\n  bkauth access-key list -a app1,app2 -o json   # JSON for scripts (code/msg/data + exit code)",
+		SilenceUsage: true,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			err := cmd.RunWithCLIEnv(func() error {
+				return cli.ListAccessKey(listAppCodeParam, outputFormat)
+			})
+			if err != nil && strings.ToLower(outputFormat) == cli.OutputJSON {
+				os.Exit(1)
+			}
+			return err
+		},
+	}
+	c.Flags().StringVarP(&listAppCodeParam, "app-code", "a", "", "app code(s), comma-separated when multiple")
+	_ = c.MarkFlagRequired("app-code")
+	return c
 }

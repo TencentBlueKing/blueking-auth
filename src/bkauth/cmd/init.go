@@ -20,7 +20,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 
 	sentry "github.com/getsentry/sentry-go"
@@ -43,11 +42,9 @@ var globalConfig *config.Config
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	if cfgFile == "" {
-		panic("Config file missing")
+		cfgFile = defaultConfigFile
 	}
-	// Use config file from the flag.
-	// viper.SetConfigFile(cfgFile)
-	// If a config file is found, read it in.
+	viper.SetConfigFile(cfgFile)
 	if err := viper.ReadInConfig(); err != nil {
 		panic(fmt.Sprintf("Using config file: %s, read fail: err=%v", viper.ConfigFileUsed(), err))
 	}
@@ -122,27 +119,6 @@ func initRedis() {
 }
 
 func initLogger() {
-	logsDir := "logs"
-	if err := os.MkdirAll(logsDir, 0755); err != nil {
-		zap.S().Warnf("failed to create logs directory: %v", err)
-	} else {
-		if globalConfig.Logger.System.Settings == nil {
-			globalConfig.Logger.System.Settings = make(map[string]string)
-		}
-		globalConfig.Logger.System.Writer = "file"
-		globalConfig.Logger.System.Settings["path"] = logsDir
-		globalConfig.Logger.System.Settings["name"] = "bkauth_cli.log"
-
-		// Maximum size of a single log file (in MB) before rotation
-		globalConfig.Logger.System.Settings["size"] = "100"
-
-		// Maximum number of backup log files to keep
-		globalConfig.Logger.System.Settings["backups"] = "10"
-
-		// Maximum age of log files (in days) before they are removed
-		globalConfig.Logger.System.Settings["age"] = "7"
-	}
-
 	logging.InitLogger(&globalConfig.Logger)
 }
 
@@ -174,6 +150,29 @@ func initCryptos() {
 
 func initAPIAllowList() {
 	common.InitAPIAllowList(globalConfig.APIAllowLists)
+}
+
+// RunWithCLIEnv 为需要 DB/Redis/配置的 CLI 子命令准备环境并执行 fn，执行后同步日志。
+// 若 fn 返回 error，调用方应据此设置进程退出码（如 RunE 返回 err 则 Cobra 退出非 0）。
+// 日志名、path 等由 logger.system.settings 配置；CLI 子命令统一写 system 日志到文件。
+func RunWithCLIEnv(fn func() error) error {
+	if cfgFile == "" {
+		cfgFile = defaultConfigFile
+	}
+	viper.SetConfigFile(cfgFile)
+	initConfig()
+	if globalConfig.Logger.System.Settings == nil {
+		globalConfig.Logger.System.Settings = make(map[string]string)
+	}
+	globalConfig.Logger.System.Writer = "file"
+	initLogger()
+	initDatabase()
+	initRedis()
+	initCaches()
+	initCryptos()
+	err := fn()
+	logging.SyncAll()
+	return err
 }
 
 func initPprof() {

@@ -20,72 +20,35 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"bkauth/pkg/logging"
 	"bkauth/pkg/server"
 )
 
-// cmd for iam
-var cfgFile string
-
-// Default config file name
-const defaultConfigFile = "config.yaml"
+var serverCmd = &cobra.Command{
+	Use:   "server",
+	Short: "Start BKAuth HTTP server",
+	Long:  ``,
+	RunE:  runServer,
+}
 
 func init() {
-	// cobra.OnInitialize(initConfig)
-	rootCmd.Flags().
-		StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
-	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
-
-	rootCmd.MarkFlagRequired("config")
-	viper.SetDefault("author", "blueking-paas")
+	rootCmd.AddCommand(serverCmd)
 }
 
-var rootCmd = &cobra.Command{
-	Use:   "bkauth",
-	Short: "bkauth is Client Identity and Oauth2.0 Management System",
-	Long:  ``,
-
-	Run: func(cmd *cobra.Command, args []string) {
-		// Do Stuff Here
-		Start()
-	},
-}
-
-// Execute ...
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		zap.S().Errorf("failed to execute command: %v", err)
-		logging.SyncAll()
-		os.Exit(1)
-	}
-}
-
-// Start ...
-func Start() {
-	// 0. init config
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	}
+func runServer(cmd *cobra.Command, args []string) error {
 	initConfig()
 
-	// 1. init logger first, so we can use zap for logging
 	initLogger()
 
 	zap.S().Info("It's BKAuth")
-	if cfgFile != "" {
-		zap.S().Infof("Load config file: %s", cfgFile)
-	}
+	zap.S().Infof("Load config file: %s", cfgFile)
 	if globalConfig.Debug {
 		zap.S().Infof("Global config: %+v", globalConfig)
 	}
@@ -95,23 +58,20 @@ func Start() {
 	initMetrics()
 	initDatabase()
 	initRedis()
-	// NOTE: should be after initRedis
 	initCaches()
 	initCryptos()
 	initAPIAllowList()
 
-	// 2. watch the signal
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	go func() {
 		interrupt(cancelFunc)
 	}()
 
-	// 3. start the server
 	httpServer := server.NewServer(globalConfig)
 	httpServer.Run(ctx)
+	return nil
 }
 
-// a context canceled when SIGINT or SIGTERM are notified
 func interrupt(onSignal func()) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)

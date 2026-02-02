@@ -16,17 +16,41 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package main
+package cmd
 
 import (
-	"bkauth/cmd"
-	_ "bkauth/cmd/accesskey"
+	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-// @title BKAuth API
-// @version 1.0
-// @description BKAuth API 文档
+var cfgFile string
 
-func main() {
-	cmd.Execute()
+const defaultConfigFile = "config.yaml"
+
+var rootCmd = &cobra.Command{
+	Use:   "bkauth",
+	Short: "bkauth is Client Identity and Oauth2.0 Management System",
+	Long:  ``,
+	// Root 仅作为容器，不执行业务逻辑；无子命令时显示 help
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", defaultConfigFile, "config file")
+	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
+	viper.SetDefault("author", "blueking-paas")
+}
+
+// RootCmd 返回根命令，供子包注册子命令使用
+func RootCmd() *cobra.Command {
+	return rootCmd
+}
+
+// Execute 执行根命令
+// 子命令 RunE 返回 error 时 Cobra 已打印 "Error: ..." 和 Usage，此处不再重复打印
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }

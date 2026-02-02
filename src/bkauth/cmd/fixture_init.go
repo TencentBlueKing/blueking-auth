@@ -20,62 +20,50 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
+	"bkauth/pkg/cli"
 	"bkauth/pkg/fixture"
-	"bkauth/pkg/logging"
 )
 
-// fixtureInitCmd : init some data
+const (
+	fixtureInitCmdName    = "fixture-init"
+	fixtureInitSuccessMsg = "init fixture finish!"
+)
+
+var fixtureInitOutputFormat string
+
 var fixtureInitCmd = &cobra.Command{
-	Use:   "fixture_init",
-	Short: "",
-	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		FixtureInitStart()
+	Use:          fixtureInitCmdName,
+	Aliases:      []string{"init"},
+	Short:        "Init fixture data",
+	Long:         ``,
+	SilenceUsage: true,
+	RunE: func(_ *cobra.Command, _ []string) error {
+		err := RunWithCLIEnv(func() (err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = cli.RespondError(fixtureInitOutputFormat, fmt.Errorf("%v", r))
+				}
+			}()
+			zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
+			// 这里跟运维确认过，初始化的都是蓝鲸基础服务的数据，保持简单，由 bkauth 配置默认的 tenant_id
+			fixture.InitFixture(globalConfig)
+			zap.S().Info(fixtureInitSuccessMsg)
+			return cli.RespondSuccessWithMsg(fixtureInitOutputFormat, fixtureInitSuccessMsg, nil, nil)
+		})
+		if err != nil && cli.IsJSON(fixtureInitOutputFormat) {
+			os.Exit(1)
+		}
+		return err
 	},
 }
 
 func init() {
-	fixtureInitCmd.Flags().
-		StringVarP(&cfgFile, "config", "c", defaultConfigFile, fmt.Sprintf("config file (default is %s)", defaultConfigFile))
-	fixtureInitCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
-
-	fixtureInitCmd.MarkFlagRequired("config")
-
 	rootCmd.AddCommand(fixtureInitCmd)
-}
-
-func FixtureInitStart() {
-	// 0. init config
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	}
-	initConfig()
-
-	initLogger()
-
-	if cfgFile != "" {
-		zap.S().Infof("Load config file: %s", cfgFile)
-	}
-	if globalConfig.Debug {
-		zap.S().Infof("Global config: %+v", globalConfig)
-	}
-	zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
-	initDatabase()
-	initRedis()
-	initCaches()
-	initCryptos()
-
-	// 这里跟运维确认过，初始化的都是蓝鲸基础服务的数据，保持简单，由 bkauth 配置默认的 tenant_id
-	fixture.InitFixture(globalConfig)
-
-	zap.S().Info("init fixture finish!")
-
-	// flush logger
-	logging.SyncAll()
+	fixtureInitCmd.Flags().StringVarP(&fixtureInitOutputFormat, "output", "o", "table",
+		"output format: table|json")
 }
