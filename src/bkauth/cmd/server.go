@@ -43,11 +43,12 @@ func init() {
 	rootCmd.AddCommand(serverCmd)
 }
 
-func runServer(cmd *cobra.Command, args []string) error {
+func runServer(_ *cobra.Command, _ []string) error {
 	if err := initConfig(); err != nil {
 		return err
 	}
 
+	// 1. init
 	initLogger()
 
 	zap.S().Info("It's BKAuth")
@@ -56,25 +57,30 @@ func runServer(cmd *cobra.Command, args []string) error {
 		zap.S().Infof("Global config: %+v", globalConfig)
 	}
 	zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
+
 	initSentry()
 	initPprof()
 	initMetrics()
 	initDatabase()
 	initRedis()
+	// NOTE: should be after initRedis
 	initCaches()
 	initCryptos()
 	initAPIAllowList()
 
+	// 2. watch the signal
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	go func() {
 		interrupt(cancelFunc)
 	}()
 
+	// 3. start the server
 	httpServer := server.NewServer(globalConfig)
 	httpServer.Run(ctx)
 	return nil
 }
 
+// a context canceled when SIGINT or SIGTERM are notified
 func interrupt(onSignal func()) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
