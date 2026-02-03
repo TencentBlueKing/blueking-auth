@@ -43,11 +43,10 @@ var globalConfig *config.Config
 // AddConfigFlags 为需要配置文件的命令添加 --config/-c 与 --viper 参数，仅需配置的子命令应调用此方法。
 func AddConfigFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", defaultConfigFile, "config file")
-	cmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
+	cmd.PersistentFlags().Bool("viper", true, "use viper for configuration")
 }
 
 // initConfig reads in config file and ENV variables if set.
-// 配置文件不存在或解析失败时返回 error，由调用方决定退出码，不 panic。
 func initConfig() error {
 	if cfgFile == "" {
 		cfgFile = defaultConfigFile

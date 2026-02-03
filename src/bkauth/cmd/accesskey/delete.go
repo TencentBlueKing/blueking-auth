@@ -19,13 +19,10 @@
 package accesskey
 
 import (
-	"os"
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	"bkauth/cmd"
-	"bkauth/pkg/cli"
+	"bkauth/pkg/service"
 )
 
 var (
@@ -37,23 +34,27 @@ func deleteCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete access key by id",
-		Long: "Examples:\n  bkauth access-key delete -a bk_paas -i 1" +
-			"\n  bkauth access-key delete -a app -i 1 -o json   # JSON: code/msg/data, exit 0/1",
+		Long: "Examples:\n  bkauth access_key delete --app_code my_app --access_key_id 1" +
+			"\n  bkauth access_key delete -a my_app -i 1 -o json",
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			err := cmd.RunWithCLIEnv(func() error {
-				return cli.DeleteAccessKey(deleteAppCodeParam, deleteAccessKeyIDParam, outputFormat)
+			return cmd.RunWithCLIEnv(func() error {
+				err := DeleteAccessKey(deleteAppCodeParam, deleteAccessKeyIDParam)
+				if err != nil {
+					return err
+				}
+				return cmd.RespondSuccess(accesskeyOutputFormat, "delete success", nil)
 			})
-			if err != nil && strings.ToLower(outputFormat) == cli.OutputJSON {
-				cli.RespondError(outputFormat, err)
-				os.Exit(1)
-			}
-			return err
 		},
 	}
-	c.Flags().StringVarP(&deleteAppCodeParam, "app-code", "a", "", "app code")
-	c.Flags().Int64VarP(&deleteAccessKeyIDParam, "access-key-id", "i", 0, "access key id to delete")
-	_ = c.MarkFlagRequired("app-code")
-	_ = c.MarkFlagRequired("access-key-id")
+	c.Flags().StringVarP(&deleteAppCodeParam, "app_code", "a", "", "app_code which need deleted")
+	c.Flags().Int64VarP(&deleteAccessKeyIDParam, "access_key_id", "i", 0, "access_key_id which need deleted")
+	_ = c.MarkFlagRequired("app_code")
+	_ = c.MarkFlagRequired("access_key_id")
 	return c
+}
+
+func DeleteAccessKey(appCode string, accessKeyID int64) error {
+	svc := service.NewAccessKeyService()
+	return svc.DeleteByID(appCode, accessKeyID)
 }

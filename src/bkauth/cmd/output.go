@@ -12,31 +12,39 @@
  * either express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * We undertake not to change the open source license (MIT license) applicable
- * to the current version of the project delivered to anyone in the future.
+ * We undertake not to change the open source license (MIT license) applicable to
+ * the current version of the project delivered to anyone in the future.
  */
 
-package accesskey
+package cmd
 
 import (
-	"github.com/spf13/cobra"
-
-	"bkauth/cmd"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"strings"
 )
 
-var accesskeyOutputFormat string
-
-var accesskeyCmd = &cobra.Command{
-	Use:   "access_key",
-	Short: "Manage access key (list, delete)",
-	Long:  ``,
+func RespondSuccess(outputFormat string, data any, tableOutput func()) error {
+	if strings.ToLower(outputFormat) == "json" {
+		writeJSON(data)
+		return nil
+	}
+	if tableOutput != nil {
+		tableOutput()
+	} else {
+		if s, ok := data.(string); ok {
+			fmt.Fprintln(os.Stdout, s)
+		} else {
+			writeJSON(data)
+		}
+	}
+	return nil
 }
 
-func init() {
-	cmd.AddConfigFlags(accesskeyCmd)
-	accesskeyCmd.PersistentFlags().StringVarP(&accesskeyOutputFormat, "output", "o", "table",
-		"output format: table | json")
-	accesskeyCmd.AddCommand(listCmd())
-	accesskeyCmd.AddCommand(deleteCmd())
-	cmd.RootCmd().AddCommand(accesskeyCmd)
+func writeJSON(data any) {
+	b, _ := json.Marshal(data)
+	os.Stdout.Write(b)
+	io.WriteString(os.Stdout, "\n")
 }

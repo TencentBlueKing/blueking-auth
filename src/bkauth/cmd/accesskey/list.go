@@ -19,13 +19,15 @@
 package accesskey
 
 import (
-	"os"
+	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"bkauth/cmd"
-	"bkauth/pkg/cli"
+	"bkauth/pkg/service"
+	"bkauth/pkg/service/types"
 )
 
 var listAppCodeParam string
@@ -33,22 +35,52 @@ var listAppCodeParam string
 func listCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "list",
-		Short: "List access keys by app code(s)",
-		Long: "Examples:\n  bkauth access-key list -a bk_paas" +
-			"\n  bkauth access-key list -a app1,app2 -o json   # JSON for scripts (code/msg/data + exit code)",
+		Short: "List access key by app code(s)",
+		Long: "Examples:\n  bkauth access_key list --app_code my_app" +
+			"\n  bkauth access_key list -a my_app1,my_app2 -o json",
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			err := cmd.RunWithCLIEnv(func() error {
-				return cli.ListAccessKey(listAppCodeParam, outputFormat)
+			return cmd.RunWithCLIEnv(func() error {
+				appCodes := strings.Split(listAppCodeParam, ",")
+				list, err := ListAccessKeys(appCodes)
+				if err != nil {
+					return err
+				}
+				if len(list) == 0 {
+					return fmt.Errorf("no accessKey")
+				}
+				// CLI 输出
+				return cmd.RespondSuccess(accesskeyOutputFormat, list, func() {
+					fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
+					for _, ak := range list {
+						fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, ak.CreatedAt)
+					}
+				})
 			})
-			if err != nil && strings.ToLower(outputFormat) == cli.OutputJSON {
-				cli.RespondError(outputFormat, err)
-				os.Exit(1)
-			}
-			return err
 		},
 	}
-	c.Flags().StringVarP(&listAppCodeParam, "app-code", "a", "", "app code(s), comma-separated when multiple")
-	_ = c.MarkFlagRequired("app-code")
+	c.Flags().StringVarP(&listAppCodeParam, "app_code", "a", "",
+		"app_code (use comma `,` separated when multiple app_code)")
+	_ = c.MarkFlagRequired("app_code")
 	return c
+}
+
+func ListAccessKeys(appCodes []string) ([]types.AccessKeyWithCreatedAt, error) {
+	// 1. 不允许为空
+	if len(appCodes) == 0 {
+		return nil, fmt.Errorf("app_code param should not be empty")
+	}
+
+	// 2. 遍历查询
+	svc := service.NewAccessKeyService()
+	accessKeyList := make([]types.AccessKeyWithCreatedAt, 0, len(appCodes)*3) // 业务逻辑限制一个 App 最多两个 key，长度为 3 足够
+	for _, appCode := range appCodes {
+		accessKeys, err := svc.ListWithCreatedAtByAppCode(appCode)
+		if err != nil {
+			zap.S().Error(err, fmt.Sprintf("svc.ListWithCreatedAtByAppCode appCode=%s fail", appCode))
+			continue
+		}
+		accessKeyList = append(accessKeyList, accessKeys...)
+	}
+	return accessKeyList, nil
 }
