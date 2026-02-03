@@ -19,7 +19,10 @@
 package accesskey
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"bkauth/cmd"
 	"bkauth/pkg/service"
@@ -55,6 +58,17 @@ func deleteCmd() *cobra.Command {
 }
 
 func DeleteAccessKey(appCode string, accessKeyID int64) error {
+	if appCode == "" {
+		return fmt.Errorf("app_code param should not be empty")
+	}
+	if accessKeyID <= 0 {
+		return fmt.Errorf("access key id must positive integer")
+	}
 	svc := service.NewAccessKeyService()
-	return svc.DeleteByID(appCode, accessKeyID)
+	err := svc.DeleteByID(appCode, accessKeyID)
+	if err != nil {
+		zap.S().Error(err, fmt.Sprintf("svc.DeleteByID appCode=%s accessKeyID=%d fail", appCode, accessKeyID))
+		return err
+	}
+	return nil
 }
