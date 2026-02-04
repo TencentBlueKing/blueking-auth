@@ -21,7 +21,6 @@ package accesskey
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
@@ -54,8 +53,7 @@ func listCmd() *cobra.Command {
 				return cmd.RespondSuccess(accesskeyOutputFormat, list, func() {
 					fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
 					for _, ak := range list {
-						t := time.Unix(ak.CreatedAt, 0)
-						fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, t)
+						fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, ak.CreatedAt)
 					}
 				})
 			})
