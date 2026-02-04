@@ -59,7 +59,7 @@ func ListAccessKey(appCodeParam string) {
 	fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
 	for _, ak := range accessKeyList {
 		t := time.Unix(ak.CreatedAt, 0)
-		fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, t.String())
+		fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, t)
 	}
 }
 
