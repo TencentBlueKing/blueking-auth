@@ -18,10 +18,6 @@
 
 package types
 
-import (
-	"time"
-)
-
 type AccessKey struct {
 	ID        int64  `json:"id"`
 	AppCode   string `json:"bk_app_code"`
@@ -31,5 +27,5 @@ type AccessKey struct {
 
 type AccessKeyWithCreatedAt struct {
 	AccessKey
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt int64 `json:"created_at"`
 }
