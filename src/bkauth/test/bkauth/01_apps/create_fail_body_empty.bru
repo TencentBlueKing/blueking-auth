@@ -1,10 +1,10 @@
 meta {
-  name: list_apps
+  name: create_fail_body_empty
   type: http
-  seq: 12
+  seq: 3
 }
 
-get {
+post {
   url: http://{{host}}:{{port}}/api/v1/apps
   body: json
   auth: none
@@ -15,9 +15,12 @@ headers {
   X-Bk-App-Secret: {{x_bk_app_secret}}
 }
 
+body:json {
+  {}
+}
+
 assert {
-  res.status: eq 200
-  res.body.message: eq ok
-  res.body.data.count: eq 4
-  res.body.data.results: length 4
+  res.status: eq 400
+  res.body.code: eq 1903400
+  res.body.message: eq bad request:AppCode is required
 }

@@ -1,11 +1,11 @@
 meta {
-  name: list_apps
+  name: update_ok
   type: http
-  seq: 12
+  seq: 20
 }
 
-get {
-  url: http://{{host}}:{{port}}/api/v1/apps
+put {
+  url: http://{{host}}:{{port}}/api/v1/apps/demo/access-keys/{{access_key_id}}
   body: json
   auth: none
 }
@@ -15,9 +15,14 @@ headers {
   X-Bk-App-Secret: {{x_bk_app_secret}}
 }
 
+body:json {
+  {
+    "enabled": false
+  }
+}
+
 assert {
   res.status: eq 200
+  res.body.code: eq 0
   res.body.message: eq ok
-  res.body.data.count: eq 4
-  res.body.data.results: length 4
 }

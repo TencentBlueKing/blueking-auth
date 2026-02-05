@@ -1,5 +1,5 @@
 meta {
-  name: create_conflict
+  name: create_ok
   type: http
   seq: 9
 }
@@ -27,7 +27,9 @@ body:json {
 }
 
 assert {
-  res.status: eq 409
-  res.body.code: eq 1903409
-  res.body.message: eq conflict:app(demo) already exists
+  res.status: eq 200
+  res.body.code: eq 0
+  res.body.data.bk_app_code: eq demo
+  res.body.data.bk_tenant.mode: eq single
+  res.body.data.bk_tenant.id: eq default
 }

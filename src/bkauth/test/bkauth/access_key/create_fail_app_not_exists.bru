@@ -1,11 +1,11 @@
 meta {
-  name: get_app_fail_not_exists
+  name: create_fail_app_not_exists
   type: http
   seq: 10
 }
 
-get {
-  url: http://{{host}}:{{port}}/api/v1/apps/not_exists
+post {
+  url: http://{{host}}:{{port}}/api/v1/apps/non_existent_app/access-keys
   body: json
   auth: none
 }
@@ -15,8 +15,12 @@ headers {
   X-Bk-App-Secret: {{x_bk_app_secret}}
 }
 
+body:json {
+  {}
+}
+
 assert {
   res.status: eq 404
   res.body.code: eq 1903404
-  res.body.message: eq not found:App(not_exists) not exists
+  res.body.message: eq not found:App(non_existent_app) not exists
 }

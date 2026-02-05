@@ -1,18 +1,13 @@
 meta {
-  name: list_apps_pagination
+  name: list_apps
   type: http
   seq: 13
 }
 
 get {
-  url: http://{{host}}:{{port}}/api/v1/apps?page=2&page_size=2
+  url: http://{{host}}:{{port}}/api/v1/apps
   body: json
   auth: none
-}
-
-params:query {
-  page: 2
-  page_size: 2
 }
 
 headers {
@@ -24,5 +19,5 @@ assert {
   res.status: eq 200
   res.body.message: eq ok
   res.body.data.count: eq 4
-  res.body.data.results: length 2
+  res.body.data.results: length 4
 }

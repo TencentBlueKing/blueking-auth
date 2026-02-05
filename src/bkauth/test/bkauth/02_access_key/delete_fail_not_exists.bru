@@ -1,11 +1,11 @@
 meta {
-  name: delete_app_fail_not_exists
+  name: delete_fail_not_exists
   type: http
-  seq: 3
+  seq: 31
 }
 
 delete {
-  url: http://{{host}}:{{port}}/api/v1/apps/{{non_existent_app_code}}
+  url: http://{{host}}:{{port}}/api/v1/apps/demo/access-keys/999999
   body: none
   auth: none
 }
@@ -18,5 +18,5 @@ headers {
 assert {
   res.status: eq 404
   res.body.code: eq 1903404
-  res.body.message: eq not found:App({{non_existent_app_code}}) not exists
+  res.body.message: eq not found:AccessKeyID(999999) of app(demo) not exists
 }

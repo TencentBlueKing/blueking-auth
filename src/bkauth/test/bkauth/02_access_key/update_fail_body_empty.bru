@@ -1,0 +1,25 @@
+meta {
+  name: update_fail_body_empty
+  type: http
+  seq: 28
+}
+
+put {
+  url: http://{{host}}:{{port}}/api/v1/apps/demo/access-keys/{{access_key_id}}
+  body: json
+  auth: none
+}
+
+headers {
+  X-Bk-App-Code: {{x_bk_app_code}}
+  X-Bk-App-Secret: {{x_bk_app_secret}}
+}
+
+body:json {
+  {}
+}
+
+assert {
+  res.status: eq 400
+  res.body.code: eq 1903400
+}

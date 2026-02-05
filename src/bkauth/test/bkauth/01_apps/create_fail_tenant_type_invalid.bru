@@ -1,7 +1,7 @@
 meta {
-  name: create_conflict
+  name: create_fail_tenant_mode_invalid
   type: http
-  seq: 9
+  seq: 7
 }
 
 post {
@@ -17,17 +17,17 @@ headers {
 
 body:json {
   {
-    "bk_app_code": "demo",
+    "bk_app_code": "1",
     "name": "demo",
     "bk_tenant": {
-      "mode": "single",
+      "mode": "abc",
       "id": "default"
     }
   }
 }
 
 assert {
-  res.status: eq 409
-  res.body.code: eq 1903409
-  res.body.message: eq conflict:app(demo) already exists
+  res.status: eq 400
+  res.body.code: eq 1903400
+  res.body.message: eq bad request:Mode must be one of 'global single'
 }

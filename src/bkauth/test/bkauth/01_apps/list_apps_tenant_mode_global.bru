@@ -1,18 +1,17 @@
 meta {
-  name: list_apps_pagination
+  name: list_apps_tenant_mode_global
   type: http
-  seq: 13
+  seq: 15
 }
 
 get {
-  url: http://{{host}}:{{port}}/api/v1/apps?page=2&page_size=2
+  url: http://{{host}}:{{port}}/api/v1/apps?tenant_mode=global
   body: json
   auth: none
 }
 
 params:query {
-  page: 2
-  page_size: 2
+  tenant_mode: global
 }
 
 headers {
@@ -23,6 +22,5 @@ headers {
 assert {
   res.status: eq 200
   res.body.message: eq ok
-  res.body.data.count: eq 4
-  res.body.data.results: length 2
+  res.body.data.count: eq 3
 }

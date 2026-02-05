@@ -1,17 +1,13 @@
 meta {
-  name: delete_app_fail_no_auth
+  name: create_fail_no_auth
   type: http
-  seq: 5
+  seq: 1
 }
 
-delete {
-  url: http://{{host}}:{{port}}/api/v1/apps/{{app_code}}
+post {
+  url: http://{{host}}:{{port}}/api/v1/apps
   body: none
   auth: none
-}
-
-headers {
-  Content-Type: application/json
 }
 
 assert {

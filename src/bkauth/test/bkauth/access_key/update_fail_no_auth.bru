@@ -1,0 +1,23 @@
+meta {
+  name: update_fail_no_auth
+  type: http
+  seq: 7
+}
+
+put {
+  url: http://{{host}}:{{port}}/api/v1/apps/demo/access-keys/{{access_key_id}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "enabled": false
+  }
+}
+
+assert {
+  res.status: eq 401
+  res.body.code: eq 1903401
+  res.body.message: eq unauthorized:app code and app secret required
+}
