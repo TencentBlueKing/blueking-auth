@@ -1,7 +1,7 @@
 meta {
   name: list_apps_pagination
   type: http
-  seq: 11
+  seq: 13
 }
 
 get {
@@ -23,6 +23,6 @@ headers {
 assert {
   res.status: eq 200
   res.body.message: eq ok
-  res.body.data.count: eq 3
-  res.body.data.results: length 1
+  res.body.data.count: eq 4
+  res.body.data.results: length 2
 }

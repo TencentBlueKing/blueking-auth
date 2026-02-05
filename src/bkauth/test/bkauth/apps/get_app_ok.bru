@@ -1,7 +1,7 @@
 meta {
   name: get_app_ok
   type: http
-  seq: 9
+  seq: 11
 }
 
 get {
@@ -19,6 +19,6 @@ assert {
   res.status: eq 200
   res.body.message: eq ok
   res.body.data.bk_app_code: eq demo
-  res.body.data.bk_tenant.mode: eq global
-  res.body.data.bk_tenant.id: eq 
+  res.body.data.bk_tenant.mode: eq single
+  res.body.data.bk_tenant.id: eq default
 }
