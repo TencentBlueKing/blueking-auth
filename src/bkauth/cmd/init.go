@@ -23,6 +23,7 @@ import (
 	"regexp"
 
 	sentry "github.com/getsentry/sentry-go"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
@@ -39,22 +40,27 @@ import (
 
 var globalConfig *config.Config
 
+// AddConfigFlags 为需要配置文件的命令添加 --config/-c 与 --viper 参数，仅需配置的子命令应调用此方法。
+func AddConfigFlags(cmd *cobra.Command) {
+	cmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", defaultConfigFile, "config file")
+	cmd.PersistentFlags().Bool("viper", true, "use viper for configuration")
+}
+
 // initConfig reads in config file and ENV variables if set.
-func initConfig() {
+func initConfig() error {
 	if cfgFile == "" {
-		panic("Config file missing")
+		cfgFile = defaultConfigFile
 	}
-	// Use config file from the flag.
-	// viper.SetConfigFile(cfgFile)
-	// If a config file is found, read it in.
+	viper.SetConfigFile(cfgFile)
 	if err := viper.ReadInConfig(); err != nil {
-		panic(fmt.Sprintf("Using config file: %s, read fail: err=%v", viper.ConfigFileUsed(), err))
+		return fmt.Errorf("config file %s: %w", cfgFile, err)
 	}
 	var err error
 	globalConfig, err = config.Load(viper.GetViper())
 	if err != nil {
-		panic(fmt.Sprintf("Could not load configurations from file, error: %v", err))
+		return fmt.Errorf("load config from %s: %w", cfgFile, err)
 	}
+	return nil
 }
 
 func initSentry() {
@@ -152,6 +158,31 @@ func initCryptos() {
 
 func initAPIAllowList() {
 	common.InitAPIAllowList(globalConfig.APIAllowLists)
+}
+
+// RunWithCLIEnv 为需要 DB/Redis/配置的 CLI 子命令准备环境并执行 fn，执行后同步日志。
+// 若 fn 返回 error，调用方应据此设置进程退出码（如 RunE 返回 err 则 Cobra 退出非 0）。
+// 日志名、path 等由 logger.system.settings 配置；CLI 子命令统一写 system 日志到文件。
+func RunWithCLIEnv(fn func() error) error {
+	if cfgFile == "" {
+		cfgFile = defaultConfigFile
+	}
+	viper.SetConfigFile(cfgFile)
+	if err := initConfig(); err != nil {
+		return err
+	}
+	if globalConfig.Logger.System.Settings == nil {
+		globalConfig.Logger.System.Settings = make(map[string]string)
+	}
+	globalConfig.Logger.System.Writer = "file"
+	initLogger()
+	initDatabase()
+	initRedis()
+	initCaches()
+	initCryptos()
+	err := fn()
+	logging.SyncAll()
+	return err
 }
 
 func initPprof() {

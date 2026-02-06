@@ -63,7 +63,7 @@ build-aarch64:
 all: lint test build
 
 serve: build
-	./bkauth -c config.yaml
+	./bkauth server -c config.yaml
 
 docker-build:
 	docker build --build-arg VERSION=`git describe --tags --abbrev=0` --build-arg COMMIT=`git rev-parse HEAD` -t bkauth:development .

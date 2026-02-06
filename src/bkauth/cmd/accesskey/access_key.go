@@ -16,17 +16,27 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package main
+package accesskey
 
 import (
+	"github.com/spf13/cobra"
+
 	"bkauth/cmd"
-	_ "bkauth/cmd/accesskey"
 )
 
-// @title BKAuth API
-// @version 1.0
-// @description BKAuth API 文档
+var accesskeyOutputFormat string
 
-func main() {
-	cmd.Execute()
+var accesskeyCmd = &cobra.Command{
+	Use:   "access_key",
+	Short: "Manage access key (list, delete)",
+	Long:  ``,
+}
+
+func init() {
+	cmd.AddConfigFlags(accesskeyCmd)
+	accesskeyCmd.PersistentFlags().StringVarP(&accesskeyOutputFormat, "output", "o", "table",
+		"output format: table | json")
+	accesskeyCmd.AddCommand(listCmd())
+	accesskeyCmd.AddCommand(deleteCmd())
+	cmd.RootCmd().AddCommand(accesskeyCmd)
 }

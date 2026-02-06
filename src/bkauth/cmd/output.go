@@ -12,21 +12,39 @@
  * either express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * We undertake not to change the open source license (MIT license) applicable
- * to the current version of the project delivered to anyone in the future.
+ * We undertake not to change the open source license (MIT license) applicable to
+ * the current version of the project delivered to anyone in the future.
  */
 
-package main
+package cmd
 
 import (
-	"bkauth/cmd"
-	_ "bkauth/cmd/accesskey"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"strings"
 )
 
-// @title BKAuth API
-// @version 1.0
-// @description BKAuth API 文档
+func RespondSuccess(outputFormat string, data any, tableOutput func()) error {
+	if strings.ToLower(outputFormat) == "json" {
+		writeJSON(data)
+		return nil
+	}
+	if tableOutput != nil {
+		tableOutput()
+	} else {
+		if s, ok := data.(string); ok {
+			fmt.Fprintln(os.Stdout, s)
+		} else {
+			writeJSON(data)
+		}
+	}
+	return nil
+}
 
-func main() {
-	cmd.Execute()
+func writeJSON(data any) {
+	b, _ := json.Marshal(data)
+	os.Stdout.Write(b)
+	io.WriteString(os.Stdout, "\n")
 }

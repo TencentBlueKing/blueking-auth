@@ -20,69 +20,44 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"bkauth/pkg/server"
 )
 
-// cmd for iam
-var cfgFile string
+var serverCmd = &cobra.Command{
+	Use:   "server",
+	Short: "Start BKAuth HTTP server",
+	Long:  ``,
+	RunE:  runServer,
+}
 
 func init() {
-	// cobra.OnInitialize(initConfig)
-	rootCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
-	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
-
-	rootCmd.MarkFlagRequired("config")
-	viper.SetDefault("author", "blueking-paas")
+	AddConfigFlags(serverCmd)
+	rootCmd.AddCommand(serverCmd)
 }
 
-var rootCmd = &cobra.Command{
-	Use:   "bkauth",
-	Short: "bkauth is Client Identity and Oauth2.0 Management System",
-	Long:  ``,
-
-	Run: func(cmd *cobra.Command, args []string) {
-		// Do Stuff Here
-		Start()
-	},
-}
-
-// Execute ...
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+func runServer(_ *cobra.Command, _ []string) error {
+	if err := initConfig(); err != nil {
+		return err
 	}
-}
-
-// Start ...
-func Start() {
-	fmt.Println("It's BKAuth")
-
-	// 0. init config
-	if cfgFile != "" {
-		// Use config file from the flag.
-		zap.S().Infof("Load config file: %s", cfgFile)
-		viper.SetConfigFile(cfgFile)
-	}
-	initConfig()
-
-	if globalConfig.Debug {
-		fmt.Println(globalConfig)
-	}
-	fmt.Printf("enableMultiTenantMode: %v\n", globalConfig.EnableMultiTenantMode)
 
 	// 1. init
 	initLogger()
+
+	zap.S().Info("It's BKAuth")
+	zap.S().Infof("Load config file: %s", cfgFile)
+	if globalConfig.Debug {
+		zap.S().Infof("Global config: %+v", globalConfig)
+	}
+	zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
+
 	initSentry()
 	initPprof()
 	initMetrics()
@@ -102,6 +77,7 @@ func Start() {
 	// 3. start the server
 	httpServer := server.NewServer(globalConfig)
 	httpServer.Run(ctx)
+	return nil
 }
 
 // a context canceled when SIGINT or SIGTERM are notified
