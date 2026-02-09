@@ -33,7 +33,7 @@ func Test_CreateWithTx(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`^INSERT INTO access_key`).WithArgs(
-			"bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", "bk_paas", true,
+			"bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", "bk_paas", true, "",
 		).WillReturnResult(sqlmock.NewResult(1, 1))
 		mock.ExpectCommit()
 
@@ -45,6 +45,7 @@ func Test_CreateWithTx(t *testing.T) {
 			AppSecret:     "a59ddb37-94ae-4d7a-b6b8-f3c255fff041",
 			CreatedSource: "bk_paas",
 			Enabled:       true,
+			Description:   "",
 		}
 
 		manager := &accessKeyManager{DB: db}
@@ -60,7 +61,7 @@ func Test_CreateWithTx(t *testing.T) {
 func Test_Create(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mock.ExpectExec(`^INSERT INTO access_key`).WithArgs(
-			"bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", "bk_paas", true,
+			"bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", "bk_paas", true, "",
 		).WillReturnResult(sqlmock.NewResult(1, 1))
 
 		accessKey := AccessKey{
@@ -68,6 +69,7 @@ func Test_Create(t *testing.T) {
 			AppSecret:     "a59ddb37-94ae-4d7a-b6b8-f3c255fff041",
 			CreatedSource: "bk_paas",
 			Enabled:       true,
+			Description:   "",
 		}
 
 		manager := &accessKeyManager{DB: db}
@@ -114,13 +116,14 @@ func Test_ListWithCreatedAtByAppCode(t *testing.T) {
 			app_secret,
 			created_source,
 			enabled,
-			created_at
+			created_at,
+			description
 			FROM access_key
 			WHERE app_code = (.*)
 			ORDER BY id DESC$`
-		mockRows := sqlmock.NewRows([]string{"id", "app_code", "app_secret", "created_source", "created_at"}).
-			AddRow(int64(2), "bkauth", "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", "bk_paas", time.Now()).
-			AddRow(int64(1), "bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", "bk_paas", time.Now())
+		mockRows := sqlmock.NewRows([]string{"id", "app_code", "app_secret", "created_source", "enabled", "created_at", "description"}).
+			AddRow(int64(2), "bkauth", "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", "bk_paas", true, time.Now(), "").
+			AddRow(int64(1), "bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", "bk_paas", true, time.Now(), "")
 		mock.ExpectQuery(mockQuery).WithArgs("bkauth").WillReturnRows(mockRows)
 
 		manager := &accessKeyManager{DB: db}
@@ -166,10 +169,10 @@ func Test_Count(t *testing.T) {
 
 func Test_ListAccessKeyByAppCode(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		mockQuery := `^SELECT id, app_code, app_secret, enabled, created_source  FROM access_key WHERE app_code = (.*)$`
-		mockRows := sqlmock.NewRows([]string{"app_secret"}).
-			AddRow("4d7a-b6b8-f3c255fff041-a59ddb37-94ae").
-			AddRow("a59ddb37-94ae-4d7a-b6b8-f3c255fff041")
+		mockQuery := `^SELECT id, app_code, app_secret, enabled, created_source, description FROM access_key WHERE app_code = (.*)$`
+		mockRows := sqlmock.NewRows([]string{"id", "app_code", "app_secret", "enabled", "created_source", "description"}).
+			AddRow(int64(2), "bkauth", "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", true, "bk_paas", "").
+			AddRow(int64(1), "bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", true, "bk_paas", "")
 		mock.ExpectQuery(mockQuery).WithArgs("bkauth").WillReturnRows(mockRows)
 
 		manager := &accessKeyManager{DB: db}

@@ -57,9 +57,12 @@ func CreateAccessKey(c *gin.Context) {
 	}
 	appCode := uriParams.AppCode
 
+	var body accessKeyCreateSerializer
+	_ = c.ShouldBindJSON(&body)
+
 	// 创建 Secret
 	svc := service.NewAccessKeyService()
-	accessKey, err := svc.Create(appCode, createdSource)
+	accessKey, err := svc.Create(appCode, createdSource, body.Description)
 	if err != nil {
 		// 校验不通过
 		if util.IsValidationError(err) {
@@ -68,7 +71,13 @@ func CreateAccessKey(c *gin.Context) {
 		}
 		util.SystemErrorJSONResponse(
 			c,
-			errorWrapf(err, "svc.Create appCode=`%s` createdSource=`%s`", appCode, createdSource),
+			errorWrapf(
+				err,
+				"svc.Create appCode=`%s` createdSource=`%s` description=`%s`",
+				appCode,
+				createdSource,
+				body.Description,
+			),
 		)
 		return
 	}

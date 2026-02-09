@@ -23,5 +23,10 @@ type appSecretSerializer struct {
 }
 
 type accessKeyUpdateSerializer struct {
-	Enabled *bool `json:"enabled" binding:"required" example:"true" mapstructure:"enabled,omitempty"`
+	Enabled     *bool  `json:"enabled" binding:"required" example:"true" mapstructure:"enabled,omitempty"`
+	Description string `json:"description" binding:"omitempty" example:"Production Access Key"`
+}
+
+type accessKeyCreateSerializer struct {
+	Description string `json:"description" binding:"omitempty" example:"Production Access Key"`
 }
