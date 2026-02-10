@@ -33,25 +33,39 @@ const SecretLength = 36
 // CE/EE版：由uuid4生成hex字符串，小写字母、数字、连接符
 const LetterBytes = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
-func newDaoAccessKey(appCode, createdSource string, description string) dao.AccessKey {
-	return dao.AccessKey{
+type AccessKeyOption func(*dao.AccessKey)
+
+func WithDescription(desc string) AccessKeyOption {
+	return func(ak *dao.AccessKey) {
+		ak.Description = desc
+	}
+}
+
+func newDaoAccessKey(appCode, createdSource string, opts ...AccessKeyOption) dao.AccessKey {
+	ak := dao.AccessKey{
 		AppCode:       appCode,
 		AppSecret:     generateEncryptedAppSecret(SecretLength),
 		CreatedSource: createdSource,
 		Enabled:       true,
-		Description:   description,
 	}
+	for _, opt := range opts {
+		opt(&ak)
+	}
+	return ak
 }
 
 // newDaoAccessKeyWithAppSecret : 用于数据迁移时使用已有client secret
-func newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource string, description string) dao.AccessKey {
-	return dao.AccessKey{
+func newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource string, opts ...AccessKeyOption) dao.AccessKey {
+	ak := dao.AccessKey{
 		AppCode:       appCode,
 		AppSecret:     ConvertToEncryptedAppSecret(appSecret),
 		CreatedSource: createdSource,
 		Enabled:       true,
-		Description:   description,
 	}
+	for _, opt := range opts {
+		opt(&ak)
+	}
+	return ak
 }
 
 func generateEncryptedAppSecret(n int) string {

@@ -69,7 +69,7 @@ func CreateAccessKey(c *gin.Context) {
 
 	// 创建 Secret
 	svc := service.NewAccessKeyService()
-	accessKey, err := svc.Create(appCode, createdSource, body.Description)
+	accessKey, err := svc.Create(appCode, createdSource, &body.Description)
 	if err != nil {
 		// 校验不通过
 		if util.IsValidationError(err) {

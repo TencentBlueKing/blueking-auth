@@ -77,13 +77,13 @@ func (m *accessKeyManager) CreateWithTx(tx *sqlx.Tx, secret AccessKey) (int64, e
 		app_secret,
 		created_source,
 		enabled,
-        description
+		description
 	) VALUES (
 		:app_code,
 		:app_secret,
 		:created_source,
 		:enabled,
-	    :description
+		:description
 	)`
 	return database.SqlxInsertWithTx(tx, query, secret)
 }
@@ -94,13 +94,13 @@ func (m *accessKeyManager) Create(secret AccessKey) (int64, error) {
 		app_secret,
 		created_source,
 		enabled,
-        description
+		description
 	) VALUES (
 		:app_code,
 		:app_secret,
 		:created_source,
 		:enabled,
-	    :description
+		:description
 	)`
 	return database.SqlxInsert(m.DB, query, secret)
 }

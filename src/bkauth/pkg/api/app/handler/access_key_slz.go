@@ -29,9 +29,11 @@ type accessKeyUpdateSerializer struct {
 	Description *string `json:"description" binding:"omitempty" example:"Key" mapstructure:"description,omitempty"`
 }
 
+var ErrNoFieldsToUpdate = errors.New("enabled or description required")
+
 func (s *accessKeyUpdateSerializer) validate() error {
 	if s.Enabled == nil && s.Description == nil {
-		return errors.New("at least one of enabled or description is required")
+		return ErrNoFieldsToUpdate
 	}
 	return nil
 }

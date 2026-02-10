@@ -41,7 +41,7 @@ func (m *MockAccessKeyService) EXPECT() *MockAccessKeyServiceMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockAccessKeyService) Create(appCode, createdSource, description string) (types.AccessKey, error) {
+func (m *MockAccessKeyService) Create(appCode, createdSource string, description *string) (types.AccessKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", appCode, createdSource, description)
 	ret0, _ := ret[0].(types.AccessKey)
@@ -56,7 +56,7 @@ func (mr *MockAccessKeyServiceMockRecorder) Create(appCode, createdSource, descr
 }
 
 // CreateWithSecret mocks base method.
-func (m *MockAccessKeyService) CreateWithSecret(appCode, appSecret, createdSource, description string) error {
+func (m *MockAccessKeyService) CreateWithSecret(appCode, appSecret, createdSource string, description *string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateWithSecret", appCode, appSecret, createdSource, description)
 	ret0, _ := ret[0].(error)
