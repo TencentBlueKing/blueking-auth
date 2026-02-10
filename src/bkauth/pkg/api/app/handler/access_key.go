@@ -19,6 +19,9 @@
 package handler
 
 import (
+	"errors"
+	"io"
+
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
 
@@ -58,7 +61,11 @@ func CreateAccessKey(c *gin.Context) {
 	appCode := uriParams.AppCode
 
 	var body accessKeyCreateSerializer
-	_ = c.ShouldBindJSON(&body)
+	// 兼容空 Body
+	if err := c.ShouldBindJSON(&body); err != nil && !errors.Is(err, io.EOF) {
+		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
+		return
+	}
 
 	// 创建 Secret
 	svc := service.NewAccessKeyService()
@@ -249,6 +256,10 @@ func UpdateAccessKey(c *gin.Context) {
 	var body accessKeyUpdateSerializer
 	if err := c.ShouldBindJSON(&body); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
+		return
+	}
+	if err := body.validate(); err != nil {
+		util.BadRequestErrorJSONResponse(c, err.Error())
 		return
 	}
 
