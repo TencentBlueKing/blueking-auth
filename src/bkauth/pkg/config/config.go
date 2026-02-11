@@ -144,7 +144,8 @@ type Config struct {
 	Server Server
 	Sentry Sentry
 
-	PprofPassword string
+	PprofPassword      string
+	MonitoringPassword string
 
 	Databases   []Database
 	DatabaseMap map[string]Database
