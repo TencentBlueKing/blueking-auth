@@ -33,7 +33,7 @@ var (
 	deleteAccessKeyIDParam int64
 )
 
-func deleteCmd() *cobra.Command {
+func NewDeleteCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete access key by id",

@@ -36,8 +36,8 @@ func NewAccessKeyCmd() *cobra.Command {
 	common.AddConfigFlags(accesskeyCmd)
 	accesskeyCmd.PersistentFlags().StringVarP(&accesskeyOutputFormat, "output-format", "o", "text",
 		"output format: text | json")
-	accesskeyCmd.AddCommand(listCmd())
-	accesskeyCmd.AddCommand(deleteCmd())
+	accesskeyCmd.AddCommand(NewListCmd())
+	accesskeyCmd.AddCommand(NewDeleteCmd())
 
 	return accesskeyCmd
 }

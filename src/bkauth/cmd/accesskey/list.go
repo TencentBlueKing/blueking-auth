@@ -33,7 +33,7 @@ import (
 
 var listAppCodeParam string
 
-func listCmd() *cobra.Command {
+func NewListCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "list",
 		Short: "List access key by app code(s)",
