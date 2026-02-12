@@ -16,7 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package cmd
+package common
 
 import (
 	"fmt"
@@ -38,19 +38,29 @@ import (
 	"bkauth/pkg/redis"
 )
 
-var globalConfig *config.Config
+var (
+	cfgFile      string
+	globalConfig *config.Config
+)
 
 // AddConfigFlags 为需要配置文件的命令添加 --config/-c 与 --viper 参数，仅需配置的子命令应调用此方法。
 func AddConfigFlags(cmd *cobra.Command) {
-	cmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", defaultConfigFile, "config file")
+	cmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "config.yaml", "config file")
 	cmd.PersistentFlags().Bool("viper", true, "use viper for configuration")
 }
 
-// initConfig reads in config file and ENV variables if set.
-func initConfig() error {
-	if cfgFile == "" {
-		cfgFile = defaultConfigFile
-	}
+// GetGlobalConfig 返回全局配置
+func GetGlobalConfig() *config.Config {
+	return globalConfig
+}
+
+// GetConfigFile 返回配置文件路径
+func GetConfigFile() string {
+	return cfgFile
+}
+
+// InitConfig reads in config file and ENV variables if set.
+func InitConfig() error {
 	viper.SetConfigFile(cfgFile)
 	if err := viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("config file %s: %w", cfgFile, err)
@@ -63,7 +73,7 @@ func initConfig() error {
 	return nil
 }
 
-func initSentry() {
+func InitSentry() {
 	if globalConfig.Sentry.Enable {
 		err := sentry.Init(sentry.ClientOptions{
 			Dsn: globalConfig.Sentry.DSN,
@@ -80,12 +90,12 @@ func initSentry() {
 	errorx.InitErrorReport(globalConfig.Sentry.Enable)
 }
 
-func initMetrics() {
+func InitMetrics() {
 	metric.InitMetrics()
 	zap.S().Info("init Metrics success")
 }
 
-func initDatabase() {
+func InitDatabase() {
 	defaultDBConfig, ok := globalConfig.DatabaseMap["bkauth"]
 	if !ok {
 		panic("database bkauth should be configured")
@@ -95,7 +105,7 @@ func initDatabase() {
 	zap.S().Info("init Database success")
 }
 
-func initRedis() {
+func InitRedis() {
 	standaloneConfig, isStandalone := globalConfig.RedisMap[redis.ModeStandalone]
 	sentinelConfig, isSentinel := globalConfig.RedisMap[redis.ModeSentinel]
 
@@ -126,15 +136,15 @@ func initRedis() {
 	zap.S().Info("init Redis success")
 }
 
-func initLogger() {
+func InitLogger() {
 	logging.InitLogger(&globalConfig.Logger)
 }
 
-func initCaches() {
+func InitCaches() {
 	impls.InitCaches(false)
 }
 
-func initCryptos() {
+func InitCryptos() {
 	if globalConfig.Crypto.Key == "" {
 		panic("cryptoKey should be configured")
 	}
@@ -156,36 +166,29 @@ func initCryptos() {
 	}
 }
 
-func initAPIAllowList() {
+func InitAPIAllowList() {
 	common.InitAPIAllowList(globalConfig.APIAllowLists)
 }
 
-// RunWithCLIEnv 为需要 DB/Redis/配置的 CLI 子命令准备环境并执行 fn，执行后同步日志。
-// 若 fn 返回 error，调用方应据此设置进程退出码（如 RunE 返回 err 则 Cobra 退出非 0）。
-// 日志名、path 等由 logger.system.settings 配置；CLI 子命令统一写 system 日志到文件。
-func RunWithCLIEnv(fn func() error) error {
-	if cfgFile == "" {
-		cfgFile = defaultConfigFile
-	}
-	viper.SetConfigFile(cfgFile)
-	if err := initConfig(); err != nil {
+func InitCLIEnv() error {
+	if err := InitConfig(); err != nil {
 		return err
 	}
 	if globalConfig.Logger.System.Settings == nil {
 		globalConfig.Logger.System.Settings = make(map[string]string)
 	}
 	globalConfig.Logger.System.Writer = "file"
-	initLogger()
-	initDatabase()
-	initRedis()
-	initCaches()
-	initCryptos()
-	err := fn()
+	InitLogger()
+	InitDatabase()
+	InitRedis()
+	InitCaches()
+	InitCryptos()
 	logging.SyncAll()
-	return err
+	return nil
 }
 
-func initPprof() {
+// InitPprof 初始化 pprof 配置
+func InitPprof() {
 	// 若配置文件里没有配置，则给定默认密码
 	if globalConfig.PprofPassword == "" {
 		globalConfig.PprofPassword = "DebugModel@bk"

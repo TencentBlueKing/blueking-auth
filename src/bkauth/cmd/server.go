@@ -28,29 +28,31 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"bkauth/cmd/common"
 	"bkauth/pkg/server"
 )
 
-var serverCmd = &cobra.Command{
-	Use:   "server",
-	Short: "Start BKAuth HTTP server",
-	Long:  ``,
-	RunE:  runServer,
-}
-
-func init() {
-	AddConfigFlags(serverCmd)
-	rootCmd.AddCommand(serverCmd)
+func NewServerCmd() *cobra.Command {
+	serverCmd := &cobra.Command{
+		Use:   "server",
+		Short: "Start BKAuth HTTP server",
+		Long:  ``,
+		RunE:  runServer,
+	}
+	common.AddConfigFlags(serverCmd)
+	return serverCmd
 }
 
 func runServer(_ *cobra.Command, _ []string) error {
-	if err := initConfig(); err != nil {
+	if err := common.InitConfig(); err != nil {
 		return err
 	}
 
 	// 1. init
-	initLogger()
+	common.InitLogger()
 
+	globalConfig := common.GetGlobalConfig()
+	cfgFile := common.GetConfigFile()
 	zap.S().Info("It's BKAuth")
 	zap.S().Infof("Load config file: %s", cfgFile)
 	if globalConfig.Debug {
@@ -58,15 +60,15 @@ func runServer(_ *cobra.Command, _ []string) error {
 	}
 	zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
 
-	initSentry()
-	initPprof()
-	initMetrics()
-	initDatabase()
-	initRedis()
+	common.InitSentry()
+	common.InitPprof()
+	common.InitMetrics()
+	common.InitDatabase()
+	common.InitRedis()
 	// NOTE: should be after initRedis
-	initCaches()
-	initCryptos()
-	initAPIAllowList()
+	common.InitCaches()
+	common.InitCryptos()
+	common.InitAPIAllowList()
 
 	// 2. watch the signal
 	ctx, cancelFunc := context.WithCancel(context.Background())

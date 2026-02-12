@@ -26,7 +26,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"bkauth/cmd"
+	"bkauth/cmd/common"
 	"bkauth/pkg/service"
 	"bkauth/pkg/service/types"
 )
@@ -41,24 +41,15 @@ func listCmd() *cobra.Command {
 			"\n  bkauth access_key list -a my_app1,my_app2 -o json",
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return cmd.RunWithCLIEnv(func() error {
-				appCodes := strings.Split(listAppCodeParam, ",")
-				list, err := ListAccessKeys(appCodes)
-				if err != nil {
-					return err
-				}
-				if len(list) == 0 {
-					return fmt.Errorf("no accessKey")
-				}
-				// CLI 输出
-				return cmd.RespondSuccess(accesskeyOutputFormat, list, func() {
-					fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
-					for _, ak := range list {
-						t := time.Unix(ak.CreatedAt, 0)
-						fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, t)
-					}
-				})
-			})
+			if err := common.InitCLIEnv(); err != nil {
+				return err
+			}
+			appCodes := strings.Split(listAppCodeParam, ",")
+			list, err := ListAccessKeys(appCodes)
+			if err != nil {
+				return err
+			}
+			return renderAccessKeyList(accesskeyOutputFormat, list)
 		},
 	}
 	c.Flags().StringVarP(&listAppCodeParam, "app_code", "a", "",
@@ -85,4 +76,17 @@ func ListAccessKeys(appCodes []string) ([]types.AccessKeyWithCreatedAt, error) {
 		accessKeyList = append(accessKeyList, accessKeys...)
 	}
 	return accessKeyList, nil
+}
+
+func renderAccessKeyList(outputFormat string, list []types.AccessKeyWithCreatedAt) error {
+	if strings.ToLower(outputFormat) == "json" {
+		return common.WriteJSON(list)
+	}
+
+	fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
+	for _, ak := range list {
+		t := time.Unix(ak.CreatedAt, 0)
+		fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, t)
+	}
+	return nil
 }

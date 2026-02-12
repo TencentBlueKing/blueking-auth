@@ -21,22 +21,23 @@ package accesskey
 import (
 	"github.com/spf13/cobra"
 
-	"bkauth/cmd"
+	"bkauth/cmd/common"
 )
 
 var accesskeyOutputFormat string
 
-var accesskeyCmd = &cobra.Command{
-	Use:   "access_key",
-	Short: "Manage access key (list, delete)",
-	Long:  ``,
-}
+func NewAccessKeyCmd() *cobra.Command {
+	accesskeyCmd := &cobra.Command{
+		Use:   "access_key",
+		Short: "Manage access key (list, delete)",
+		Long:  ``,
+	}
 
-func init() {
-	cmd.AddConfigFlags(accesskeyCmd)
-	accesskeyCmd.PersistentFlags().StringVarP(&accesskeyOutputFormat, "output", "o", "table",
-		"output format: table | json")
+	common.AddConfigFlags(accesskeyCmd)
+	accesskeyCmd.PersistentFlags().StringVarP(&accesskeyOutputFormat, "output-format", "o", "text",
+		"output format: text | json")
 	accesskeyCmd.AddCommand(listCmd())
 	accesskeyCmd.AddCommand(deleteCmd())
-	cmd.RootCmd().AddCommand(accesskeyCmd)
+
+	return accesskeyCmd
 }

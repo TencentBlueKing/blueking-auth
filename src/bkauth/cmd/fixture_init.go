@@ -20,45 +20,42 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"bkauth/cmd/common"
 	"bkauth/pkg/fixture"
 )
 
 var fixtureInitOutputFormat string
 
-var fixtureInitCmd = &cobra.Command{
-	Use:          "fixture_init",
-	Short:        "Init fixture data",
-	Long:         ``,
-	SilenceUsage: true,
-	RunE: func(_ *cobra.Command, _ []string) error {
-		err := RunWithCLIEnv(func() (err error) {
+func NewFixtureInitCmd() *cobra.Command {
+	fixtureInitCmd := &cobra.Command{
+		Use:          "fixture_init",
+		Short:        "Init fixture data",
+		Long:         ``,
+		SilenceUsage: true,
+		RunE: func(_ *cobra.Command, _ []string) (err error) {
+			if err := common.InitCLIEnv(); err != nil {
+				return err
+			}
 			defer func() {
 				if r := recover(); r != nil {
 					err = fmt.Errorf("%v", r)
 				}
 			}()
+			globalConfig := common.GetGlobalConfig()
 			zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
 			// 这里跟运维确认过，初始化的都是蓝鲸基础服务的数据，保持简单，由 bkauth 配置默认的 tenant_id
 			fixture.InitFixture(globalConfig)
 			zap.S().Info("init fixture finish!")
-			return RespondSuccess(fixtureInitOutputFormat, "init fixture finish!", nil)
-		})
-		if err != nil && strings.ToLower(fixtureInitOutputFormat) == "json" {
-			os.Exit(1)
-		}
-		return err
-	},
-}
+			return common.WriteOutput(fixtureInitOutputFormat, "init fixture finish!")
+		},
+	}
 
-func init() {
-	AddConfigFlags(fixtureInitCmd)
-	rootCmd.AddCommand(fixtureInitCmd)
-	fixtureInitCmd.Flags().StringVarP(&fixtureInitOutputFormat, "output", "o", "table",
-		"output format: table | json")
+	common.AddConfigFlags(fixtureInitCmd)
+	fixtureInitCmd.Flags().StringVarP(&fixtureInitOutputFormat, "output-format", "o", "text",
+		"output format: text | json")
+	return fixtureInitCmd
 }

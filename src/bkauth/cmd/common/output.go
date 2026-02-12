@@ -16,35 +16,27 @@
  * the current version of the project delivered to anyone in the future.
  */
 
-package cmd
+package common
 
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 )
 
-func RespondSuccess(outputFormat string, data any, tableOutput func()) error {
-	if strings.ToLower(outputFormat) == "json" {
-		writeJSON(data)
-		return nil
+// WriteOutput writes command result to stdout in the specified format.
+func WriteOutput(outputFormat string, data any) error {
+	format := strings.ToLower(outputFormat)
+	if format == "json" {
+		return WriteJSON(data)
 	}
-	if tableOutput != nil {
-		tableOutput()
-	} else {
-		if s, ok := data.(string); ok {
-			fmt.Fprintln(os.Stdout, s)
-		} else {
-			writeJSON(data)
-		}
+	if s, ok := data.(string); ok {
+		fmt.Fprintln(os.Stdout, s)
 	}
 	return nil
 }
 
-func writeJSON(data any) {
-	b, _ := json.Marshal(data)
-	os.Stdout.Write(b)
-	io.WriteString(os.Stdout, "\n")
+func WriteJSON(data any) error {
+	return json.NewEncoder(os.Stdout).Encode(data)
 }

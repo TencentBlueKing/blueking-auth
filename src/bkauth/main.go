@@ -20,7 +20,6 @@ package main
 
 import (
 	"bkauth/cmd"
-	_ "bkauth/cmd/accesskey"
 )
 
 // @title BKAuth API
