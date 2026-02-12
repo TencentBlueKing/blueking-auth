@@ -46,7 +46,7 @@ func Register(cfg *config.Config, router *gin.Engine) {
 			"bkauth": cfg.PprofPassword,
 		}))
 		monitoringGroup.Use(gin.BasicAuth(gin.Accounts{
-			"monitoring": cfg.MonitoringPassword,
+			"bkauth": cfg.MonitoringPassword,
 		}))
 	}
 	{
