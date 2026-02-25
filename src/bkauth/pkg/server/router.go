@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	"bkauth/pkg/api/app"
 	"bkauth/pkg/api/basic"
@@ -47,6 +48,10 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	router.Use(middleware.Recovery(cfg.Sentry.Enable))
 	// MW: request_id
 	router.Use(middleware.RequestID())
+
+	if cfg.Observability.Enable && cfg.Observability.Signals.Traces.Enable {
+		router.Use(otelgin.Middleware(cfg.Observability.Service.Name))
+	}
 
 	// basic apis
 	basic.Register(cfg, router)

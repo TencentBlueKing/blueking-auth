@@ -28,6 +28,7 @@ import (
 
 	"bkauth/pkg/config"
 	"bkauth/pkg/logging"
+	"bkauth/pkg/tracing"
 )
 
 const (
@@ -114,15 +115,27 @@ func (s *Server) Stop() {
 		graceTimeout = time.Duration(s.config.Server.GraceTimeout) * time.Second
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), graceTimeout)
-	defer cancel()
 	zap.S().Infof("Waiting %s seconds before killing connections...", graceTimeout)
 
 	// disable keep-alive connections
 	s.server.SetKeepAlivesEnabled(false)
-	if err := s.server.Shutdown(ctx); err != nil {
+	httpShutdownCtx, httpShutdownCancel := context.WithTimeout(context.Background(), graceTimeout)
+	defer httpShutdownCancel()
+	if err := s.server.Shutdown(httpShutdownCtx); err != nil {
 		zap.S().Error(err, "Wait is over due to error")
 		s.server.Close()
+	}
+
+	// use an independent timeout budget for telemetry flush to avoid losing data
+	telemetryShutdownCtx, telemetryShutdownCancel := context.WithTimeout(context.Background(), graceTimeout)
+	defer telemetryShutdownCancel()
+	if err := tracing.Shutdown(telemetryShutdownCtx); err != nil {
+		zap.S().Errorf("shutdown OpenTelemetry fail: %s", err)
+	}
+
+	// stop profiling
+	if err := tracing.StopProfiling(); err != nil {
+		zap.S().Warnf("stop Profiling fail: %v", err)
 	}
 
 	// flush logger

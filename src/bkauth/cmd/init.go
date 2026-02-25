@@ -25,6 +25,7 @@ import (
 	sentry "github.com/getsentry/sentry-go"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"bkauth/pkg/api/common"
 	"bkauth/pkg/cache/impls"
@@ -35,6 +36,7 @@ import (
 	"bkauth/pkg/logging"
 	"bkauth/pkg/metric"
 	"bkauth/pkg/redis"
+	"bkauth/pkg/tracing"
 )
 
 var globalConfig *config.Config
@@ -159,4 +161,47 @@ func initPprof() {
 	if globalConfig.PprofPassword == "" {
 		globalConfig.PprofPassword = "DebugModel@bk"
 	}
+}
+
+func initTracing() {
+	if !globalConfig.Observability.Enable {
+		zap.S().Info("Observability is disabled")
+		return
+	}
+
+	// 初始化 OpenTelemetry
+	otlpCfg := tracing.BuildOTLPConfig(&globalConfig.Observability)
+	if err := tracing.InitOTLP(otlpCfg); err != nil {
+		zap.S().Errorf("init OpenTelemetry fail: %s", err)
+		return
+	}
+
+	// 将 zap 日志桥接到 OTEL LoggerProvider
+	if otlpCfg.EnableLogs {
+		if provider := tracing.GetLoggerProvider(); provider != nil {
+			otelLogLevel, err := zapcore.ParseLevel(globalConfig.Observability.Signals.Logs.Level)
+			if err != nil {
+				zap.S().Warnf("invalid observability.signals.logs.level %q, fallback to info: %v",
+					globalConfig.Observability.Signals.Logs.Level, err)
+				otelLogLevel = zapcore.InfoLevel
+			}
+			loggers := globalConfig.Observability.Signals.Logs.Loggers
+			if len(loggers) == 0 {
+				loggers = []string{"system"}
+			}
+			logging.AttachOTEL(provider, otelLogLevel, loggers)
+			zap.S().Infof("OTEL log bridge attached, min level: %s, loggers: %v", otelLogLevel, loggers)
+		}
+	}
+
+	// 初始化 Profiling
+	if globalConfig.Observability.Signals.Profiling.Enable {
+		profilingCfg := tracing.BuildProfilingConfig(&globalConfig.Observability)
+		if err := tracing.InitProfiling(profilingCfg, otlpCfg.EnableTraces); err != nil {
+			zap.S().Errorf("init Profiling fail: %v", err)
+			return
+		}
+	}
+
+	zap.S().Info("Observability initialized successfully")
 }

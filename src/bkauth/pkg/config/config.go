@@ -136,6 +136,51 @@ type APIAllowList struct {
 	AllowList string
 }
 
+type Observability struct {
+	Enable bool
+
+	Service struct {
+		Name        string
+		Version     string
+		Environment string
+	}
+
+	Exporter struct {
+		Endpoint string
+		Token    string
+	}
+
+	Signals struct {
+		Traces struct {
+			Enable  bool
+			Sampler struct {
+				Type  string
+				Ratio float64
+			}
+			Batch struct {
+				Timeout            string
+				MaxExportBatchSize int
+				MaxQueueSize       int
+			}
+		}
+		Metrics struct {
+			Enable bool
+		}
+		Logs struct {
+			Enable  bool
+			Level   string
+			Loggers []string
+		}
+		Profiling struct {
+			Enable         bool
+			Path           string
+			UploadInterval string
+			Endpoint       string
+			Token          string
+		}
+	}
+}
+
 type Config struct {
 	Debug bool
 	// 是否开启多租户模式
@@ -159,6 +204,8 @@ type Config struct {
 	APIAllowLists []APIAllowList
 
 	Logger Logger
+
+	Observability Observability
 }
 
 // Load 从 viper 中读取配置文件
