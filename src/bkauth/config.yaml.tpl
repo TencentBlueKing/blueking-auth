@@ -16,7 +16,7 @@ sentry:
   dsn: ""
 
 pprofPassword: "DebugModel@bk"
-monitoringPassword: "Monitoring@bk"
+monitoringToken: "G3dsdftR9nGQM8WnF1qwjGSVE0ScXrz1hKWM"
 
 crypto:
   # contains letters(a-z, A-Z), numbers(0-9), length should be 32 bit

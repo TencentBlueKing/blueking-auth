@@ -38,15 +38,11 @@ func Register(cfg *config.Config, router *gin.Engine) {
 	router.GET("/ping", handler.Ping)
 	router.GET("/version", handler.Version)
 
-	// pprof, healthz and metrics
+	// pprof
 	pprofRouter := router.Group("/debug/pprof")
-	monitoringGroup := router.Group("/")
 	if !cfg.Debug {
 		pprofRouter.Use(gin.BasicAuth(gin.Accounts{
 			"bkauth": cfg.PprofPassword,
-		}))
-		monitoringGroup.Use(gin.BasicAuth(gin.Accounts{
-			"bkauth": cfg.MonitoringPassword,
 		}))
 	}
 	{
@@ -62,9 +58,16 @@ func Register(cfg *config.Config, router *gin.Engine) {
 		pprofRouter.GET("/heap", pprofHandler(pprof.Handler("heap").ServeHTTP))
 		pprofRouter.GET("/mutex", pprofHandler(pprof.Handler("mutex").ServeHTTP))
 		pprofRouter.GET("/threadcreate", pprofHandler(pprof.Handler("threadcreate").ServeHTTP))
+	}
 
-		monitoringGroup.GET("/healthz", handler.NewHealthzHandleFunc(cfg))
-		monitoringGroup.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	// healthz and metrics
+	monitoringRouter := router.Group("/")
+	if !cfg.Debug {
+		monitoringRouter.Use(MonitoringTokenAuth(cfg.MonitoringToken))
+	}
+	{
+		monitoringRouter.GET("/healthz", handler.NewHealthzHandleFunc(cfg))
+		monitoringRouter.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	}
 
 	// swagger docs

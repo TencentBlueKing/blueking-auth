@@ -1,0 +1,49 @@
+/*
+ * TencentBlueKing is pleased to support the open source community by making
+ * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ *     http://opensource.org/licenses/MIT
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * We undertake not to change the open source license (MIT license) applicable
+ * to the current version of the project delivered to anyone in the future.
+ */
+
+package basic
+
+import (
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+)
+
+// MonitoringTokenAuth 对相关接口进行 Token 鉴权。
+// 优先从 Authorization Header（Bearer Token）中提取，若不存在则从 Query 参数 token 中提取。
+func MonitoringTokenAuth(expectedToken string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := extractToken(c)
+		if token == "" || token != expectedToken {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+			return
+		}
+		c.Next()
+	}
+}
+
+// extractToken 按优先级提取 Token
+func extractToken(c *gin.Context) string {
+	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			return strings.TrimPrefix(authHeader, "Bearer ")
+		}
+	}
+	return c.Query("token")
+}

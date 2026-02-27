@@ -75,9 +75,6 @@ func initSentry() {
 }
 
 func initMetrics() {
-	if globalConfig.MonitoringPassword == "" {
-		globalConfig.MonitoringPassword = "Monitoring@bk"
-	}
 	metric.InitMetrics()
 	zap.S().Info("init Metrics success")
 }
