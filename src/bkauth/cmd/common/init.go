@@ -38,10 +38,7 @@ import (
 	"bkauth/pkg/redis"
 )
 
-var (
-	cfgFile      string
-	globalConfig *config.Config
-)
+var cfgFile string
 
 // AddConfigFlags 为需要配置文件的命令添加 --config/-c 与 --viper 参数，仅需配置的子命令应调用此方法。
 func AddConfigFlags(cmd *cobra.Command) {
@@ -49,34 +46,24 @@ func AddConfigFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().Bool("viper", true, "use viper for configuration")
 }
 
-// GetGlobalConfig 返回全局配置
-func GetGlobalConfig() *config.Config {
-	return globalConfig
-}
-
-// GetConfigFile 返回配置文件路径
-func GetConfigFile() string {
-	return cfgFile
-}
-
 // InitConfig reads in config file and ENV variables if set.
-func InitConfig() error {
+func InitConfig() (*config.Config, error) {
 	viper.SetConfigFile(cfgFile)
 	if err := viper.ReadInConfig(); err != nil {
-		return fmt.Errorf("config file %s: %w", cfgFile, err)
+		return nil, fmt.Errorf("config file %s: %w", cfgFile, err)
 	}
-	var err error
-	globalConfig, err = config.Load(viper.GetViper())
+	cfg, err := config.Load(viper.GetViper())
 	if err != nil {
-		return fmt.Errorf("load config from %s: %w", cfgFile, err)
+		return nil, fmt.Errorf("load config from %s: %w", cfgFile, err)
 	}
-	return nil
+	zap.S().Infof("Load config file: %s", cfgFile)
+	return cfg, nil
 }
 
-func InitSentry() {
-	if globalConfig.Sentry.Enable {
+func InitSentry(cfg *config.Config) {
+	if cfg.Sentry.Enable {
 		err := sentry.Init(sentry.ClientOptions{
-			Dsn: globalConfig.Sentry.DSN,
+			Dsn: cfg.Sentry.DSN,
 		})
 		if err != nil {
 			zap.S().Errorf("init Sentry fail: %s", err)
@@ -87,7 +74,7 @@ func InitSentry() {
 		zap.S().Info("Sentry is not enabled, will not init it")
 	}
 
-	errorx.InitErrorReport(globalConfig.Sentry.Enable)
+	errorx.InitErrorReport(cfg.Sentry.Enable)
 }
 
 func InitMetrics() {
@@ -95,8 +82,8 @@ func InitMetrics() {
 	zap.S().Info("init Metrics success")
 }
 
-func InitDatabase() {
-	defaultDBConfig, ok := globalConfig.DatabaseMap["bkauth"]
+func InitDatabase(cfg *config.Config) {
+	defaultDBConfig, ok := cfg.DatabaseMap["bkauth"]
 	if !ok {
 		panic("database bkauth should be configured")
 	}
@@ -105,9 +92,9 @@ func InitDatabase() {
 	zap.S().Info("init Database success")
 }
 
-func InitRedis() {
-	standaloneConfig, isStandalone := globalConfig.RedisMap[redis.ModeStandalone]
-	sentinelConfig, isSentinel := globalConfig.RedisMap[redis.ModeSentinel]
+func InitRedis(cfg *config.Config) {
+	standaloneConfig, isStandalone := cfg.RedisMap[redis.ModeStandalone]
+	sentinelConfig, isSentinel := cfg.RedisMap[redis.ModeSentinel]
 
 	if !isStandalone && !isSentinel {
 		panic("redis id=standalone or id=sentinel should be configured")
@@ -116,7 +103,7 @@ func InitRedis() {
 	if isSentinel && isStandalone {
 		zap.S().Info("redis both id=standalone and id=sentinel configured, will use sentinel")
 
-		delete(globalConfig.RedisMap, redis.ModeStandalone)
+		delete(cfg.RedisMap, redis.ModeStandalone)
 		isStandalone = false
 	}
 
@@ -125,72 +112,73 @@ func InitRedis() {
 			panic("redis id=sentinel, the `masterName` required")
 		}
 		zap.S().Info("init Redis mode=`sentinel`")
-		redis.InitRedisClient(globalConfig.Debug, &sentinelConfig)
+		redis.InitRedisClient(cfg.Debug, &sentinelConfig)
 	}
 
 	if isStandalone {
 		zap.S().Info("init Redis mode=`standalone`")
-		redis.InitRedisClient(globalConfig.Debug, &standaloneConfig)
+		redis.InitRedisClient(cfg.Debug, &standaloneConfig)
 	}
 
 	zap.S().Info("init Redis success")
 }
 
-func InitLogger() {
-	logging.InitLogger(&globalConfig.Logger)
+func InitLogger(cfg *config.Config) {
+	logging.InitLogger(&cfg.Logger)
 }
 
 func InitCaches() {
 	impls.InitCaches(false)
 }
 
-func InitCryptos() {
-	if globalConfig.Crypto.Key == "" {
+func InitCryptos(cfg *config.Config) {
+	if cfg.Crypto.Key == "" {
 		panic("cryptoKey should be configured")
 	}
 
-	if globalConfig.Crypto.Nonce == "" {
+	if cfg.Crypto.Nonce == "" {
 		panic("cryptoNonce should be configured")
 	}
 
 	validEncryptKeyRegex := regexp.MustCompile("^[a-zA-Z0-9]{32}$")
 	errInvalidEncryptKey := "invalid encrypt_key: encrypt_key should " +
 		"contains letters(a-z, A-Z), numbers(0-9), length should be 32 bit"
-	if !validEncryptKeyRegex.MatchString(globalConfig.Crypto.Key) {
+	if !validEncryptKeyRegex.MatchString(cfg.Crypto.Key) {
 		panic(errInvalidEncryptKey)
 	}
 
-	err := cryptography.Init(globalConfig.Crypto.Key, globalConfig.Crypto.Nonce)
+	err := cryptography.Init(cfg.Crypto.Key, cfg.Crypto.Nonce)
 	if err != nil {
 		panic(err.Error())
 	}
 }
 
-func InitAPIAllowList() {
-	common.InitAPIAllowList(globalConfig.APIAllowLists)
+func InitAPIAllowList(cfg *config.Config) {
+	common.InitAPIAllowList(cfg.APIAllowLists)
 }
 
-func InitCLIEnv() error {
-	if err := InitConfig(); err != nil {
-		return err
+func InitCLIEnv() (*config.Config, error) {
+	cfg, err := InitConfig()
+	if err != nil {
+		return nil, err
 	}
-	if globalConfig.Logger.System.Settings == nil {
-		globalConfig.Logger.System.Settings = make(map[string]string)
+	if cfg.Logger.System.Settings == nil {
+		cfg.Logger.System.Settings = make(map[string]string)
 	}
-	globalConfig.Logger.System.Writer = "file"
-	InitLogger()
-	InitDatabase()
-	InitRedis()
+	cfg.Logger.System.Writer = "file"
+	InitLogger(cfg)
+	InitDatabase(cfg)
+	InitRedis(cfg)
 	InitCaches()
-	InitCryptos()
+	InitCryptos(cfg)
 	logging.SyncAll()
-	return nil
+	return cfg, nil
 }
 
 // InitPprof 初始化 pprof 配置
-func InitPprof() {
+func InitPprof(cfg *config.Config) {
 	// 若配置文件里没有配置，则给定默认密码
-	if globalConfig.PprofPassword == "" {
-		globalConfig.PprofPassword = "DebugModel@bk"
+	if cfg.PprofPassword == "" {
+		cfg.PprofPassword = "DebugModel@bk"
 	}
 }

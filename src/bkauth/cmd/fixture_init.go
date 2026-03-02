@@ -28,8 +28,6 @@ import (
 	"bkauth/pkg/fixture"
 )
 
-var fixtureInitOutputFormat string
-
 func NewFixtureInitCmd() *cobra.Command {
 	fixtureInitCmd := &cobra.Command{
 		Use:          "fixture_init",
@@ -37,7 +35,8 @@ func NewFixtureInitCmd() *cobra.Command {
 		Long:         ``,
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) (err error) {
-			if err := common.InitCLIEnv(); err != nil {
+			cfg, err := common.InitCLIEnv()
+			if err != nil {
 				return err
 			}
 			defer func() {
@@ -45,17 +44,14 @@ func NewFixtureInitCmd() *cobra.Command {
 					err = fmt.Errorf("%v", r)
 				}
 			}()
-			globalConfig := common.GetGlobalConfig()
-			zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
+			zap.S().Infof("enableMultiTenantMode: %v", cfg.EnableMultiTenantMode)
 			// 这里跟运维确认过，初始化的都是蓝鲸基础服务的数据，保持简单，由 bkauth 配置默认的 tenant_id
-			fixture.InitFixture(globalConfig)
-			zap.S().Info("init fixture finish!")
-			return common.WriteOutput(fixtureInitOutputFormat, "init fixture finish!")
+			fixture.InitFixture(cfg)
+			fmt.Println("init fixture finish!")
+			return nil
 		},
 	}
 
 	common.AddConfigFlags(fixtureInitCmd)
-	fixtureInitCmd.Flags().StringVarP(&fixtureInitOutputFormat, "output-format", "o", "text",
-		"output format: text | json")
 	return fixtureInitCmd
 }

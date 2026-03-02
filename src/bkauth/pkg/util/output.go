@@ -16,27 +16,41 @@
  * the current version of the project delivered to anyone in the future.
  */
 
-package common
+package util
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
+	"text/tabwriter"
 )
 
-// WriteOutput writes command result to stdout in the specified format.
-func WriteOutput(outputFormat string, data any) error {
-	format := strings.ToLower(outputFormat)
-	if format == "json" {
-		return WriteJSON(data)
+// FormatOutput formats data into the specified format string ("json" or "text").
+func FormatOutput(outputFormat string, data any) (string, error) {
+	if strings.ToLower(outputFormat) == "json" {
+		return FormatJSON(data)
 	}
-	if s, ok := data.(string); ok {
-		fmt.Fprintln(os.Stdout, s)
-	}
-	return nil
+	return fmt.Sprintf("%v", data), nil
 }
 
-func WriteJSON(data any) error {
-	return json.NewEncoder(os.Stdout).Encode(data)
+// FormatJSON serializes data to a JSON string.
+func FormatJSON(data any) (string, error) {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// FormatTable renders header and rows as an aligned text table.
+func FormatTable(header []string, rows [][]string) string {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(w, strings.Join(header, "\t"))
+	for _, row := range rows {
+		fmt.Fprintln(w, strings.Join(row, "\t"))
+	}
+	w.Flush()
+	return buf.String()
 }

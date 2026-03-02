@@ -26,23 +26,23 @@ import (
 	"bkauth/cmd/accesskey"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "bkauth",
-	Short: "bkauth is Client Identity and Oauth2.0 Management System",
-	Long:  ``,
-	// Root 仅作为容器，不执行业务逻辑；无子命令时显示 help
-}
-
-// Execute 执行根命令
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
+// NewRootCmd 创建根命令
+func NewRootCmd() *cobra.Command {
+	rootCmd := &cobra.Command{
+		Use:   "bkauth",
+		Short: "bkauth is Client Identity and Oauth2.0 Management System",
+		Long:  ``,
 	}
-}
-
-func init() {
 	rootCmd.AddCommand(accesskey.NewAccessKeyCmd())
 	rootCmd.AddCommand(NewServerCmd())
 	rootCmd.AddCommand(NewVersionCmd())
 	rootCmd.AddCommand(NewFixtureInitCmd())
+	return rootCmd
+}
+
+// Execute 执行根命令
+func Execute() {
+	if err := NewRootCmd().Execute(); err != nil {
+		os.Exit(1)
+	}
 }

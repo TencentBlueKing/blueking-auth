@@ -20,6 +20,7 @@ package accesskey
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"bkauth/cmd/common"
 	"bkauth/pkg/service"
 	"bkauth/pkg/service/types"
+	"bkauth/pkg/util"
 )
 
 var listAppCodeParam string
@@ -41,7 +43,7 @@ func NewListCmd() *cobra.Command {
 			"\n  bkauth access_key list -a my_app1,my_app2 -o json",
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			if err := common.InitCLIEnv(); err != nil {
+			if _, err := common.InitCLIEnv(); err != nil {
 				return err
 			}
 			appCodes := strings.Split(listAppCodeParam, ",")
@@ -78,15 +80,48 @@ func ListAccessKeys(appCodes []string) ([]types.AccessKeyWithCreatedAt, error) {
 	return accessKeyList, nil
 }
 
+type accessKeyOutput struct {
+	ID        int64  `json:"id"`
+	AppCode   string `json:"bk_app_code"`
+	AppSecret string `json:"bk_app_secret"`
+	CreatedAt string `json:"created_at"`
+}
+
+func toAccessKeyOutputList(list []types.AccessKeyWithCreatedAt) []accessKeyOutput {
+	outputList := make([]accessKeyOutput, 0, len(list))
+	for _, ak := range list {
+		outputList = append(outputList, accessKeyOutput{
+			ID:        ak.ID,
+			AppCode:   ak.AppCode,
+			AppSecret: ak.AppSecret,
+			CreatedAt: time.Unix(ak.CreatedAt, 0).String(),
+		})
+	}
+	return outputList
+}
+
 func renderAccessKeyList(outputFormat string, list []types.AccessKeyWithCreatedAt) error {
+	outputList := toAccessKeyOutputList(list)
+
 	if strings.ToLower(outputFormat) == "json" {
-		return common.WriteJSON(list)
+		output, err := util.FormatJSON(outputList)
+		if err != nil {
+			return err
+		}
+		fmt.Println(output)
+		return nil
 	}
 
-	fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
-	for _, ak := range list {
-		t := time.Unix(ak.CreatedAt, 0)
-		fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, t)
+	header := []string{"ID", "AppCode", "AppSecret", "CreatedAt"}
+	rows := make([][]string, 0, len(outputList))
+	for _, item := range outputList {
+		rows = append(rows, []string{
+			strconv.FormatInt(item.ID, 10),
+			item.AppCode,
+			item.AppSecret,
+			item.CreatedAt,
+		})
 	}
+	fmt.Print(util.FormatTable(header, rows))
 	return nil
 }

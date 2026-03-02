@@ -44,31 +44,29 @@ func NewServerCmd() *cobra.Command {
 }
 
 func runServer(_ *cobra.Command, _ []string) error {
-	if err := common.InitConfig(); err != nil {
+	cfg, err := common.InitConfig()
+	if err != nil {
 		return err
 	}
 
 	// 1. init
-	common.InitLogger()
+	common.InitLogger(cfg)
 
-	globalConfig := common.GetGlobalConfig()
-	cfgFile := common.GetConfigFile()
 	zap.S().Info("It's BKAuth")
-	zap.S().Infof("Load config file: %s", cfgFile)
-	if globalConfig.Debug {
-		zap.S().Infof("Global config: %+v", globalConfig)
+	if cfg.Debug {
+		zap.S().Infof("Global config: %+v", cfg)
 	}
-	zap.S().Infof("enableMultiTenantMode: %v", globalConfig.EnableMultiTenantMode)
+	zap.S().Infof("enableMultiTenantMode: %v", cfg.EnableMultiTenantMode)
 
-	common.InitSentry()
-	common.InitPprof()
+	common.InitSentry(cfg)
+	common.InitPprof(cfg)
 	common.InitMetrics()
-	common.InitDatabase()
-	common.InitRedis()
+	common.InitDatabase(cfg)
+	common.InitRedis(cfg)
 	// NOTE: should be after initRedis
 	common.InitCaches()
-	common.InitCryptos()
-	common.InitAPIAllowList()
+	common.InitCryptos(cfg)
+	common.InitAPIAllowList(cfg)
 
 	// 2. watch the signal
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -77,7 +75,7 @@ func runServer(_ *cobra.Command, _ []string) error {
 	}()
 
 	// 3. start the server
-	httpServer := server.NewServer(globalConfig)
+	httpServer := server.NewServer(cfg)
 	httpServer.Run(ctx)
 	return nil
 }

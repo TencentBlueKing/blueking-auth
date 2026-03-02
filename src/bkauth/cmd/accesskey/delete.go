@@ -26,6 +26,7 @@ import (
 
 	"bkauth/cmd/common"
 	"bkauth/pkg/service"
+	"bkauth/pkg/util"
 )
 
 var (
@@ -41,14 +42,19 @@ func NewDeleteCmd() *cobra.Command {
 			"\n  bkauth access_key delete -a my_app -i 1 -o json",
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			if err := common.InitCLIEnv(); err != nil {
+			if _, err := common.InitCLIEnv(); err != nil {
 				return err
 			}
 			err := DeleteAccessKey(deleteAppCodeParam, deleteAccessKeyIDParam)
 			if err != nil {
 				return err
 			}
-			return common.WriteOutput(accesskeyOutputFormat, "delete success")
+			output, err := util.FormatOutput(accesskeyOutputFormat, "delete success")
+			if err != nil {
+				return err
+			}
+			fmt.Println(output)
+			return nil
 		},
 	}
 	c.Flags().StringVarP(&deleteAppCodeParam, "app_code", "a", "", "app_code which need deleted")
