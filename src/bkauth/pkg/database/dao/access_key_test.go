@@ -19,6 +19,7 @@
 package dao
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -48,7 +49,7 @@ func Test_CreateWithTx(t *testing.T) {
 		}
 
 		manager := &accessKeyManager{DB: db}
-		id, err := manager.CreateWithTx(tx, accessKey)
+		id, err := manager.CreateWithTx(context.Background(), tx, accessKey)
 
 		tx.Commit()
 
@@ -71,7 +72,7 @@ func Test_Create(t *testing.T) {
 		}
 
 		manager := &accessKeyManager{DB: db}
-		id, err := manager.Create(accessKey)
+		id, err := manager.Create(context.Background(), accessKey)
 
 		assert.NoError(t, err)
 		assert.Equal(t, id, int64(1))
@@ -85,7 +86,7 @@ func Test_DeleteByID(t *testing.T) {
 		).WillReturnResult(sqlmock.NewResult(1, 1))
 
 		manager := &accessKeyManager{DB: db}
-		rowsAffected, err := manager.DeleteByID("bkauth", 1)
+		rowsAffected, err := manager.DeleteByID(context.Background(), "bkauth", 1)
 
 		assert.NoError(t, err)
 		assert.Equal(t, rowsAffected, int64(1))
@@ -99,7 +100,7 @@ func Test_UpdateByID(t *testing.T) {
 		).WillReturnResult(sqlmock.NewResult(1, 1))
 
 		manager := &accessKeyManager{DB: db}
-		rowsAffected, err := manager.UpdateByID(1, map[string]interface{}{"enabled": true})
+		rowsAffected, err := manager.UpdateByID(context.Background(), 1, map[string]interface{}{"enabled": true})
 
 		assert.NoError(t, err)
 		assert.Equal(t, rowsAffected, int64(1))
@@ -125,7 +126,7 @@ func Test_ListWithCreatedAtByAppCode(t *testing.T) {
 
 		manager := &accessKeyManager{DB: db}
 
-		accessKeys, err := manager.ListWithCreatedAtByAppCode("bkauth")
+		accessKeys, err := manager.ListWithCreatedAtByAppCode(context.Background(), "bkauth")
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Len(t, accessKeys, 2)
@@ -142,7 +143,7 @@ func Test_Exists(t *testing.T) {
 
 		manager := &accessKeyManager{DB: db}
 
-		exists, err := manager.Exists("bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041")
+		exists, err := manager.Exists(context.Background(), "bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041")
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Equal(t, exists, true)
@@ -157,7 +158,7 @@ func Test_Count(t *testing.T) {
 
 		manager := &accessKeyManager{DB: db}
 
-		exists, err := manager.Count("bkauth")
+		exists, err := manager.Count(context.Background(), "bkauth")
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Equal(t, exists, int64(2))
@@ -174,7 +175,7 @@ func Test_ListAccessKeyByAppCode(t *testing.T) {
 
 		manager := &accessKeyManager{DB: db}
 
-		accessKeys, err := manager.ListAccessKeyByAppCode("bkauth")
+		accessKeys, err := manager.ListAccessKeyByAppCode(context.Background(), "bkauth")
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Len(t, accessKeys, 2)
@@ -189,7 +190,7 @@ func Test_ExistsByAppCodeAndID(t *testing.T) {
 
 		manager := &accessKeyManager{DB: db}
 
-		exists, err := manager.ExistsByAppCodeAndID("bkauth", 1)
+		exists, err := manager.ExistsByAppCodeAndID(context.Background(), "bkauth", 1)
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Equal(t, exists, true)
@@ -208,7 +209,7 @@ func Test_DeleteByAppCodeWithTx(t *testing.T) {
 		assert.NoError(t, err)
 
 		manager := &accessKeyManager{DB: db}
-		rowsAffected, err := manager.DeleteByAppCodeWithTx(tx, "bkauth")
+		rowsAffected, err := manager.DeleteByAppCodeWithTx(context.Background(), tx, "bkauth")
 
 		errCommit := tx.Commit()
 		assert.NoError(t, errCommit)

@@ -21,6 +21,7 @@ package dao
 //go:generate mockgen -source=$GOFILE -destination=./mock/$GOFILE -package=mock
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -38,13 +39,18 @@ type App struct {
 }
 
 type AppManager interface {
-	CreateWithTx(tx *sqlx.Tx, app App) error
-	Exists(code string) (bool, error)
-	NameExists(name string) (bool, error)
-	List(tenantMode, tenantID string, limit, offset int, orderBy, orderByDirection string) ([]App, error)
-	Get(code string) (App, error)
-	Count(tenantMode, tenantID string) (int, error)
-	DeleteWithTx(tx *sqlx.Tx, code string) (int64, error)
+	CreateWithTx(ctx context.Context, tx *sqlx.Tx, app App) error
+	Exists(ctx context.Context, code string) (bool, error)
+	NameExists(ctx context.Context, name string) (bool, error)
+	List(
+		ctx context.Context,
+		tenantMode, tenantID string,
+		limit, offset int,
+		orderBy, orderByDirection string,
+	) ([]App, error)
+	Get(ctx context.Context, code string) (App, error)
+	Count(ctx context.Context, tenantMode, tenantID string) (int, error)
+	DeleteWithTx(ctx context.Context, tx *sqlx.Tx, code string) (int64, error)
 }
 
 type appManager struct {
@@ -58,26 +64,26 @@ func NewAppManager() AppManager {
 	}
 }
 
-func (m *appManager) Get(code string) (app App, err error) {
+func (m *appManager) Get(ctx context.Context, code string) (app App, err error) {
 	query := `SELECT code, name, description, tenant_mode, tenant_id FROM app where code = ? LIMIT 1`
 
-	err = database.SqlxGet(m.DB, &app, query, code)
+	err = database.SqlxGet(ctx, m.DB, &app, query, code)
 	if errors.Is(err, sql.ErrNoRows) {
 		return app, nil
 	}
 	return app, err
 }
 
-func (m *appManager) CreateWithTx(tx *sqlx.Tx, app App) error {
+func (m *appManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx, app App) error {
 	query := `INSERT INTO app (code, name, description, tenant_mode, tenant_id)
 	VALUES (:code, :name, :description, :tenant_mode, :tenant_id)`
-	_, err := database.SqlxInsertWithTx(tx, query, app)
+	_, err := database.SqlxInsertWithTx(ctx, tx, query, app)
 	return err
 }
 
-func (m *appManager) Exists(code string) (bool, error) {
+func (m *appManager) Exists(ctx context.Context, code string) (bool, error) {
 	var existingCode string
-	err := m.selectExistence(&existingCode, code)
+	err := m.selectExistence(ctx, &existingCode, code)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -88,14 +94,14 @@ func (m *appManager) Exists(code string) (bool, error) {
 	return true, nil
 }
 
-func (m *appManager) selectExistence(existCode *string, code string) error {
+func (m *appManager) selectExistence(ctx context.Context, existCode *string, code string) error {
 	query := `SELECT code FROM app WHERE code = ? LIMIT 1`
-	return database.SqlxGet(m.DB, existCode, query, code)
+	return database.SqlxGet(ctx, m.DB, existCode, query, code)
 }
 
-func (m *appManager) NameExists(name string) (bool, error) {
+func (m *appManager) NameExists(ctx context.Context, name string) (bool, error) {
 	var existCode string
-	err := m.selectNameExistence(&existCode, name)
+	err := m.selectNameExistence(ctx, &existCode, name)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -106,12 +112,13 @@ func (m *appManager) NameExists(name string) (bool, error) {
 	return true, nil
 }
 
-func (m *appManager) selectNameExistence(existCode *string, name string) error {
+func (m *appManager) selectNameExistence(ctx context.Context, existCode *string, name string) error {
 	query := `SELECT code FROM app WHERE name = ? LIMIT 1`
-	return database.SqlxGet(m.DB, existCode, query, name)
+	return database.SqlxGet(ctx, m.DB, existCode, query, name)
 }
 
 func (m *appManager) List(
+	ctx context.Context,
 	tenantMode, tenantID string,
 	limit, offset int,
 	orderBy, orderByDirection string,
@@ -141,14 +148,14 @@ func (m *appManager) List(
 	query += ` LIMIT ? OFFSET ?`
 	args = append(args, limit, offset)
 
-	err = database.SqlxSelect(m.DB, &apps, query, args...)
+	err = database.SqlxSelect(ctx, m.DB, &apps, query, args...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return apps, nil
 	}
 	return apps, err
 }
 
-func (m *appManager) Count(tenantMode, tenantID string) (total int, err error) {
+func (m *appManager) Count(ctx context.Context, tenantMode, tenantID string) (total int, err error) {
 	query := `SELECT COUNT(*) FROM app WHERE 1=1`
 	args := []interface{}{}
 
@@ -161,11 +168,11 @@ func (m *appManager) Count(tenantMode, tenantID string) (total int, err error) {
 		args = append(args, tenantID)
 	}
 
-	err = database.SqlxGet(m.DB, &total, query, args...)
+	err = database.SqlxGet(ctx, m.DB, &total, query, args...)
 	return total, err
 }
 
-func (m *appManager) DeleteWithTx(tx *sqlx.Tx, code string) (int64, error) {
+func (m *appManager) DeleteWithTx(ctx context.Context, tx *sqlx.Tx, code string) (int64, error) {
 	query := `DELETE FROM app WHERE code = ?`
-	return database.SqlxDeleteWithTx(tx, query, code)
+	return database.SqlxDeleteWithTx(ctx, tx, query, code)
 }

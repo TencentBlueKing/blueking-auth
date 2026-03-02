@@ -57,9 +57,11 @@ func CreateAccessKey(c *gin.Context) {
 	}
 	appCode := uriParams.AppCode
 
+	ctx := c.Request.Context()
+
 	// 创建 Secret
 	svc := service.NewAccessKeyService()
-	accessKey, err := svc.Create(appCode, createdSource)
+	accessKey, err := svc.Create(ctx, appCode, createdSource)
 	if err != nil {
 		// 校验不通过
 		if util.IsValidationError(err) {
@@ -74,7 +76,7 @@ func CreateAccessKey(c *gin.Context) {
 	}
 
 	// 缓存里删除 appCode 的所有 Secret
-	cacheImpls.DeleteAccessKey(appCode)
+	cacheImpls.DeleteAccessKey(ctx, appCode)
 
 	util.SuccessJSONResponse(c, "ok", accessKey)
 }
@@ -107,9 +109,11 @@ func DeleteAccessKey(c *gin.Context) {
 	appCode := uriParams.AppCode
 	accessKeyID := uriParams.AccessKeyID
 
+	ctx := c.Request.Context()
+
 	// 删除 Secret
 	svc := service.NewAccessKeyService()
-	err := svc.DeleteByID(appCode, accessKeyID)
+	err := svc.DeleteByID(ctx, appCode, accessKeyID)
 	if err != nil {
 		// 校验不通过
 		if util.IsValidationError(err) {
@@ -124,7 +128,7 @@ func DeleteAccessKey(c *gin.Context) {
 	}
 
 	// 缓存里删除 appCode 的所有 Secret
-	cacheImpls.DeleteAccessKey(appCode)
+	cacheImpls.DeleteAccessKey(ctx, appCode)
 
 	util.SuccessJSONResponse(c, "ok", nil)
 }
@@ -151,9 +155,11 @@ func ListAccessKey(c *gin.Context) {
 	}
 	appCode := uriParams.AppCode
 
+	ctx := c.Request.Context()
+
 	// 创建 Secret
 	svc := service.NewAccessKeyService()
-	accessKeys, err := svc.ListWithCreatedAtByAppCode(appCode)
+	accessKeys, err := svc.ListWithCreatedAtByAppCode(ctx, appCode)
 	if err != nil {
 		err = errorx.Wrapf(err, "Handler", "ListAccessKey", "svc.ListWithCreatedAtByAppCode appCode=`%s` fail", appCode)
 		util.SystemErrorJSONResponse(c, err)
@@ -193,7 +199,8 @@ func VerifyAccessKey(c *gin.Context) {
 	}
 	appSecret := body.AppSecret
 
-	exists, err := cacheImpls.VerifyAccessKey(appCode, appSecret)
+	ctx := c.Request.Context()
+	exists, err := cacheImpls.VerifyAccessKey(ctx, appCode, appSecret)
 	if err != nil {
 		err = errorx.Wrapf(err, "Handler", "VerifyAccessKey", "impls.VerifyAccessKey appCode=`%s` fail", appCode)
 		util.SystemErrorJSONResponse(c, err)
@@ -252,8 +259,10 @@ func UpdateAccessKey(c *gin.Context) {
 		util.BadRequestErrorJSONResponse(c, err.Error())
 		return
 	}
+	ctx := c.Request.Context()
+
 	svc := service.NewAccessKeyService()
-	err = svc.UpdateByID(accessKeyID, updateFiledMap)
+	err = svc.UpdateByID(ctx, accessKeyID, updateFiledMap)
 	if err != nil {
 		// 校验不通过
 		if util.IsValidationError(err) {
@@ -268,7 +277,7 @@ func UpdateAccessKey(c *gin.Context) {
 	}
 
 	// 缓存里删除 appCode 的所有 Secret
-	_ = cacheImpls.DeleteAccessKey(uriParams.AppCode)
+	_ = cacheImpls.DeleteAccessKey(ctx, uriParams.AppCode)
 
 	util.SuccessJSONResponse(c, "ok", nil)
 }

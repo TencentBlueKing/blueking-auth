@@ -19,6 +19,8 @@
 package impls
 
 import (
+	"context"
+
 	"go.uber.org/zap"
 
 	"bkauth/pkg/cache"
@@ -41,7 +43,7 @@ func retrieveAccessApp(key cache.Key) (interface{}, error) {
 	k := key.(AccessAppCacheKey)
 
 	svc := service.NewAccessKeyService()
-	return svc.Verify(k.AppCode, k.AppSecret)
+	return svc.Verify(context.Background(), k.AppCode, k.AppSecret)
 }
 
 // VerifyAccessApp ...

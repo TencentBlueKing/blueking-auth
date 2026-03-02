@@ -21,6 +21,7 @@ package dao
 //go:generate mockgen -source=$GOFILE -destination=./mock/$GOFILE -package=mock
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"time"
@@ -46,17 +47,17 @@ type AccessKeyWithCreatedAt struct {
 }
 
 type AccessKeyManager interface {
-	CreateWithTx(tx *sqlx.Tx, accessKey AccessKey) (int64, error)
-	Create(accessKey AccessKey) (int64, error)
-	DeleteByID(appCode string, id int64) (int64, error)
-	DeleteByAppCodeWithTx(tx *sqlx.Tx, appCode string) (int64, error)
-	UpdateByID(id int64, updateFiledMap map[string]interface{}) (int64, error)
-	ListWithCreatedAtByAppCode(appCode string) ([]AccessKeyWithCreatedAt, error)
-	Exists(appCode, appSecret string) (bool, error)
-	Count(appCode string) (int64, error)
-	ListAccessKeyByAppCode(appCode string) ([]AccessKey, error)
-	List() ([]AccessKey, error)
-	ExistsByAppCodeAndID(appCode string, id int64) (bool, error)
+	CreateWithTx(ctx context.Context, tx *sqlx.Tx, accessKey AccessKey) (int64, error)
+	Create(ctx context.Context, accessKey AccessKey) (int64, error)
+	DeleteByID(ctx context.Context, appCode string, id int64) (int64, error)
+	DeleteByAppCodeWithTx(ctx context.Context, tx *sqlx.Tx, appCode string) (int64, error)
+	UpdateByID(ctx context.Context, id int64, updateFiledMap map[string]interface{}) (int64, error)
+	ListWithCreatedAtByAppCode(ctx context.Context, appCode string) ([]AccessKeyWithCreatedAt, error)
+	Exists(ctx context.Context, appCode, appSecret string) (bool, error)
+	Count(ctx context.Context, appCode string) (int64, error)
+	ListAccessKeyByAppCode(ctx context.Context, appCode string) ([]AccessKey, error)
+	List(ctx context.Context) ([]AccessKey, error)
+	ExistsByAppCodeAndID(ctx context.Context, appCode string, id int64) (bool, error)
 }
 
 type accessKeyManager struct {
@@ -70,7 +71,7 @@ func NewAccessKeyManager() AccessKeyManager {
 	}
 }
 
-func (m *accessKeyManager) CreateWithTx(tx *sqlx.Tx, secret AccessKey) (int64, error) {
+func (m *accessKeyManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx, secret AccessKey) (int64, error) {
 	query := `INSERT INTO access_key (
 		app_code,
 		app_secret,
@@ -82,10 +83,10 @@ func (m *accessKeyManager) CreateWithTx(tx *sqlx.Tx, secret AccessKey) (int64, e
 		:created_source,
 		:enabled
 	)`
-	return database.SqlxInsertWithTx(tx, query, secret)
+	return database.SqlxInsertWithTx(ctx, tx, query, secret)
 }
 
-func (m *accessKeyManager) Create(secret AccessKey) (int64, error) {
+func (m *accessKeyManager) Create(ctx context.Context, secret AccessKey) (int64, error) {
 	query := `INSERT INTO access_key (
 		app_code,
 		app_secret,
@@ -97,20 +98,24 @@ func (m *accessKeyManager) Create(secret AccessKey) (int64, error) {
 		:created_source,
 		:enabled
 	)`
-	return database.SqlxInsert(m.DB, query, secret)
+	return database.SqlxInsert(ctx, m.DB, query, secret)
 }
 
-func (m *accessKeyManager) DeleteByID(appCode string, id int64) (int64, error) {
+func (m *accessKeyManager) DeleteByID(ctx context.Context, appCode string, id int64) (int64, error) {
 	query := `DELETE FROM access_key WHERE app_code = ? AND id = ?`
-	return database.SqlxDelete(m.DB, query, appCode, id)
+	return database.SqlxDelete(ctx, m.DB, query, appCode, id)
 }
 
-func (m *accessKeyManager) DeleteByAppCodeWithTx(tx *sqlx.Tx, appCode string) (int64, error) {
+func (m *accessKeyManager) DeleteByAppCodeWithTx(ctx context.Context, tx *sqlx.Tx, appCode string) (int64, error) {
 	query := `DELETE FROM access_key WHERE app_code = ?`
-	return database.SqlxDeleteWithTx(tx, query, appCode)
+	return database.SqlxDeleteWithTx(ctx, tx, query, appCode)
 }
 
-func (m *accessKeyManager) UpdateByID(id int64, updateFiledMap map[string]interface{}) (int64, error) {
+func (m *accessKeyManager) UpdateByID(
+	ctx context.Context,
+	id int64,
+	updateFiledMap map[string]interface{},
+) (int64, error) {
 	// get setCause
 	setCause := database.GetSetClause(updateFiledMap)
 
@@ -119,18 +124,25 @@ func (m *accessKeyManager) UpdateByID(id int64, updateFiledMap map[string]interf
 
 	// add where data
 	updateFiledMap["id"] = id
-	return database.SqlxUpdate(m.DB, query, updateFiledMap)
+	return database.SqlxUpdate(ctx, m.DB, query, updateFiledMap)
 }
 
-func (m *accessKeyManager) ListWithCreatedAtByAppCode(appCode string) (accessKeys []AccessKeyWithCreatedAt, err error) {
-	err = m.selectAccessKeyWithCreatedAt(&accessKeys, appCode)
+func (m *accessKeyManager) ListWithCreatedAtByAppCode(
+	ctx context.Context,
+	appCode string,
+) (accessKeys []AccessKeyWithCreatedAt, err error) {
+	err = m.selectAccessKeyWithCreatedAt(ctx, &accessKeys, appCode)
 	if errors.Is(err, sql.ErrNoRows) {
 		return accessKeys, nil
 	}
 	return
 }
 
-func (m *accessKeyManager) selectAccessKeyWithCreatedAt(accessKeys *[]AccessKeyWithCreatedAt, appCode string) error {
+func (m *accessKeyManager) selectAccessKeyWithCreatedAt(
+	ctx context.Context,
+	accessKeys *[]AccessKeyWithCreatedAt,
+	appCode string,
+) error {
 	query := `SELECT
 		id,
 		app_code,
@@ -141,12 +153,12 @@ func (m *accessKeyManager) selectAccessKeyWithCreatedAt(accessKeys *[]AccessKeyW
 		FROM access_key
 		WHERE app_code = ?
 		ORDER BY id DESC`
-	return database.SqlxSelect(m.DB, accessKeys, query, appCode)
+	return database.SqlxSelect(ctx, m.DB, accessKeys, query, appCode)
 }
 
-func (m *accessKeyManager) Exists(appCode, appSecret string) (bool, error) {
+func (m *accessKeyManager) Exists(ctx context.Context, appCode, appSecret string) (bool, error) {
 	var id int64
-	err := m.selectExistence(&id, appCode, appSecret)
+	err := m.selectExistence(ctx, &id, appCode, appSecret)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -157,52 +169,55 @@ func (m *accessKeyManager) Exists(appCode, appSecret string) (bool, error) {
 	return true, nil
 }
 
-func (m *accessKeyManager) selectExistence(id *int64, appCode, appSecret string) error {
+func (m *accessKeyManager) selectExistence(ctx context.Context, id *int64, appCode, appSecret string) error {
 	query := `SELECT id FROM access_key WHERE app_code = ? AND app_secret = ? LIMIT 1`
-	return database.SqlxGet(m.DB, id, query, appCode, appSecret)
+	return database.SqlxGet(ctx, m.DB, id, query, appCode, appSecret)
 }
 
-func (m *accessKeyManager) Count(appCode string) (count int64, err error) {
-	err = m.getCount(&count, appCode)
+func (m *accessKeyManager) Count(ctx context.Context, appCode string) (count int64, err error) {
+	err = m.getCount(ctx, &count, appCode)
 	return
 }
 
-func (m *accessKeyManager) getCount(count *int64, appCode string) error {
+func (m *accessKeyManager) getCount(ctx context.Context, count *int64, appCode string) error {
 	query := `SELECT COUNT(1) FROM access_key WHERE app_code = ?`
-	return database.SqlxGet(m.DB, count, query, appCode)
+	return database.SqlxGet(ctx, m.DB, count, query, appCode)
 }
 
-func (m *accessKeyManager) ListAccessKeyByAppCode(appCode string) (appSecrets []AccessKey, err error) {
-	appSecrets, err = m.selectAccessKey(appCode)
+func (m *accessKeyManager) ListAccessKeyByAppCode(
+	ctx context.Context,
+	appCode string,
+) (appSecrets []AccessKey, err error) {
+	appSecrets, err = m.selectAccessKey(ctx, appCode)
 	if errors.Is(err, sql.ErrNoRows) {
 		return appSecrets, nil
 	}
 	return appSecrets, nil
 }
 
-func (m *accessKeyManager) selectAccessKey(appCode string) ([]AccessKey, error) {
+func (m *accessKeyManager) selectAccessKey(ctx context.Context, appCode string) ([]AccessKey, error) {
 	var accessKeys []AccessKey
 	query := `SELECT id, app_code, app_secret, enabled, created_source  FROM access_key WHERE app_code = ?`
-	err := database.SqlxSelect(m.DB, &accessKeys, query, appCode)
+	err := database.SqlxSelect(ctx, m.DB, &accessKeys, query, appCode)
 	if err != nil {
 		return nil, err
 	}
 	return accessKeys, nil
 }
 
-func (m *accessKeyManager) List() (accessKeys []AccessKey, err error) {
+func (m *accessKeyManager) List(ctx context.Context) (accessKeys []AccessKey, err error) {
 	query := `SELECT id, app_code, app_secret, enabled, created_source FROM access_key`
-	err = database.SqlxSelect(m.DB, &accessKeys, query)
+	err = database.SqlxSelect(ctx, m.DB, &accessKeys, query)
 	if errors.Is(err, sql.ErrNoRows) {
 		return accessKeys, nil
 	}
 	return
 }
 
-func (m *accessKeyManager) ExistsByAppCodeAndID(appCode string, id int64) (bool, error) {
+func (m *accessKeyManager) ExistsByAppCodeAndID(ctx context.Context, appCode string, id int64) (bool, error) {
 	var existingID int64
 	query := `SELECT id FROM access_key WHERE app_code = ? AND id = ? LIMIT 1`
-	err := database.SqlxGet(m.DB, &existingID, query, appCode, id)
+	err := database.SqlxGet(ctx, m.DB, &existingID, query, appCode, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}

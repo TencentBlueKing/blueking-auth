@@ -19,6 +19,7 @@
 package redis
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -63,7 +64,7 @@ var _ = Describe("RedisCache", func() {
 	})
 
 	It("GetInto", func() {
-		retrieveTest := func(key cache.Key) (interface{}, error) {
+		retrieveTest := func(ctx context.Context, key cache.Key) (interface{}, error) {
 			return "ok", nil
 		}
 

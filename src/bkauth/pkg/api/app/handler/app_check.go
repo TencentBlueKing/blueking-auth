@@ -19,16 +19,17 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 
 	"bkauth/pkg/service"
 )
 
-func checkAppCreateUnique(code, name string) error {
+func checkAppCreateUnique(ctx context.Context, code, name string) error {
 	svc := service.NewAppService()
 
 	// check app code exists
-	exists, err := svc.Exists(code)
+	exists, err := svc.Exists(ctx, code)
 	if err != nil {
 		return err
 	}
@@ -37,7 +38,7 @@ func checkAppCreateUnique(code, name string) error {
 	}
 
 	// check app name is unique
-	exists, err = svc.NameExists(name)
+	exists, err = svc.NameExists(ctx, name)
 	if err != nil {
 		return err
 	}

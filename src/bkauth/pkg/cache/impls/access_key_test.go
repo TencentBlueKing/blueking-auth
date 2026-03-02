@@ -19,6 +19,7 @@
 package impls
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -63,7 +64,7 @@ var _ = Describe("AccessKeysCache", func() {
 
 		It("AccessKeysCache Get ok", func() {
 			mockService := mock.NewMockAccessKeyService(ctl)
-			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return([]types.AccessKey{
+			mockService.EXPECT().ListEncryptedAccessKeyByAppCode(gomock.Any(), "test").Return([]types.AccessKey{
 				{
 					AppSecret: "secret1",
 					Enabled:   true,
@@ -83,58 +84,64 @@ var _ = Describe("AccessKeysCache", func() {
 					return secret
 				})
 
-			exists, err := VerifyAccessKey("test", "secret1")
+			exists, err := VerifyAccessKey(context.Background(), "test", "secret1")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, true)
 
-			exists, err = VerifyAccessKey("test", "secret2")
+			exists, err = VerifyAccessKey(context.Background(), "test", "secret2")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, true)
 
-			exists, err = VerifyAccessKey("test", "secret3")
+			exists, err = VerifyAccessKey(context.Background(), "test", "secret3")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, false)
 		})
 
 		It("AccessKeysCache Get fail", func() {
 			mockService := mock.NewMockAccessKeyService(ctl)
-			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return(nil, errors.New("error")).AnyTimes()
+			mockService.EXPECT().
+				ListEncryptedAccessKeyByAppCode(gomock.Any(), "test").
+				Return(nil, errors.New("error")).
+				AnyTimes()
 
 			patches = gomonkey.ApplyFunc(service.NewAccessKeyService,
 				func() service.AccessKeyService {
 					return mockService
 				})
 
-			exists, err := VerifyAccessKey("test", "secret1")
+			exists, err := VerifyAccessKey(context.Background(), "test", "secret1")
 			assert.Error(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, false)
 
-			exists, err = VerifyAccessKey("test", "secret2")
+			exists, err = VerifyAccessKey(context.Background(), "test", "secret2")
 			assert.Error(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, false)
 		})
 
 		It("AccessKeysCache Get empty secret", func() {
 			mockService := mock.NewMockAccessKeyService(ctl)
-			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return([]types.AccessKey{}, nil).AnyTimes()
+			mockService.EXPECT().
+				ListEncryptedAccessKeyByAppCode(gomock.Any(), "test").
+				Return([]types.AccessKey{}, nil).
+				AnyTimes()
 
 			patches = gomonkey.ApplyFunc(service.NewAccessKeyService,
 				func() service.AccessKeyService {
 					return mockService
 				})
 
-			exists, err := VerifyAccessKey("test", "secret1")
+			exists, err := VerifyAccessKey(context.Background(), "test", "secret1")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, false)
 
-			exists, err = VerifyAccessKey("test", "secret2")
+			exists, err = VerifyAccessKey(context.Background(), "test", "secret2")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, false)
 		})
 
 		It("AccessKeysCache Get disable secret", func() {
 			mockService := mock.NewMockAccessKeyService(ctl)
-			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return([]types.AccessKey{
+			mockService.EXPECT().ListEncryptedAccessKeyByAppCode(gomock.Any(), "test").Return([]types.AccessKey{
 				{
 					AppSecret: "secret1",
 					Enabled:   false,
@@ -153,18 +160,18 @@ var _ = Describe("AccessKeysCache", func() {
 				func(secret string) string {
 					return secret
 				})
-			exists, err := VerifyAccessKey("test", "secret1")
+			exists, err := VerifyAccessKey(context.Background(), "test", "secret1")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, false)
 
-			exists, err = VerifyAccessKey("test", "secret2")
+			exists, err = VerifyAccessKey(context.Background(), "test", "secret2")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, true)
 		})
 	})
 
 	It("DeleteAccessKey", func() {
-		err := DeleteAccessKey("test")
+		err := DeleteAccessKey(context.Background(), "test")
 		assert.NoError(GinkgoT(), err)
 	})
 })

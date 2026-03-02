@@ -22,6 +22,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/go-redis/redis/extra/redisotel/v8"
 	redis "github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
@@ -50,6 +51,8 @@ func InitRedisClient(debugMode bool, redisConfig *config.Redis) {
 			default:
 				panic("init redis app fail, invalid redis.id, should be `standalone` or `sentinel`")
 			}
+
+			rds.AddHook(redisotel.NewTracingHook())
 
 			_, err := rds.Ping(context.TODO()).Result()
 			if err != nil {

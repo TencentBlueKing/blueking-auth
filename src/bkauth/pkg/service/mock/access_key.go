@@ -11,6 +11,7 @@ package mock
 
 import (
 	types "bkauth/pkg/service/types"
+	context "context"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -41,133 +42,133 @@ func (m *MockAccessKeyService) EXPECT() *MockAccessKeyServiceMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockAccessKeyService) Create(appCode, createdSource string) (types.AccessKey, error) {
+func (m *MockAccessKeyService) Create(ctx context.Context, appCode, createdSource string) (types.AccessKey, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", appCode, createdSource)
+	ret := m.ctrl.Call(m, "Create", ctx, appCode, createdSource)
 	ret0, _ := ret[0].(types.AccessKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockAccessKeyServiceMockRecorder) Create(appCode, createdSource any) *gomock.Call {
+func (mr *MockAccessKeyServiceMockRecorder) Create(ctx, appCode, createdSource any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockAccessKeyService)(nil).Create), appCode, createdSource)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockAccessKeyService)(nil).Create), ctx, appCode, createdSource)
 }
 
 // CreateWithSecret mocks base method.
-func (m *MockAccessKeyService) CreateWithSecret(appCode, appSecret, createdSource string) error {
+func (m *MockAccessKeyService) CreateWithSecret(ctx context.Context, appCode, appSecret, createdSource string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateWithSecret", appCode, appSecret, createdSource)
+	ret := m.ctrl.Call(m, "CreateWithSecret", ctx, appCode, appSecret, createdSource)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateWithSecret indicates an expected call of CreateWithSecret.
-func (mr *MockAccessKeyServiceMockRecorder) CreateWithSecret(appCode, appSecret, createdSource any) *gomock.Call {
+func (mr *MockAccessKeyServiceMockRecorder) CreateWithSecret(ctx, appCode, appSecret, createdSource any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateWithSecret", reflect.TypeOf((*MockAccessKeyService)(nil).CreateWithSecret), appCode, appSecret, createdSource)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateWithSecret", reflect.TypeOf((*MockAccessKeyService)(nil).CreateWithSecret), ctx, appCode, appSecret, createdSource)
 }
 
 // DeleteByID mocks base method.
-func (m *MockAccessKeyService) DeleteByID(appCode string, id int64) error {
+func (m *MockAccessKeyService) DeleteByID(ctx context.Context, appCode string, id int64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteByID", appCode, id)
+	ret := m.ctrl.Call(m, "DeleteByID", ctx, appCode, id)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteByID indicates an expected call of DeleteByID.
-func (mr *MockAccessKeyServiceMockRecorder) DeleteByID(appCode, id any) *gomock.Call {
+func (mr *MockAccessKeyServiceMockRecorder) DeleteByID(ctx, appCode, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByID", reflect.TypeOf((*MockAccessKeyService)(nil).DeleteByID), appCode, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByID", reflect.TypeOf((*MockAccessKeyService)(nil).DeleteByID), ctx, appCode, id)
 }
 
 // ExistsByAppCodeAndID mocks base method.
-func (m *MockAccessKeyService) ExistsByAppCodeAndID(appCode string, id int64) (bool, error) {
+func (m *MockAccessKeyService) ExistsByAppCodeAndID(ctx context.Context, appCode string, id int64) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ExistsByAppCodeAndID", appCode, id)
+	ret := m.ctrl.Call(m, "ExistsByAppCodeAndID", ctx, appCode, id)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ExistsByAppCodeAndID indicates an expected call of ExistsByAppCodeAndID.
-func (mr *MockAccessKeyServiceMockRecorder) ExistsByAppCodeAndID(appCode, id any) *gomock.Call {
+func (mr *MockAccessKeyServiceMockRecorder) ExistsByAppCodeAndID(ctx, appCode, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistsByAppCodeAndID", reflect.TypeOf((*MockAccessKeyService)(nil).ExistsByAppCodeAndID), appCode, id)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistsByAppCodeAndID", reflect.TypeOf((*MockAccessKeyService)(nil).ExistsByAppCodeAndID), ctx, appCode, id)
 }
 
 // List mocks base method.
-func (m *MockAccessKeyService) List() ([]types.AccessKey, error) {
+func (m *MockAccessKeyService) List(ctx context.Context) ([]types.AccessKey, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List")
+	ret := m.ctrl.Call(m, "List", ctx)
 	ret0, _ := ret[0].([]types.AccessKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockAccessKeyServiceMockRecorder) List() *gomock.Call {
+func (mr *MockAccessKeyServiceMockRecorder) List(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAccessKeyService)(nil).List))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAccessKeyService)(nil).List), ctx)
 }
 
 // ListEncryptedAccessKeyByAppCode mocks base method.
-func (m *MockAccessKeyService) ListEncryptedAccessKeyByAppCode(appCode string) ([]types.AccessKey, error) {
+func (m *MockAccessKeyService) ListEncryptedAccessKeyByAppCode(ctx context.Context, appCode string) ([]types.AccessKey, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListEncryptedAccessKeyByAppCode", appCode)
+	ret := m.ctrl.Call(m, "ListEncryptedAccessKeyByAppCode", ctx, appCode)
 	ret0, _ := ret[0].([]types.AccessKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListEncryptedAccessKeyByAppCode indicates an expected call of ListEncryptedAccessKeyByAppCode.
-func (mr *MockAccessKeyServiceMockRecorder) ListEncryptedAccessKeyByAppCode(appCode any) *gomock.Call {
+func (mr *MockAccessKeyServiceMockRecorder) ListEncryptedAccessKeyByAppCode(ctx, appCode any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEncryptedAccessKeyByAppCode", reflect.TypeOf((*MockAccessKeyService)(nil).ListEncryptedAccessKeyByAppCode), appCode)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListEncryptedAccessKeyByAppCode", reflect.TypeOf((*MockAccessKeyService)(nil).ListEncryptedAccessKeyByAppCode), ctx, appCode)
 }
 
 // ListWithCreatedAtByAppCode mocks base method.
-func (m *MockAccessKeyService) ListWithCreatedAtByAppCode(appCode string) ([]types.AccessKeyWithCreatedAt, error) {
+func (m *MockAccessKeyService) ListWithCreatedAtByAppCode(ctx context.Context, appCode string) ([]types.AccessKeyWithCreatedAt, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListWithCreatedAtByAppCode", appCode)
+	ret := m.ctrl.Call(m, "ListWithCreatedAtByAppCode", ctx, appCode)
 	ret0, _ := ret[0].([]types.AccessKeyWithCreatedAt)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListWithCreatedAtByAppCode indicates an expected call of ListWithCreatedAtByAppCode.
-func (mr *MockAccessKeyServiceMockRecorder) ListWithCreatedAtByAppCode(appCode any) *gomock.Call {
+func (mr *MockAccessKeyServiceMockRecorder) ListWithCreatedAtByAppCode(ctx, appCode any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListWithCreatedAtByAppCode", reflect.TypeOf((*MockAccessKeyService)(nil).ListWithCreatedAtByAppCode), appCode)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListWithCreatedAtByAppCode", reflect.TypeOf((*MockAccessKeyService)(nil).ListWithCreatedAtByAppCode), ctx, appCode)
 }
 
 // UpdateByID mocks base method.
-func (m *MockAccessKeyService) UpdateByID(id int64, updateFiledMap map[string]any) error {
+func (m *MockAccessKeyService) UpdateByID(ctx context.Context, id int64, updateFiledMap map[string]any) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateByID", id, updateFiledMap)
+	ret := m.ctrl.Call(m, "UpdateByID", ctx, id, updateFiledMap)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateByID indicates an expected call of UpdateByID.
-func (mr *MockAccessKeyServiceMockRecorder) UpdateByID(id, updateFiledMap any) *gomock.Call {
+func (mr *MockAccessKeyServiceMockRecorder) UpdateByID(ctx, id, updateFiledMap any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateByID", reflect.TypeOf((*MockAccessKeyService)(nil).UpdateByID), id, updateFiledMap)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateByID", reflect.TypeOf((*MockAccessKeyService)(nil).UpdateByID), ctx, id, updateFiledMap)
 }
 
 // Verify mocks base method.
-func (m *MockAccessKeyService) Verify(appCode, appSecret string) (bool, error) {
+func (m *MockAccessKeyService) Verify(ctx context.Context, appCode, appSecret string) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Verify", appCode, appSecret)
+	ret := m.ctrl.Call(m, "Verify", ctx, appCode, appSecret)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Verify indicates an expected call of Verify.
-func (mr *MockAccessKeyServiceMockRecorder) Verify(appCode, appSecret any) *gomock.Call {
+func (mr *MockAccessKeyServiceMockRecorder) Verify(ctx, appCode, appSecret any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockAccessKeyService)(nil).Verify), appCode, appSecret)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Verify", reflect.TypeOf((*MockAccessKeyService)(nil).Verify), ctx, appCode, appSecret)
 }
