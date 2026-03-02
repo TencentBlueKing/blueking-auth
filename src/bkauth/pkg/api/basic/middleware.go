@@ -25,12 +25,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MonitoringTokenAuth 对相关接口进行 Token 鉴权。
-// 优先从 Authorization Header（Bearer Token）中提取，若不存在则从 Query 参数 token 中提取。
-func MonitoringTokenAuth(expectedToken string) gin.HandlerFunc {
+// MonitoringAuth 对相关接口进行鉴权。
+// 优先从 Authorization Header (Bearer Token) 中提取，若不存在则从 Query 参数 token 中提取。
+func MonitoringAuth(authToken string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := extractToken(c)
-		if token == "" || token != expectedToken {
+		if token == "" || token != authToken {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
 			return
 		}

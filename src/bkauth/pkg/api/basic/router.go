@@ -63,7 +63,7 @@ func Register(cfg *config.Config, router *gin.Engine) {
 	// healthz and metrics
 	monitoringRouter := router.Group("/")
 	if !cfg.Debug {
-		monitoringRouter.Use(MonitoringTokenAuth(cfg.MonitoringToken))
+		monitoringRouter.Use(MonitoringAuth(cfg.MonitoringToken))
 	}
 	{
 		monitoringRouter.GET("/healthz", handler.NewHealthzHandleFunc(cfg))
