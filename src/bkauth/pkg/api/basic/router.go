@@ -36,11 +36,7 @@ import (
 func Register(cfg *config.Config, router *gin.Engine) {
 	// basic
 	router.GET("/ping", handler.Ping)
-	router.GET("/healthz", handler.NewHealthzHandleFunc(cfg))
 	router.GET("/version", handler.Version)
-
-	// metrics
-	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// pprof
 	pprofRouter := router.Group("/debug/pprof")
@@ -62,6 +58,16 @@ func Register(cfg *config.Config, router *gin.Engine) {
 		pprofRouter.GET("/heap", pprofHandler(pprof.Handler("heap").ServeHTTP))
 		pprofRouter.GET("/mutex", pprofHandler(pprof.Handler("mutex").ServeHTTP))
 		pprofRouter.GET("/threadcreate", pprofHandler(pprof.Handler("threadcreate").ServeHTTP))
+	}
+
+	// healthz and metrics
+	monitoringRouter := router.Group("/")
+	if !cfg.Debug {
+		monitoringRouter.Use(MonitoringAuth(cfg.MonitoringToken))
+	}
+	{
+		monitoringRouter.GET("/healthz", handler.NewHealthzHandleFunc(cfg))
+		monitoringRouter.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	}
 
 	// swagger docs
