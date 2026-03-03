@@ -16,7 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package common
+package cli
 
 import (
 	"fmt"
@@ -171,7 +171,6 @@ func InitCLIEnv() (*config.Config, error) {
 	InitRedis(cfg)
 	InitCaches()
 	InitCryptos(cfg)
-	logging.SyncAll()
 	return cfg, nil
 }
 

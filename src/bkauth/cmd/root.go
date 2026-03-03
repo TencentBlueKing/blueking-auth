@@ -19,8 +19,6 @@
 package cmd
 
 import (
-	"os"
-
 	"github.com/spf13/cobra"
 
 	"bkauth/cmd/accesskey"
@@ -38,11 +36,4 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(NewVersionCmd())
 	rootCmd.AddCommand(NewFixtureInitCmd())
 	return rootCmd
-}
-
-// Execute 执行根命令
-func Execute() {
-	if err := NewRootCmd().Execute(); err != nil {
-		os.Exit(1)
-	}
 }

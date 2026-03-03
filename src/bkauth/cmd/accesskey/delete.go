@@ -24,7 +24,8 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"bkauth/cmd/common"
+	"bkauth/pkg/cli"
+	"bkauth/pkg/logging"
 	"bkauth/pkg/service"
 	"bkauth/pkg/util"
 )
@@ -42,9 +43,10 @@ func NewDeleteCmd() *cobra.Command {
 			"\n  bkauth access_key delete -a my_app -i 1 -o json",
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			if _, err := common.InitCLIEnv(); err != nil {
+			if _, err := cli.InitCLIEnv(); err != nil {
 				return err
 			}
+			defer logging.SyncAll()
 			err := DeleteAccessKey(deleteAppCodeParam, deleteAccessKeyIDParam)
 			if err != nil {
 				return err
@@ -74,7 +76,7 @@ func DeleteAccessKey(appCode string, accessKeyID int64) error {
 	svc := service.NewAccessKeyService()
 	err := svc.DeleteByID(appCode, accessKeyID)
 	if err != nil {
-		zap.S().Error(err, fmt.Sprintf("svc.DeleteByID appCode=%s accessKeyID=%d fail", appCode, accessKeyID))
+		zap.S().Errorf("svc.DeleteByID appCode=%s accessKeyID=%d fail: %v", appCode, accessKeyID, err)
 		return err
 	}
 	return nil

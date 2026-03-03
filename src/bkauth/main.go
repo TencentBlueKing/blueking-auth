@@ -19,6 +19,8 @@
 package main
 
 import (
+	"os"
+
 	"bkauth/cmd"
 )
 
@@ -27,5 +29,7 @@ import (
 // @description BKAuth API 文档
 
 func main() {
-	cmd.Execute()
+	if err := cmd.NewRootCmd().Execute(); err != nil {
+		os.Exit(1)
+	}
 }

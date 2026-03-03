@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"bkauth/cmd/common"
+	"bkauth/pkg/cli"
 	"bkauth/pkg/server"
 )
 
@@ -39,18 +39,18 @@ func NewServerCmd() *cobra.Command {
 		Long:  ``,
 		RunE:  runServer,
 	}
-	common.AddConfigFlags(serverCmd)
+	cli.AddConfigFlags(serverCmd)
 	return serverCmd
 }
 
 func runServer(_ *cobra.Command, _ []string) error {
-	cfg, err := common.InitConfig()
+	cfg, err := cli.InitConfig()
 	if err != nil {
 		return err
 	}
 
 	// 1. init
-	common.InitLogger(cfg)
+	cli.InitLogger(cfg)
 
 	zap.S().Info("It's BKAuth")
 	if cfg.Debug {
@@ -58,15 +58,15 @@ func runServer(_ *cobra.Command, _ []string) error {
 	}
 	zap.S().Infof("enableMultiTenantMode: %v", cfg.EnableMultiTenantMode)
 
-	common.InitSentry(cfg)
-	common.InitPprof(cfg)
-	common.InitMetrics()
-	common.InitDatabase(cfg)
-	common.InitRedis(cfg)
+	cli.InitSentry(cfg)
+	cli.InitPprof(cfg)
+	cli.InitMetrics()
+	cli.InitDatabase(cfg)
+	cli.InitRedis(cfg)
 	// NOTE: should be after initRedis
-	common.InitCaches()
-	common.InitCryptos(cfg)
-	common.InitAPIAllowList(cfg)
+	cli.InitCaches()
+	cli.InitCryptos(cfg)
+	cli.InitAPIAllowList(cfg)
 
 	// 2. watch the signal
 	ctx, cancelFunc := context.WithCancel(context.Background())

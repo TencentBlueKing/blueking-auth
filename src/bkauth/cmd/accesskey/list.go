@@ -27,7 +27,8 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"bkauth/cmd/common"
+	"bkauth/pkg/cli"
+	"bkauth/pkg/logging"
 	"bkauth/pkg/service"
 	"bkauth/pkg/service/types"
 	"bkauth/pkg/util"
@@ -43,9 +44,10 @@ func NewListCmd() *cobra.Command {
 			"\n  bkauth access_key list -a my_app1,my_app2 -o json",
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			if _, err := common.InitCLIEnv(); err != nil {
+			if _, err := cli.InitCLIEnv(); err != nil {
 				return err
 			}
+			defer logging.SyncAll()
 			appCodes := strings.Split(listAppCodeParam, ",")
 			list, err := ListAccessKeys(appCodes)
 			if err != nil {
@@ -72,7 +74,7 @@ func ListAccessKeys(appCodes []string) ([]types.AccessKeyWithCreatedAt, error) {
 	for _, appCode := range appCodes {
 		accessKeys, err := svc.ListWithCreatedAtByAppCode(appCode)
 		if err != nil {
-			zap.S().Error(err, fmt.Sprintf("svc.ListWithCreatedAtByAppCode appCode=%s fail", appCode))
+			zap.S().Errorf("svc.ListWithCreatedAtByAppCode appCode=%s fail: %v", appCode, err)
 			continue
 		}
 		accessKeyList = append(accessKeyList, accessKeys...)

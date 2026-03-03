@@ -24,8 +24,9 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"bkauth/cmd/common"
+	"bkauth/pkg/cli"
 	"bkauth/pkg/fixture"
+	"bkauth/pkg/logging"
 )
 
 func NewFixtureInitCmd() *cobra.Command {
@@ -35,10 +36,11 @@ func NewFixtureInitCmd() *cobra.Command {
 		Long:         ``,
 		SilenceUsage: true,
 		RunE: func(_ *cobra.Command, _ []string) (err error) {
-			cfg, err := common.InitCLIEnv()
+			cfg, err := cli.InitCLIEnv()
 			if err != nil {
 				return err
 			}
+			defer logging.SyncAll()
 			defer func() {
 				if r := recover(); r != nil {
 					err = fmt.Errorf("%v", r)
@@ -52,6 +54,6 @@ func NewFixtureInitCmd() *cobra.Command {
 		},
 	}
 
-	common.AddConfigFlags(fixtureInitCmd)
+	cli.AddConfigFlags(fixtureInitCmd)
 	return fixtureInitCmd
 }

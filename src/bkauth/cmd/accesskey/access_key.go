@@ -21,7 +21,7 @@ package accesskey
 import (
 	"github.com/spf13/cobra"
 
-	"bkauth/cmd/common"
+	"bkauth/pkg/cli"
 )
 
 var accesskeyOutputFormat string
@@ -33,7 +33,7 @@ func NewAccessKeyCmd() *cobra.Command {
 		Long:  ``,
 	}
 
-	common.AddConfigFlags(accesskeyCmd)
+	cli.AddConfigFlags(accesskeyCmd)
 	accesskeyCmd.PersistentFlags().StringVarP(&accesskeyOutputFormat, "output-format", "o", "text",
 		"output format: text | json")
 	accesskeyCmd.AddCommand(NewListCmd())
