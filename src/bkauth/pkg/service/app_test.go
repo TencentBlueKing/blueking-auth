@@ -20,6 +20,7 @@ package service
 
 import (
 	"errors"
+
 	"github.com/agiledragon/gomonkey"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
@@ -147,7 +148,7 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKey, func(_ string, _ string, _ ...AccessKeyOption) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) dao.AccessKey {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
@@ -212,7 +213,7 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKey, func(_ string, _ string, _ ...AccessKeyOption) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) dao.AccessKey {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
@@ -262,7 +263,7 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_ string, _ string, _ string, _ ...AccessKeyOption) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) dao.AccessKey {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
@@ -335,7 +336,7 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_ string, _ string, _ string, _ ...AccessKeyOption) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) dao.AccessKey {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",

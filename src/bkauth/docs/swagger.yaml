@@ -23,13 +23,20 @@ definitions:
       mode:
         type: string
     type: object
+  handler.accessKeyCreateSerializer:
+    properties:
+      description:
+        example: Production Access Key
+        type: string
+    type: object
   handler.accessKeyUpdateSerializer:
     properties:
+      description:
+        maxLength: 1024
+        type: string
       enabled:
         example: true
         type: boolean
-    required:
-    - enabled
     type: object
   handler.appSecretSerializer:
     properties:
@@ -85,6 +92,8 @@ definitions:
         type: string
       bk_app_secret:
         type: string
+      description:
+        type: string
       enabled:
         type: boolean
       id:
@@ -97,6 +106,8 @@ definitions:
       bk_app_secret:
         type: string
       created_at:
+        type: integer
+      description:
         type: string
       enabled:
         type: boolean
@@ -347,6 +358,11 @@ paths:
         name: bk_app_code
         required: true
         type: string
+      - description: access key desc
+        in: body
+        name: data
+        schema:
+          $ref: '#/definitions/handler.accessKeyCreateSerializer'
       produces:
       - application/json
       responses:

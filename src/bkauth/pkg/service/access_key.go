@@ -39,8 +39,8 @@ const (
 )
 
 type AccessKeyService interface {
-	Create(appCode, createdSource string, description *string) (types.AccessKey, error)
-	CreateWithSecret(appCode, appSecret, createdSource string, description *string) error
+	Create(appCode, createdSource string, description string) (types.AccessKey, error)
+	CreateWithSecret(appCode, appSecret, createdSource string, description string) error
 	UpdateByID(id int64, updateFiledMap map[string]interface{}) error
 	DeleteByID(appCode string, id int64) error
 	ListWithCreatedAtByAppCode(appCode string) ([]types.AccessKeyWithCreatedAt, error)
@@ -63,7 +63,7 @@ func NewAccessKeyService() AccessKeyService {
 // Create : 创建应用密钥，createdSource 为创建来源，即哪个系统创建的
 func (s *accessKeyService) Create(
 	appCode, createdSource string,
-	description *string,
+	description string,
 ) (accessKey types.AccessKey, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "Create")
 
@@ -80,12 +80,7 @@ func (s *accessKeyService) Create(
 		return accessKey, err
 	}
 
-	var opts []AccessKeyOption
-	if description != nil {
-		opts = append(opts, WithDescription(*description))
-	}
-
-	daoAccessKey := newDaoAccessKey(appCode, createdSource, opts...)
+	daoAccessKey := newDaoAccessKey(appCode, createdSource, description)
 	id, err := s.manager.Create(daoAccessKey)
 	if err != nil {
 		return accessKey, errorWrapf(err, "manager.Create accessKey=`%+v` fail", daoAccessKey)
@@ -112,15 +107,10 @@ func (s *accessKeyService) Create(
 }
 
 // CreateWithSecret : 创建应用密钥，支持指定 appSecret 的值，createdSource 为创建来源，即哪个系统创建的
-func (s *accessKeyService) CreateWithSecret(appCode, appSecret, createdSource string, description *string) (err error) {
+func (s *accessKeyService) CreateWithSecret(appCode, appSecret, createdSource, description string) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "CreateWithSecret")
 
-	var opts []AccessKeyOption
-	if description != nil {
-		opts = append(opts, WithDescription(*description))
-	}
-
-	daoAccessKey := newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, opts...)
+	daoAccessKey := newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description)
 	_, err = s.manager.Create(daoAccessKey)
 	if err != nil {
 		return errorWrapf(err, "manager.Create accessKey=`%+v` fail", daoAccessKey)

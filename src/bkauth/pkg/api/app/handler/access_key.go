@@ -42,6 +42,7 @@ import (
 // @Param X-BK-APP-CODE header string true "app_code"
 // @Param X-BK-APP-SECRET header string true "app_secret"
 // @Param bk_app_code path string true "the app which want to create secret"
+// @Param data body accessKeyCreateSerializer false "access key desc"
 // @Success 200 {object} util.Response{data=types.AccessKey}
 // @Header 200 {string} X-Request-Id "the request id"
 // @Router /api/v1/apps/{bk_app_code}/access-keys [post]
@@ -61,6 +62,7 @@ func CreateAccessKey(c *gin.Context) {
 	appCode := uriParams.AppCode
 
 	var body accessKeyCreateSerializer
+
 	// 兼容空 Body
 	if err := c.ShouldBindJSON(&body); err != nil && !errors.Is(err, io.EOF) {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
@@ -69,7 +71,7 @@ func CreateAccessKey(c *gin.Context) {
 
 	// 创建 Secret
 	svc := service.NewAccessKeyService()
-	accessKey, err := svc.Create(appCode, createdSource, &body.Description)
+	accessKey, err := svc.Create(appCode, createdSource, body.Description)
 	if err != nil {
 		// 校验不通过
 		if util.IsValidationError(err) {
@@ -256,10 +258,6 @@ func UpdateAccessKey(c *gin.Context) {
 	var body accessKeyUpdateSerializer
 	if err := c.ShouldBindJSON(&body); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
-		return
-	}
-	if err := body.validate(); err != nil {
-		util.BadRequestErrorJSONResponse(c, err.Error())
 		return
 	}
 

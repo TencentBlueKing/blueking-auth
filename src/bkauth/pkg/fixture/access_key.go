@@ -63,7 +63,7 @@ func createAccessKey(appCode, appSecret, tenantMode, tenantID string) {
 	}
 	// 不存在则创建
 	if !exists {
-		err = svc.CreateWithSecret(appCode, appSecret, createdSource, nil)
+		err = svc.CreateWithSecret(appCode, appSecret, createdSource, "")
 		if err != nil {
 			zap.S().Panic(err, fmt.Sprintf("svc.CreateWithSecret appCode=%s fail", appCode))
 		}

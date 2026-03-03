@@ -18,24 +18,13 @@
 
 package handler
 
-import "errors"
-
 type appSecretSerializer struct {
 	AppSecret string `json:"bk_app_secret" binding:"required,max=128" example:"bk_paas"`
 }
 
 type accessKeyUpdateSerializer struct {
 	Enabled     *bool   `json:"enabled" binding:"omitempty" example:"true" mapstructure:"enabled,omitempty"`
-	Description *string `json:"description" binding:"omitempty" example:"Key" mapstructure:"description,omitempty"`
-}
-
-var ErrNoFieldsToUpdate = errors.New("enabled or description required")
-
-func (s *accessKeyUpdateSerializer) validate() error {
-	if s.Enabled == nil && s.Description == nil {
-		return ErrNoFieldsToUpdate
-	}
-	return nil
+	Description *string `json:"description" binding:"omitempty,max=1024" mapstructure:"description,omitempty"`
 }
 
 type accessKeyCreateSerializer struct {

@@ -380,6 +380,14 @@ const docTemplate = `{
                         "name": "bk_app_code",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "access key desc",
+                        "name": "data",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.accessKeyCreateSerializer"
+                        }
                     }
                 ],
                 "responses": {
@@ -755,12 +763,22 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.accessKeyCreateSerializer": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Production Access Key"
+                }
+            }
+        },
         "handler.accessKeyUpdateSerializer": {
             "type": "object",
-            "required": [
-                "enabled"
-            ],
             "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 1024
+                },
                 "enabled": {
                     "type": "boolean",
                     "example": true
@@ -842,6 +860,9 @@ const docTemplate = `{
                 "bk_app_secret": {
                     "type": "string"
                 },
+                "description": {
+                    "type": "string"
+                },
                 "enabled": {
                     "type": "boolean"
                 },
@@ -860,6 +881,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "created_at": {
+                    "type": "integer"
+                },
+                "description": {
                     "type": "string"
                 },
                 "enabled": {

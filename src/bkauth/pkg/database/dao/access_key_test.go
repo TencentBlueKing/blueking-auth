@@ -58,6 +58,35 @@ func Test_CreateWithTx(t *testing.T) {
 	})
 }
 
+func Test_CreateWithTxWithDescription(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mock.ExpectBegin()
+		mock.ExpectExec(`^INSERT INTO access_key`).WithArgs(
+			"bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", "bk_paas", true, "Staging Access Key",
+		).WillReturnResult(sqlmock.NewResult(1, 1))
+		mock.ExpectCommit()
+
+		tx, err := db.Beginx()
+		assert.NoError(t, err)
+
+		accessKey := AccessKey{
+			AppCode:       "bkauth",
+			AppSecret:     "a59ddb37-94ae-4d7a-b6b8-f3c255fff041",
+			CreatedSource: "bk_paas",
+			Enabled:       true,
+			Description:   "Staging Access Key",
+		}
+
+		manager := &accessKeyManager{DB: db}
+		id, err := manager.CreateWithTx(tx, accessKey)
+
+		tx.Commit()
+
+		assert.NoError(t, err)
+		assert.Equal(t, id, int64(1))
+	})
+}
+
 func Test_Create(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mock.ExpectExec(`^INSERT INTO access_key`).WithArgs(
@@ -70,6 +99,28 @@ func Test_Create(t *testing.T) {
 			CreatedSource: "bk_paas",
 			Enabled:       true,
 			Description:   "",
+		}
+
+		manager := &accessKeyManager{DB: db}
+		id, err := manager.Create(accessKey)
+
+		assert.NoError(t, err)
+		assert.Equal(t, id, int64(1))
+	})
+}
+
+func Test_CreateWithDescription(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mock.ExpectExec(`^INSERT INTO access_key`).WithArgs(
+			"bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", "bk_paas", true, "Production Access Key",
+		).WillReturnResult(sqlmock.NewResult(1, 1))
+
+		accessKey := AccessKey{
+			AppCode:       "bkauth",
+			AppSecret:     "a59ddb37-94ae-4d7a-b6b8-f3c255fff041",
+			CreatedSource: "bk_paas",
+			Enabled:       true,
+			Description:   "Production Access Key",
 		}
 
 		manager := &accessKeyManager{DB: db}
@@ -108,6 +159,20 @@ func Test_UpdateByID(t *testing.T) {
 	})
 }
 
+func Test_UpdateByIDWithDescription(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mock.ExpectExec(`^UPDATE access_key SET description = (.*)  WHERE id = (.*)$`).WithArgs(
+			"Updated Description", int64(1),
+		).WillReturnResult(sqlmock.NewResult(1, 1))
+
+		manager := &accessKeyManager{DB: db}
+		rowsAffected, err := manager.UpdateByID(1, map[string]interface{}{"description": "Updated Description"})
+
+		assert.NoError(t, err)
+		assert.Equal(t, rowsAffected, int64(1))
+	})
+}
+
 func Test_ListWithCreatedAtByAppCode(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mockQuery := `^SELECT
@@ -122,7 +187,7 @@ func Test_ListWithCreatedAtByAppCode(t *testing.T) {
 			WHERE app_code = (.*)
 			ORDER BY id DESC$`
 		mockRows := sqlmock.NewRows([]string{"id", "app_code", "app_secret", "created_source", "enabled", "created_at", "description"}).
-			AddRow(int64(2), "bkauth", "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", "bk_paas", true, time.Now(), "").
+			AddRow(int64(2), "bkauth", "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", "bk_paas", true, time.Now(), "Production Key").
 			AddRow(int64(1), "bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", "bk_paas", true, time.Now(), "")
 		mock.ExpectQuery(mockQuery).WithArgs("bkauth").WillReturnRows(mockRows)
 
@@ -133,7 +198,9 @@ func Test_ListWithCreatedAtByAppCode(t *testing.T) {
 		assert.NoError(t, err, "query from db fail.")
 		assert.Len(t, accessKeys, 2)
 		assert.Equal(t, accessKeys[0].ID, int64(2))
+		assert.Equal(t, accessKeys[0].Description, "Production Key")
 		assert.Equal(t, accessKeys[1].ID, int64(1))
+		assert.Equal(t, accessKeys[1].Description, "")
 	})
 }
 
@@ -171,7 +238,7 @@ func Test_ListAccessKeyByAppCode(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mockQuery := `^SELECT id, app_code, app_secret, enabled, created_source, description FROM access_key WHERE app_code = (.*)$`
 		mockRows := sqlmock.NewRows([]string{"id", "app_code", "app_secret", "enabled", "created_source", "description"}).
-			AddRow(int64(2), "bkauth", "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", true, "bk_paas", "").
+			AddRow(int64(2), "bkauth", "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", true, "bk_paas", "Test Key").
 			AddRow(int64(1), "bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", true, "bk_paas", "")
 		mock.ExpectQuery(mockQuery).WithArgs("bkauth").WillReturnRows(mockRows)
 
@@ -181,6 +248,8 @@ func Test_ListAccessKeyByAppCode(t *testing.T) {
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Len(t, accessKeys, 2)
+		assert.Equal(t, accessKeys[0].Description, "Test Key")
+		assert.Equal(t, accessKeys[1].Description, "")
 	})
 }
 
