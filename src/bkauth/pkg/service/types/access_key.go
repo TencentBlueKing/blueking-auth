@@ -19,10 +19,11 @@
 package types
 
 type AccessKey struct {
-	ID        int64  `json:"id"`
-	AppCode   string `json:"bk_app_code"`
-	AppSecret string `json:"bk_app_secret"`
-	Enabled   bool   `json:"enabled"`
+	ID          int64  `json:"id"`
+	AppCode     string `json:"bk_app_code"`
+	AppSecret   string `json:"bk_app_secret"`
+	Enabled     bool   `json:"enabled"`
+	Description string `json:"description"`
 }
 
 type AccessKeyWithCreatedAt struct {

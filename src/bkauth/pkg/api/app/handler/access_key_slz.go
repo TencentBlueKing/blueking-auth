@@ -22,6 +22,11 @@ type appSecretSerializer struct {
 	AppSecret string `json:"bk_app_secret" binding:"required,max=128" example:"bk_paas"`
 }
 
-type accessKeyUpdateSerializer struct {
-	Enabled *bool `json:"enabled" binding:"required" example:"true" mapstructure:"enabled,omitempty"`
+type createAccessKeySerializer struct {
+	Description string `json:"description" binding:"omitempty,max=1024"`
+}
+
+type updateAccessKeySerializer struct {
+	Enabled     *bool   `json:"enabled" binding:"omitempty" example:"true" mapstructure:"enabled,omitempty"`
+	Description *string `json:"description" binding:"omitempty,max=1024" mapstructure:"description,omitempty"`
 }

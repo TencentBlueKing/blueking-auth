@@ -38,6 +38,8 @@ type AccessKey struct {
 	CreatedSource string `db:"created_source"`
 	// 启用状态:1:enable;0:disable
 	Enabled bool `db:"enabled"`
+	// 备注描述
+	Description string `db:"description"`
 }
 
 type AccessKeyWithCreatedAt struct {
@@ -75,12 +77,14 @@ func (m *accessKeyManager) CreateWithTx(tx *sqlx.Tx, secret AccessKey) (int64, e
 		app_code,
 		app_secret,
 		created_source,
-		enabled
+		enabled,
+		description
 	) VALUES (
 		:app_code,
 		:app_secret,
 		:created_source,
-		:enabled
+		:enabled,
+		:description
 	)`
 	return database.SqlxInsertWithTx(tx, query, secret)
 }
@@ -90,12 +94,14 @@ func (m *accessKeyManager) Create(secret AccessKey) (int64, error) {
 		app_code,
 		app_secret,
 		created_source,
-		enabled
+		enabled,
+		description
 	) VALUES (
 		:app_code,
 		:app_secret,
 		:created_source,
-		:enabled
+		:enabled,
+		:description
 	)`
 	return database.SqlxInsert(m.DB, query, secret)
 }
@@ -137,7 +143,8 @@ func (m *accessKeyManager) selectAccessKeyWithCreatedAt(accessKeys *[]AccessKeyW
 		app_secret,
 		created_source,
 		enabled,
-		created_at
+		created_at,
+		description
 		FROM access_key
 		WHERE app_code = ?
 		ORDER BY id DESC`
@@ -182,7 +189,7 @@ func (m *accessKeyManager) ListAccessKeyByAppCode(appCode string) (appSecrets []
 
 func (m *accessKeyManager) selectAccessKey(appCode string) ([]AccessKey, error) {
 	var accessKeys []AccessKey
-	query := `SELECT id, app_code, app_secret, enabled, created_source  FROM access_key WHERE app_code = ?`
+	query := `SELECT id, app_code, app_secret, enabled, created_source, description  FROM access_key WHERE app_code = ?`
 	err := database.SqlxSelect(m.DB, &accessKeys, query, appCode)
 	if err != nil {
 		return nil, err
@@ -191,7 +198,7 @@ func (m *accessKeyManager) selectAccessKey(appCode string) ([]AccessKey, error) 
 }
 
 func (m *accessKeyManager) List() (accessKeys []AccessKey, err error) {
-	query := `SELECT id, app_code, app_secret, enabled, created_source FROM access_key`
+	query := `SELECT id, app_code, app_secret, enabled, created_source, description FROM access_key`
 	err = database.SqlxSelect(m.DB, &accessKeys, query)
 	if errors.Is(err, sql.ErrNoRows) {
 		return accessKeys, nil
