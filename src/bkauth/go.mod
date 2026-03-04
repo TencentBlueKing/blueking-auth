@@ -14,7 +14,7 @@ require (
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/go-redis/cache/v8 v8.4.4
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/go-sql-driver/mysql v1.8.1
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/json-iterator/go v1.1.12
