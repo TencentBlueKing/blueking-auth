@@ -19,6 +19,9 @@
 package handler
 
 import (
+	"errors"
+	"io"
+
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
 
@@ -39,6 +42,7 @@ import (
 // @Param X-BK-APP-CODE header string true "app_code"
 // @Param X-BK-APP-SECRET header string true "app_secret"
 // @Param bk_app_code path string true "the app which want to create secret"
+// @Param data body createAccessKeySerializer false "app_secret description"
 // @Success 200 {object} util.Response{data=types.AccessKey}
 // @Header 200 {string} X-Request-Id "the request id"
 // @Router /api/v1/apps/{bk_app_code}/access-keys [post]
@@ -57,9 +61,16 @@ func CreateAccessKey(c *gin.Context) {
 	}
 	appCode := uriParams.AppCode
 
+	// 解析 JSON body 参数
+	var body createAccessKeySerializer
+	if err := c.ShouldBindJSON(&body); err != nil && !errors.Is(err, io.EOF) {
+		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
+		return
+	}
+
 	// 创建 Secret
 	svc := service.NewAccessKeyService()
-	accessKey, err := svc.Create(appCode, createdSource)
+	accessKey, err := svc.Create(appCode, createdSource, body.Description)
 	if err != nil {
 		// 校验不通过
 		if util.IsValidationError(err) {
@@ -221,7 +232,7 @@ func VerifyAccessKey(c *gin.Context) {
 // @Param X-BK-APP-SECRET header string true "app_secret"
 // @Param bk_app_code path string true "the app which want to put secret"
 // @Param access_key_id path string true "the secret which want to delete"
-// @Param data body accessKeyUpdateSerializer true "app secret"
+// @Param data body updateAccessKeySerializer true "app secret or description"
 // @Success 200 {object} util.Response
 // @Header 200 {string} X-Request-Id "the request id"
 // @Router /api/v1/apps/{bk_app_code}/access-keys/{access_key_id} [put]
@@ -237,7 +248,7 @@ func UpdateAccessKey(c *gin.Context) {
 	appCode := uriParams.AppCode
 	accessKeyID := uriParams.AccessKeyID
 
-	var body accessKeyUpdateSerializer
+	var body updateAccessKeySerializer
 	if err := c.ShouldBindJSON(&body); err != nil {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
 		return

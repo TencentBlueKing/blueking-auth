@@ -33,22 +33,24 @@ const SecretLength = 36
 // CE/EE版：由uuid4生成hex字符串，小写字母、数字、连接符
 const LetterBytes = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
-func newDaoAccessKey(appCode, createdSource string) dao.AccessKey {
+func newDaoAccessKey(appCode, createdSource, description string) dao.AccessKey {
 	return dao.AccessKey{
 		AppCode:       appCode,
 		AppSecret:     generateEncryptedAppSecret(SecretLength),
 		CreatedSource: createdSource,
 		Enabled:       true,
+		Description:   description,
 	}
 }
 
 // newDaoAccessKeyWithAppSecret : 用于数据迁移时使用已有client secret
-func newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource string) dao.AccessKey {
+func newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description string) dao.AccessKey {
 	return dao.AccessKey{
 		AppCode:       appCode,
 		AppSecret:     ConvertToEncryptedAppSecret(appSecret),
 		CreatedSource: createdSource,
 		Enabled:       true,
+		Description:   description,
 	}
 }
 

@@ -138,6 +138,7 @@ var _ = Describe("App", func() {
 				AppCode:       "bkauth",
 				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				CreatedSource: "bk_paas",
+				Description:   "",
 			}).Return(int64(1), nil)
 
 			db, dbMock := database.NewMockSqlxDB()
@@ -147,11 +148,12 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKey, func(_, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) dao.AccessKey {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
+					Description:   "",
 				}
 			})
 
@@ -203,6 +205,7 @@ var _ = Describe("App", func() {
 				AppCode:       "bkauth",
 				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				CreatedSource: "bk_paas",
+				Description:   "secret of bkauth",
 			}).Return(int64(0), errors.New("error"))
 
 			db, dbMock := database.NewMockSqlxDB()
@@ -212,11 +215,12 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKey, func(_, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) dao.AccessKey {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
+					Description:   "secret of bkauth",
 				}
 			})
 
@@ -253,6 +257,7 @@ var _ = Describe("App", func() {
 				AppCode:       "bkauth",
 				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				CreatedSource: "bk_paas",
+				Description:   "",
 			}).Return(int64(1), nil)
 
 			db, dbMock := database.NewMockSqlxDB()
@@ -262,11 +267,12 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) dao.AccessKey {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
+					Description:   "",
 				}
 			})
 
@@ -326,6 +332,7 @@ var _ = Describe("App", func() {
 				AppCode:       "bkauth",
 				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				CreatedSource: "bk_paas",
+				Description:   "secret of bkauth",
 			}).Return(int64(0), errors.New("error"))
 
 			db, dbMock := database.NewMockSqlxDB()
@@ -335,11 +342,12 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) dao.AccessKey {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
+					Description:   "secret of bkauth",
 				}
 			})
 
