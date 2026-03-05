@@ -32,7 +32,7 @@ import (
 // fixtureInitCmd : init some data
 var fixtureInitCmd = &cobra.Command{
 	Use:   "fixture_init",
-	Short: "",
+	Short: "Initialize preset fixture data",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		FixtureInitStart()
@@ -40,10 +40,8 @@ var fixtureInitCmd = &cobra.Command{
 }
 
 func init() {
-	fixtureInitCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
+	fixtureInitCmd.Flags().StringVarP(&cfgFile, "config", "c", "config.yaml", "config file")
 	fixtureInitCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
-
-	fixtureInitCmd.MarkFlagRequired("config")
 
 	rootCmd.AddCommand(fixtureInitCmd)
 }

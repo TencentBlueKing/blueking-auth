@@ -38,21 +38,18 @@ var cfgFile string
 
 func init() {
 	// cobra.OnInitialize(initConfig)
-	rootCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
 	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
 
-	rootCmd.MarkFlagRequired("config")
 	viper.SetDefault("author", "blueking-paas")
 }
 
 var rootCmd = &cobra.Command{
 	Use:   "bkauth",
-	Short: "bkauth is Client Identity and Oauth2.0 Management System",
+	Short: "bkauth is Client Identity and OAuth2.0 Management System",
 	Long:  ``,
 
 	Run: func(cmd *cobra.Command, args []string) {
-		// Do Stuff Here
-		Start()
+		cmd.Help()
 	},
 }
 
@@ -65,7 +62,7 @@ func Execute() {
 }
 
 // Start ...
-func Start() {
+func serverStart() {
 	fmt.Println("It's BKAuth")
 
 	// 0. init config

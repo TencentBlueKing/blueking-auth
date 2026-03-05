@@ -67,8 +67,8 @@ logger:
   system:
     level: debug
     encoding: console
-    writer: os
-    settings: {name: stdout}
+    writer: file
+    settings: {name: bkauth_cli.log, size: 100, backups: 10, age: 7, path: ./}
   api:
     level: info
     encoding: json

@@ -41,9 +41,6 @@ var globalConfig *config.Config
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile == "" {
-		panic("Config file missing")
-	}
 	// Use config file from the flag.
 	// viper.SetConfigFile(cfgFile)
 	// If a config file is found, read it in.
@@ -159,4 +156,24 @@ func initPprof() {
 	if globalConfig.PprofPassword == "" {
 		globalConfig.PprofPassword = "DebugModel@bk"
 	}
+}
+
+func cliStart() {
+	viper.SetConfigFile(cfgFile)
+	initConfig()
+
+	if globalConfig.Debug {
+		fmt.Println(globalConfig)
+	}
+
+	initLogger()
+	initDatabase()
+	initRedis()
+	initCaches()
+	initCryptos()
+}
+
+func cliFinish() {
+	// flush logger
+	logging.SyncAll()
 }

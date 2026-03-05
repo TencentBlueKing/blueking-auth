@@ -16,24 +16,47 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package cli
+package cmd
 
 import (
+	"bkauth/pkg/service"
+	"bkauth/pkg/service/types"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-
-	"bkauth/pkg/service"
-	"bkauth/pkg/service/types"
 )
 
-func ListAccessKey(appCodeParam string) {
+var outputFormat string
+
+type AccessKeyOutput struct {
+	ID        int64  `json:"id"`
+	AppCode   string `json:"bk_app_code"`
+	AppSecret string `json:"bk_app_secret"`
+	CreatedAt int64  `json:"created_at"`
+}
+
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "list access key by app_code list, example: list --app_code='app_code1,app_code2'",
+	Long:  "",
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Parent().Run(cmd, args)
+
+		results := listAccessKey(appCodeParam)
+
+		printAccessKey(results, outputFormat)
+	},
+}
+
+func listAccessKey(appCodeParam string) []AccessKeyOutput {
 	// 1. 不允许为空
 	if appCodeParam == "" {
 		fmt.Println("app_code param should not be empty")
-		return
+		return nil
 	}
 
 	// 2. 遍历查询
@@ -52,35 +75,46 @@ func ListAccessKey(appCodeParam string) {
 
 	if len(accessKeyList) == 0 {
 		fmt.Println("no accessKey")
-		return
+		return nil
 	}
 
-	// 3. 统一输出
-	fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
+	outputs := make([]AccessKeyOutput, 0, len(accessKeyList))
 	for _, ak := range accessKeyList {
-		t := time.Unix(ak.CreatedAt, 0)
-		fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, t)
+		outputs = append(outputs, AccessKeyOutput{
+			ID:        ak.ID,
+			AppCode:   ak.AppCode,
+			AppSecret: ak.AppSecret,
+			CreatedAt: ak.CreatedAt,
+		})
+	}
+	return outputs
+}
+
+func printAccessKey(outputs []AccessKeyOutput, format string) {
+	if len(outputs) == 0 {
+		return
+	}
+	// 3. 统一输出
+	switch format {
+	case "json":
+		data, _ := json.Marshal(outputs)
+		fmt.Println(string(data))
+	default:
+		fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
+		for _, o := range outputs {
+			t := time.Unix(o.CreatedAt, 0).String()
+			fmt.Printf("%d\t%s\t%s\t%s\n", o.ID, o.AppCode, o.AppSecret, t)
+		}
 	}
 }
 
-func DeleteAccessKey(appCode string, accessKeyID int64) {
-	// 1. 不允许为空
-	if appCode == "" {
-		fmt.Println("app_code param should not be empty")
-		return
-	}
-	if accessKeyID <= 0 {
-		fmt.Println("access key id must positive integer")
-		return
-	}
+func init() {
+	// List Access Key
+	listCmd.Flags().StringVarP(
+		&appCodeParam, "app_code", "a", "", "app codes (use comma `,` separated when multiple app_code)",
+	)
+	listCmd.Flags().StringVarP(&outputFormat, "output-format", "o", "text", "output format: text | json")
+	listCmd.MarkFlagRequired("app_code")
 
-	// 2. 直接删除
-	svc := service.NewAccessKeyService()
-	err := svc.DeleteByID(appCode, accessKeyID)
-	if err != nil {
-		zap.S().Error(err, fmt.Sprintf("svc.DeleteByID appCode=%s accessKeyID=%d fail", appCode, accessKeyID))
-		return
-	}
-
-	fmt.Println("delete success")
+	accessKeyCmd.AddCommand(listCmd)
 }
