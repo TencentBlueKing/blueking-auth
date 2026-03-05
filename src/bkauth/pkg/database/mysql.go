@@ -94,13 +94,14 @@ func (db *DBClient) Close() {
 
 // NewDBClient :
 func NewDBClient(cfg *config.Database) *DBClient {
-	dataSource := fmt.Sprintf("%s:%s@(%s:%d)/%s?charset=%s&parseTime=True&interpolateParams=true&loc=%s",
+	dataSource := fmt.Sprintf("%s:%s@(%s:%d)/%s?charset=%s&parseTime=True&interpolateParams=true&loc=%s&time_zone=%s",
 		cfg.User,
 		cfg.Password,
 		cfg.Host,
 		cfg.Port,
 		cfg.Name,
 		"utf8",
+		"UTC",
 		"UTC",
 	)
 
