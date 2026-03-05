@@ -20,6 +20,7 @@ package database
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
@@ -101,8 +102,8 @@ func NewDBClient(cfg *config.Database) *DBClient {
 		cfg.Port,
 		cfg.Name,
 		"utf8",
-		"UTC",
-		"UTC",
+		url.QueryEscape("UTC"),
+		url.QueryEscape("'+00:00'"),
 	)
 
 	if cfg.TLS.Enabled {
