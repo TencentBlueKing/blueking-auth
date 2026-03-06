@@ -144,17 +144,17 @@ func (mr *MockAccessKeyServiceMockRecorder) ListWithCreatedAtByAppCode(appCode a
 }
 
 // UpdateByID mocks base method.
-func (m *MockAccessKeyService) UpdateByID(id int64, updateFiledMap map[string]any) error {
+func (m *MockAccessKeyService) UpdateByID(id int64, updateFieldMap map[string]any) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateByID", id, updateFiledMap)
+	ret := m.ctrl.Call(m, "UpdateByID", id, updateFieldMap)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateByID indicates an expected call of UpdateByID.
-func (mr *MockAccessKeyServiceMockRecorder) UpdateByID(id, updateFiledMap any) *gomock.Call {
+func (mr *MockAccessKeyServiceMockRecorder) UpdateByID(id, updateFieldMap any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateByID", reflect.TypeOf((*MockAccessKeyService)(nil).UpdateByID), id, updateFiledMap)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateByID", reflect.TypeOf((*MockAccessKeyService)(nil).UpdateByID), id, updateFieldMap)
 }
 
 // Verify mocks base method.

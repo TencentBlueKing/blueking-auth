@@ -42,7 +42,7 @@ import (
 // @Param X-BK-APP-CODE header string true "app_code"
 // @Param X-BK-APP-SECRET header string true "app_secret"
 // @Param bk_app_code path string true "the app which want to create secret"
-// @Param data body createAccessKeySerializer false "app_secret description"
+// @Param data body createAccessKeySerializer false "app_secret info"
 // @Success 200 {object} util.Response{data=types.AccessKey}
 // @Header 200 {string} X-Request-Id "the request id"
 // @Router /api/v1/apps/{bk_app_code}/access-keys [post]
@@ -61,8 +61,8 @@ func CreateAccessKey(c *gin.Context) {
 	}
 	appCode := uriParams.AppCode
 
-	// 解析 JSON body 参数
 	var body createAccessKeySerializer
+	// 兼容之前 body 为空的情况，避免解析到 EOF 错误
 	if err := c.ShouldBindJSON(&body); err != nil && !errors.Is(err, io.EOF) {
 		util.BadRequestErrorJSONResponse(c, util.ValidationErrorMessage(err))
 		return
@@ -232,7 +232,7 @@ func VerifyAccessKey(c *gin.Context) {
 // @Param X-BK-APP-SECRET header string true "app_secret"
 // @Param bk_app_code path string true "the app which want to put secret"
 // @Param access_key_id path string true "the secret which want to delete"
-// @Param data body updateAccessKeySerializer true "app secret or description"
+// @Param data body updateAccessKeySerializer true "the app_secret info which want to update"
 // @Success 200 {object} util.Response
 // @Header 200 {string} X-Request-Id "the request id"
 // @Router /api/v1/apps/{bk_app_code}/access-keys/{access_key_id} [put]
@@ -256,19 +256,19 @@ func UpdateAccessKey(c *gin.Context) {
 
 	// 更新 accessKey
 
-	// 获取更新的 updateFiledMap：如果是空则不更新
-	var updateFiledMap map[string]interface{}
-	err := mapstructure.Decode(body, &updateFiledMap)
+	// 获取更新的 updateFieldMap：如果是空则不更新
+	var updateFieldMap map[string]interface{}
+	err := mapstructure.Decode(body, &updateFieldMap)
 	if err != nil {
 		util.BadRequestErrorJSONResponse(c, err.Error())
 		return
 	}
-	if len(updateFiledMap) == 0 {
-		util.BadRequestErrorJSONResponse(c, "at least one field is required for update")
+	if len(updateFieldMap) == 0 {
+		util.SuccessJSONResponse(c, "ok, but no field data updated", nil)
 		return
 	}
 	svc := service.NewAccessKeyService()
-	err = svc.UpdateByID(accessKeyID, updateFiledMap)
+	err = svc.UpdateByID(accessKeyID, updateFieldMap)
 	if err != nil {
 		// 校验不通过
 		if util.IsValidationError(err) {

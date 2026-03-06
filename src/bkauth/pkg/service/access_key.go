@@ -39,9 +39,10 @@ const (
 )
 
 type AccessKeyService interface {
+	// TODO：Create / CreateWithSecret 可以引入一个输入的 struct（比如 AccessKeyCreateInput），避免多个 string 参数的顺序错误和跨层“散弹式修改”
 	Create(appCode, createdSource, description string) (types.AccessKey, error)
 	CreateWithSecret(appCode, appSecret, createdSource, description string) error
-	UpdateByID(id int64, updateFiledMap map[string]interface{}) error
+	UpdateByID(id int64, updateFieldMap map[string]interface{}) error
 	DeleteByID(appCode string, id int64) error
 	ListWithCreatedAtByAppCode(appCode string) ([]types.AccessKeyWithCreatedAt, error)
 	Verify(appCode, appSecret string) (bool, error)
@@ -143,11 +144,15 @@ func (s *accessKeyService) DeleteByID(appCode string, id int64) (err error) {
 }
 
 // UpdateByID 更新 accessKey
-func (s *accessKeyService) UpdateByID(id int64, updateFiledMap map[string]interface{}) (err error) {
+func (s *accessKeyService) UpdateByID(id int64, updateFieldMap map[string]interface{}) (err error) {
+	if len(updateFieldMap) == 0 {
+		return
+	}
+
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "UpdateByID")
-	_, err = s.manager.UpdateByID(id, updateFiledMap)
+	_, err = s.manager.UpdateByID(id, updateFieldMap)
 	if err != nil {
-		return errorWrapf(err, "manager.UpdateByID updateFiledMap=`%+v` id=`%d` fail", updateFiledMap, id)
+		return errorWrapf(err, "manager.UpdateByID updateFieldMap=`%+v` id=`%d` fail", updateFieldMap, id)
 	}
 
 	return

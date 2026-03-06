@@ -52,7 +52,7 @@ type AccessKeyManager interface {
 	Create(accessKey AccessKey) (int64, error)
 	DeleteByID(appCode string, id int64) (int64, error)
 	DeleteByAppCodeWithTx(tx *sqlx.Tx, appCode string) (int64, error)
-	UpdateByID(id int64, updateFiledMap map[string]interface{}) (int64, error)
+	UpdateByID(id int64, updateFieldMap map[string]interface{}) (int64, error)
 	ListWithCreatedAtByAppCode(appCode string) ([]AccessKeyWithCreatedAt, error)
 	Exists(appCode, appSecret string) (bool, error)
 	Count(appCode string) (int64, error)
@@ -116,16 +116,16 @@ func (m *accessKeyManager) DeleteByAppCodeWithTx(tx *sqlx.Tx, appCode string) (i
 	return database.SqlxDeleteWithTx(tx, query, appCode)
 }
 
-func (m *accessKeyManager) UpdateByID(id int64, updateFiledMap map[string]interface{}) (int64, error) {
+func (m *accessKeyManager) UpdateByID(id int64, updateFieldMap map[string]interface{}) (int64, error) {
 	// get setCause
-	setCause := database.GetSetClause(updateFiledMap)
+	setCause := database.GetSetClause(updateFieldMap)
 
 	// build sql
 	query := `UPDATE access_key SET ` + setCause + ` WHERE id = :id`
 
 	// add where data
-	updateFiledMap["id"] = id
-	return database.SqlxUpdate(m.DB, query, updateFiledMap)
+	updateFieldMap["id"] = id
+	return database.SqlxUpdate(m.DB, query, updateFieldMap)
 }
 
 func (m *accessKeyManager) ListWithCreatedAtByAppCode(appCode string) (accessKeys []AccessKeyWithCreatedAt, err error) {
