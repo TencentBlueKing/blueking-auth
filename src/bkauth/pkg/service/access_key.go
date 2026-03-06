@@ -39,9 +39,10 @@ const (
 )
 
 type AccessKeyService interface {
-	Create(appCode, createdSource string) (types.AccessKey, error)
-	CreateWithSecret(appCode, appSecret, createdSource string) error
-	UpdateByID(id int64, updateFiledMap map[string]interface{}) error
+	// TODO：Create / CreateWithSecret 可以引入一个输入的 struct（比如 AccessKeyCreateInput），避免多个 string 参数的顺序错误和跨层“散弹式修改”
+	Create(appCode, createdSource, description string) (types.AccessKey, error)
+	CreateWithSecret(appCode, appSecret, createdSource, description string) error
+	UpdateByID(id int64, updateFieldMap map[string]interface{}) error
 	DeleteByID(appCode string, id int64) error
 	ListWithCreatedAtByAppCode(appCode string) ([]types.AccessKeyWithCreatedAt, error)
 	Verify(appCode, appSecret string) (bool, error)
@@ -61,7 +62,7 @@ func NewAccessKeyService() AccessKeyService {
 }
 
 // Create : 创建应用密钥，createdSource 为创建来源，即哪个系统创建的
-func (s *accessKeyService) Create(appCode, createdSource string) (accessKey types.AccessKey, err error) {
+func (s *accessKeyService) Create(appCode, createdSource, description string) (accessKey types.AccessKey, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "Create")
 
 	// 数量的保证是业务上的一个基础逻辑
@@ -77,7 +78,7 @@ func (s *accessKeyService) Create(appCode, createdSource string) (accessKey type
 		return accessKey, err
 	}
 
-	daoAccessKey := newDaoAccessKey(appCode, createdSource)
+	daoAccessKey := newDaoAccessKey(appCode, createdSource, description)
 	id, err := s.manager.Create(daoAccessKey)
 	if err != nil {
 		return accessKey, errorWrapf(err, "manager.Create accessKey=`%+v` fail", daoAccessKey)
@@ -94,19 +95,20 @@ func (s *accessKeyService) Create(appCode, createdSource string) (accessKey type
 	}
 
 	accessKey = types.AccessKey{
-		ID:        id,
-		AppCode:   appCode,
-		AppSecret: appSecret,
-		Enabled:   daoAccessKey.Enabled,
+		ID:          id,
+		AppCode:     appCode,
+		AppSecret:   appSecret,
+		Enabled:     daoAccessKey.Enabled,
+		Description: description,
 	}
 	return
 }
 
 // CreateWithSecret : 创建应用密钥，支持指定 appSecret 的值，createdSource 为创建来源，即哪个系统创建的
-func (s *accessKeyService) CreateWithSecret(appCode, appSecret, createdSource string) (err error) {
+func (s *accessKeyService) CreateWithSecret(appCode, appSecret, createdSource, description string) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "CreateWithSecret")
 
-	daoAccessKey := newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource)
+	daoAccessKey := newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description)
 	_, err = s.manager.Create(daoAccessKey)
 	if err != nil {
 		return errorWrapf(err, "manager.Create accessKey=`%+v` fail", daoAccessKey)
@@ -142,11 +144,15 @@ func (s *accessKeyService) DeleteByID(appCode string, id int64) (err error) {
 }
 
 // UpdateByID 更新 accessKey
-func (s *accessKeyService) UpdateByID(id int64, updateFiledMap map[string]interface{}) (err error) {
+func (s *accessKeyService) UpdateByID(id int64, updateFieldMap map[string]interface{}) (err error) {
+	if len(updateFieldMap) == 0 {
+		return
+	}
+
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "UpdateByID")
-	_, err = s.manager.UpdateByID(id, updateFiledMap)
+	_, err = s.manager.UpdateByID(id, updateFieldMap)
 	if err != nil {
-		return errorWrapf(err, "manager.UpdateByID updateFiledMap=`%+v` id=`%d` fail", updateFiledMap, id)
+		return errorWrapf(err, "manager.UpdateByID updateFieldMap=`%+v` id=`%d` fail", updateFieldMap, id)
 	}
 
 	return
@@ -176,10 +182,11 @@ func (s *accessKeyService) ListWithCreatedAtByAppCode(appCode string) (
 
 		accessKeys = append(accessKeys, types.AccessKeyWithCreatedAt{
 			AccessKey: types.AccessKey{
-				ID:        accessKey.ID,
-				AppCode:   accessKey.AppCode,
-				AppSecret: appSecret,
-				Enabled:   accessKey.Enabled,
+				ID:          accessKey.ID,
+				AppCode:     accessKey.AppCode,
+				AppSecret:   appSecret,
+				Enabled:     accessKey.Enabled,
+				Description: accessKey.Description,
 			},
 			CreatedAt: accessKey.CreatedAt.Unix(),
 		})
@@ -236,10 +243,11 @@ func (s *accessKeyService) List() (accessKeys []types.AccessKey, err error) {
 				err, "convertToPlainAppSecret encryptedAppSecret=`%s` fail", daoAccessKey.AppSecret)
 		}
 		accessKeys = append(accessKeys, types.AccessKey{
-			ID:        daoAccessKey.ID,
-			AppCode:   daoAccessKey.AppCode,
-			AppSecret: appSecret,
-			Enabled:   daoAccessKey.Enabled,
+			ID:          daoAccessKey.ID,
+			AppCode:     daoAccessKey.AppCode,
+			AppSecret:   appSecret,
+			Enabled:     daoAccessKey.Enabled,
+			Description: daoAccessKey.Description,
 		})
 	}
 
