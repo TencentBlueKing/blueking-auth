@@ -49,8 +49,8 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	// MW: request_id
 	router.Use(middleware.RequestID())
 
-	if cfg.Observability.Enable && cfg.Observability.Signals.Traces.Enable {
-		router.Use(otelgin.Middleware(cfg.Observability.Service.Name))
+	if cfg.Trace.Enabled {
+		router.Use(otelgin.Middleware(cfg.Trace.ServiceName))
 	}
 
 	// basic apis

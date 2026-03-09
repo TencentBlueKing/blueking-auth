@@ -21,10 +21,7 @@ package logging
 import (
 	"sync"
 
-	"go.opentelemetry.io/contrib/bridges/otelzap"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"bkauth/pkg/config"
 )
@@ -109,66 +106,4 @@ func SyncAll() {
 	webLogger.Sync()
 	sqlLogger.Sync()
 	auditLogger.Sync()
-}
-
-// AttachOTEL wires up the specified zap loggers to also export records to the
-// given OTEL LoggerProvider via the official otelzap bridge.
-//
-// names controls which loggers are bridged (system/api/web/sql/audit).
-// minLevel controls the lowest log level forwarded to the observability platform.
-//
-// It must be called after both InitLogger and the OTEL SDK have been initialized.
-func AttachOTEL(provider *sdklog.LoggerProvider, minLevel zapcore.Level, names []string) {
-	set := make(map[string]bool, len(names))
-	for _, n := range names {
-		set[n] = true
-	}
-
-	if set["system"] {
-		systemLogger = teeWithOTEL(systemLogger, provider, "system", minLevel)
-		zap.ReplaceGlobals(systemLogger)
-	}
-	if set["api"] {
-		apiLogger = teeWithOTEL(apiLogger, provider, "api", minLevel)
-	}
-	if set["web"] {
-		webLogger = teeWithOTEL(webLogger, provider, "web", minLevel)
-	}
-	if set["sql"] {
-		sqlLogger = teeWithOTEL(sqlLogger, provider, "sql", minLevel)
-	}
-	if set["audit"] {
-		auditLogger = teeWithOTEL(auditLogger, provider, "audit", minLevel)
-	}
-}
-
-// minLevelCore wraps a zapcore.Core and only forwards entries at or above minLevel.
-type minLevelCore struct {
-	zapcore.Core
-	minLevel zapcore.Level
-}
-
-func (c *minLevelCore) Enabled(lvl zapcore.Level) bool {
-	return lvl >= c.minLevel
-}
-
-func (c *minLevelCore) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
-	if c.Enabled(ent.Level) {
-		return c.Core.Check(ent, ce)
-	}
-	return ce
-}
-
-func (c *minLevelCore) With(fields []zapcore.Field) zapcore.Core {
-	return &minLevelCore{Core: c.Core.With(fields), minLevel: c.minLevel}
-}
-
-func teeWithOTEL(logger *zap.Logger, provider *sdklog.LoggerProvider, name string, minLevel zapcore.Level) *zap.Logger {
-	otelCore := &minLevelCore{
-		Core:     otelzap.NewCore(name, otelzap.WithLoggerProvider(provider)),
-		minLevel: minLevel,
-	}
-	return logger.WithOptions(zap.WrapCore(func(existing zapcore.Core) zapcore.Core {
-		return zapcore.NewTee(existing, otelCore)
-	}))
 }

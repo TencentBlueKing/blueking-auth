@@ -18,79 +18,55 @@ package tracing
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strings"
 	"sync"
-	"time"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"bkauth/pkg/config"
+)
+
+type ExporterType string
+
+const (
+	ExporterHTTP ExporterType = "http"
+	ExporterGRPC ExporterType = "grpc"
 )
 
 type closer interface {
 	Shutdown(context.Context) error
 }
 
-// OTLPService OTLP 服务
 type OTLPService struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 
-	config         *OTLPConfig
+	config         *config.TraceConfig
 	gRPCConn       *grpc.ClientConn
 	tracerProvider *sdktrace.TracerProvider
-	meterProvider  *sdkmetric.MeterProvider
-	loggerProvider *sdklog.LoggerProvider
 }
 
 var globalOTLPService *OTLPService
 
-// GetLoggerProvider returns the global OTEL LoggerProvider, or nil if not initialized.
-func GetLoggerProvider() *sdklog.LoggerProvider {
-	if globalOTLPService == nil {
-		return nil
-	}
-	return globalOTLPService.loggerProvider
-}
-
 // InitOTLP 初始化 OTLP 服务
-func InitOTLP(cfg *OTLPConfig) error {
+func InitOTLP(cfg *config.TraceConfig) error {
 	service := &OTLPService{config: cfg}
 
-	// 从 endpoint 中提取协议、地址和路径
-	exporterType, endpoint, _ := parseEndpoint(cfg.Endpoint)
+	endpoint := fmt.Sprintf("%s:%d", cfg.OTLP.Host, cfg.OTLP.Port)
 
-	// 如果使用 gRPC 协议，创建 gRPC 连接
-	if exporterType == "grpc" || exporterType == "grpcs" {
-		var transportCreds credentials.TransportCredentials
-		if exporterType == "grpcs" {
-			transportCreds = credentials.NewClientTLSFromCert(nil, "")
-		} else {
-			transportCreds = insecure.NewCredentials()
-		}
-
-		conn, err := grpc.NewClient(
-			endpoint,
-			grpc.WithTransportCredentials(transportCreds),
-		)
+	if ExporterType(strings.ToLower(cfg.OTLP.Type)) == ExporterGRPC {
+		conn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return fmt.Errorf("failed to create gRPC connection: %w", err)
 		}
@@ -104,8 +80,7 @@ func InitOTLP(cfg *OTLPConfig) error {
 	}
 
 	globalOTLPService = service
-	zap.S().Infof("OpenTelemetry initialized: endpoint=%s, protocol=%s, traces=%v, metrics=%v, logs=%v",
-		cfg.Endpoint, exporterType, cfg.EnableTraces, cfg.EnableMetrics, cfg.EnableLogs)
+	zap.S().Infof("OpenTelemetry initialized: endpoint=%s, type=%s", endpoint, cfg.OTLP.Type)
 	return nil
 }
 
@@ -124,20 +99,9 @@ func (s *OTLPService) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to setup traces: %w", err)
 	}
 
-	// 初始化 Metrics
-	if err := s.setUpMetrics(s.ctx, res); err != nil {
-		return fmt.Errorf("failed to setup metrics: %w", err)
-	}
-
-	// 初始化 Logs
-	if err := s.setUpLogs(s.ctx, res); err != nil {
-		return fmt.Errorf("failed to setup logs: %w", err)
-	}
-
 	return nil
 }
 
-// Shutdown 优雅关闭
 func Shutdown(ctx context.Context) error {
 	if globalOTLPService == nil {
 		return nil
@@ -159,14 +123,6 @@ func (s *OTLPService) Stop(ctx context.Context) error {
 		s.wg.Add(1)
 		go shutdownFunc(s.tracerProvider, "tracer")
 	}
-	if s.meterProvider != nil {
-		s.wg.Add(1)
-		go shutdownFunc(s.meterProvider, "meter")
-	}
-	if s.loggerProvider != nil {
-		s.wg.Add(1)
-		go shutdownFunc(s.loggerProvider, "logger")
-	}
 
 	s.wg.Wait()
 
@@ -180,37 +136,16 @@ func (s *OTLPService) Stop(ctx context.Context) error {
 	return nil
 }
 
-// setUpTraces 初始化 Trace
 func (s *OTLPService) setUpTraces(ctx context.Context, res *resource.Resource) error {
-	if !s.config.EnableTraces {
-		return nil
-	}
-
 	exporter, err := s.newTracerExporter(ctx)
 	if err != nil {
 		return err
 	}
 
-	sampler := s.getSampler()
-
-	// 配置批处理选项
-	batchOptions := []sdktrace.BatchSpanProcessorOption{}
-	if s.config.BatchTimeout != "" {
-		if timeout, err := time.ParseDuration(s.config.BatchTimeout); err == nil {
-			batchOptions = append(batchOptions, sdktrace.WithBatchTimeout(timeout))
-		}
-	}
-	if s.config.MaxExportBatchSize > 0 {
-		batchOptions = append(batchOptions, sdktrace.WithMaxExportBatchSize(s.config.MaxExportBatchSize))
-	}
-	if s.config.MaxQueueSize > 0 {
-		batchOptions = append(batchOptions, sdktrace.WithMaxQueueSize(s.config.MaxQueueSize))
-	}
-
 	s.tracerProvider = sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter, batchOptions...),
+		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sampler),
+		sdktrace.WithSampler(s.getSampler()),
 	)
 
 	otel.SetTracerProvider(s.tracerProvider)
@@ -223,51 +158,8 @@ func (s *OTLPService) setUpTraces(ctx context.Context, res *resource.Resource) e
 	return nil
 }
 
-// setUpMetrics 初始化 Metrics
-func (s *OTLPService) setUpMetrics(ctx context.Context, res *resource.Resource) error {
-	if !s.config.EnableMetrics {
-		return nil
-	}
-
-	exporter, err := s.newMeterExporter(ctx)
-	if err != nil {
-		return err
-	}
-
-	s.meterProvider = sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exporter)),
-		sdkmetric.WithResource(res),
-	)
-
-	otel.SetMeterProvider(s.meterProvider)
-	zap.S().Info("OpenTelemetry Meter provider initialized")
-	return nil
-}
-
-// setUpLogs 初始化 Logs
-func (s *OTLPService) setUpLogs(ctx context.Context, res *resource.Resource) error {
-	if !s.config.EnableLogs {
-		return nil
-	}
-
-	exporter, err := s.newLoggerExporter(ctx)
-	if err != nil {
-		return err
-	}
-
-	s.loggerProvider = sdklog.NewLoggerProvider(
-		sdklog.WithProcessor(sdklog.NewBatchProcessor(exporter)),
-		sdklog.WithResource(res),
-	)
-
-	global.SetLoggerProvider(s.loggerProvider)
-	zap.S().Info("OpenTelemetry Logger provider initialized")
-	return nil
-}
-
-// newResource 创建资源
 func (s *OTLPService) newResource() (*resource.Resource, error) {
-	attrs := []resource.Option{
+	extraRes, err := resource.New(s.ctx,
 		resource.WithProcess(),
 		resource.WithOS(),
 		resource.WithContainer(),
@@ -275,21 +167,7 @@ func (s *OTLPService) newResource() (*resource.Resource, error) {
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(s.config.ServiceName),
 		),
-	}
-
-	// 添加可选的服务版本和环境
-	if s.config.ServiceVersion != "" {
-		attrs = append(attrs, resource.WithAttributes(
-			semconv.ServiceVersionKey.String(s.config.ServiceVersion),
-		))
-	}
-	if s.config.Environment != "" {
-		attrs = append(attrs, resource.WithAttributes(
-			semconv.DeploymentEnvironmentKey.String(s.config.Environment),
-		))
-	}
-
-	extraRes, err := resource.New(s.ctx, attrs...)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -302,135 +180,46 @@ func (s *OTLPService) newResource() (*resource.Resource, error) {
 	return res, nil
 }
 
-// newTracerExporter 创建 Trace 导出器
+func newHTTPTracerExporter(
+	ctx context.Context,
+	endpoint string,
+	headers map[string]string,
+) (*otlptrace.Exporter, error) {
+	return otlptracehttp.New(ctx,
+		otlptracehttp.WithEndpoint(endpoint),
+		otlptracehttp.WithHeaders(headers),
+		otlptracehttp.WithInsecure(),
+	)
+}
+
+func newGRPCTracerExporter(
+	ctx context.Context,
+	conn *grpc.ClientConn,
+	headers map[string]string,
+) (*otlptrace.Exporter, error) {
+	return otlptracegrpc.New(ctx,
+		otlptracegrpc.WithGRPCConn(conn),
+		otlptracegrpc.WithHeaders(headers),
+	)
+}
+
 func (s *OTLPService) newTracerExporter(ctx context.Context) (*otlptrace.Exporter, error) {
-	headers := map[string]string{"x-bk-token": s.config.Token}
-	exporterType, endpoint, urlPath := parseEndpoint(s.config.Endpoint)
+	headers := map[string]string{"x-bk-token": s.config.OTLP.Token}
+	endpoint := fmt.Sprintf("%s:%d", s.config.OTLP.Host, s.config.OTLP.Port)
 
-	switch exporterType {
-	case "http", "https":
-		opts := []otlptracehttp.Option{
-			otlptracehttp.WithEndpoint(endpoint),
-			otlptracehttp.WithHeaders(headers),
-		}
-		if urlPath != "" {
-			opts = append(opts, otlptracehttp.WithURLPath(urlPath))
-		}
-		if exporterType == "http" {
-			opts = append(opts, otlptracehttp.WithInsecure())
-		}
-		return otlptracehttp.New(ctx, opts...)
-	case "grpc", "grpcs":
-		return otlptracegrpc.New(
-			ctx,
-			otlptracegrpc.WithGRPCConn(s.gRPCConn),
-			otlptracegrpc.WithHeaders(headers),
-		)
+	switch ExporterType(strings.ToLower(s.config.OTLP.Type)) {
+	case ExporterGRPC:
+		return newGRPCTracerExporter(ctx, s.gRPCConn, headers)
 	default:
-		return nil, fmt.Errorf("invalid exporter type: %s", exporterType)
+		return newHTTPTracerExporter(ctx, endpoint, headers)
 	}
 }
 
-// newMeterExporter 创建 Metrics 导出器
-func (s *OTLPService) newMeterExporter(ctx context.Context) (sdkmetric.Exporter, error) {
-	headers := map[string]string{"x-bk-token": s.config.Token}
-	exporterType, endpoint, urlPath := parseEndpoint(s.config.Endpoint)
-
-	switch exporterType {
-	case "http", "https":
-		opts := []otlpmetrichttp.Option{
-			otlpmetrichttp.WithEndpoint(endpoint),
-			otlpmetrichttp.WithHeaders(headers),
-		}
-		if urlPath != "" {
-			opts = append(opts, otlpmetrichttp.WithURLPath(urlPath))
-		}
-		if exporterType == "http" {
-			opts = append(opts, otlpmetrichttp.WithInsecure())
-		}
-		return otlpmetrichttp.New(ctx, opts...)
-	case "grpc", "grpcs":
-		return otlpmetricgrpc.New(
-			ctx,
-			otlpmetricgrpc.WithGRPCConn(s.gRPCConn),
-			otlpmetricgrpc.WithHeaders(headers),
-		)
-	default:
-		return nil, fmt.Errorf("invalid exporter type: %s", exporterType)
-	}
-}
-
-// newLoggerExporter 创建 Log 导出器
-func (s *OTLPService) newLoggerExporter(ctx context.Context) (sdklog.Exporter, error) {
-	headers := map[string]string{"x-bk-token": s.config.Token}
-	exporterType, endpoint, urlPath := parseEndpoint(s.config.Endpoint)
-
-	switch exporterType {
-	case "http", "https":
-		opts := []otlploghttp.Option{
-			otlploghttp.WithEndpoint(endpoint),
-			otlploghttp.WithHeaders(headers),
-		}
-		if urlPath != "" {
-			opts = append(opts, otlploghttp.WithURLPath(urlPath))
-		}
-		if exporterType == "http" {
-			opts = append(opts, otlploghttp.WithInsecure())
-		}
-		return otlploghttp.New(ctx, opts...)
-	case "grpc", "grpcs":
-		return otlploggrpc.New(
-			ctx,
-			otlploggrpc.WithGRPCConn(s.gRPCConn),
-			otlploggrpc.WithHeaders(headers),
-		)
-	default:
-		return nil, fmt.Errorf("invalid exporter type: %s", exporterType)
-	}
-}
-
-// getSampler 获取采样器
 func (s *OTLPService) getSampler() sdktrace.Sampler {
-	ratio := s.config.SamplerRatio
-	if ratio < 0 || ratio > 1 {
-		zap.S().Warnf("invalid trace sampler ratio %v, fallback to 1.0", ratio)
-		ratio = 1.0
-	}
-
-	switch strings.ToLower(strings.TrimSpace(s.config.SamplerType)) {
-	case "always_off":
-		return sdktrace.NeverSample()
-	case "always_on":
-		return sdktrace.AlwaysSample()
-	case "traceidratio":
-		return sdktrace.TraceIDRatioBased(ratio)
-	case "parentbased":
-		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(ratio))
+	switch strings.ToLower(strings.TrimSpace(s.config.Sampler)) {
+	case "parentbased_always_on":
+		return sdktrace.ParentBased(sdktrace.AlwaysSample())
 	default:
 		return sdktrace.AlwaysSample()
 	}
-}
-
-// parseEndpoint 从 endpoint 中解析协议和地址
-func parseEndpoint(endpoint string) (protocol string, addr string, path string) {
-	if !strings.Contains(endpoint, "://") {
-		// 没有协议，默认使用 http
-		return "http", endpoint, ""
-	}
-
-	u, err := url.Parse(endpoint)
-	if err != nil || u.Scheme == "" {
-		return "http", endpoint, ""
-	}
-
-	switch u.Scheme {
-	case "grpc", "grpcs", "https":
-		protocol = u.Scheme
-	default:
-		protocol = "http"
-	}
-
-	addr = u.Host
-	path = u.EscapedPath()
-	return protocol, addr, path
 }

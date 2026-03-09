@@ -17,30 +17,25 @@ package tracing
 
 import (
 	"fmt"
-	"net/url"
-	"strings"
 	"time"
 
 	otelpyroscope "github.com/grafana/otel-profiling-go"
 	"github.com/grafana/pyroscope-go"
 	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+
+	"bkauth/pkg/config"
 )
 
 var profiler *pyroscope.Profiler
 
 // InitProfiling 初始化 Profiling
-func InitProfiling(cfg *ProfilingConfig, otelTracesEnabled bool) error {
-	// Profiling 仅支持 HTTP(S) 上报
-	if cfg.Endpoint == "" {
-		return fmt.Errorf(
-			"profiling endpoint is empty or invalid; it must be HTTP(S). " +
-				"if OTLP exporter uses grpc/grpcs, configure observability.signals.profiling.endpoint explicitly",
-		)
-	}
-	u, err := url.Parse(cfg.Endpoint)
-	if err != nil || (strings.ToLower(u.Scheme) != "http" && strings.ToLower(u.Scheme) != "https") {
-		return fmt.Errorf("profiling endpoint must use http/https, got: %q", cfg.Endpoint)
+func InitProfiling(cfg *config.ProfilingConfig, traceEnabled bool) error {
+	endpoint := fmt.Sprintf("%s://%s:%d%s",
+		cfg.Pyroscope.Type, cfg.Pyroscope.Host, cfg.Pyroscope.Port, cfg.Pyroscope.Path)
+
+	if cfg.Pyroscope.Host == "" {
+		return fmt.Errorf("profiling pyroscope.host is empty")
 	}
 
 	uploadRate, err := time.ParseDuration(cfg.UploadInterval)
@@ -51,10 +46,10 @@ func InitProfiling(cfg *ProfilingConfig, otelTracesEnabled bool) error {
 
 	profiler, err = pyroscope.Start(pyroscope.Config{
 		ApplicationName: cfg.ServiceName,
-		ServerAddress:   cfg.Endpoint,
+		ServerAddress:   endpoint,
 
 		HTTPHeaders: map[string]string{
-			"x-bk-token": cfg.Token,
+			"x-bk-token": cfg.Pyroscope.Token,
 		},
 
 		UploadRate: uploadRate,
@@ -78,15 +73,15 @@ func InitProfiling(cfg *ProfilingConfig, otelTracesEnabled bool) error {
 		return err
 	}
 
-	// 仅当 Traces 已初始化时才包 otelpyroscope，否则全局 TracerProvider 仍是 noop
-	if otelTracesEnabled {
+	// Trace 开启时，通过 otelpyroscope 关联 Trace 与 Profiling
+	if traceEnabled {
 		otel.SetTracerProvider(otelpyroscope.NewTracerProvider(otel.GetTracerProvider()))
 		zap.S().Infof("Profiling initialized: endpoint=%s, uploadInterval=%s (OTel-Pyroscope integration enabled)",
-			cfg.Endpoint, cfg.UploadInterval)
+			endpoint, cfg.UploadInterval)
 	} else {
 		zap.S().Infof("Profiling initialized: endpoint=%s, uploadInterval=%s "+
 			"(OTel-Pyroscope integration skipped: traces disabled)",
-			cfg.Endpoint, cfg.UploadInterval)
+			endpoint, cfg.UploadInterval)
 	}
 	return nil
 }
