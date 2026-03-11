@@ -164,23 +164,28 @@ func initPprof() {
 
 func initTracing() {
 	if !globalConfig.Trace.Enabled {
-		zap.S().Info("Observability is disabled")
+		zap.S().Info("OTel Traces is not enabled, will not init it")
 		return
 	}
 
-	// 初始化 OpenTelemetry
 	if err := tracing.InitOTLP(&globalConfig.Trace); err != nil {
-		zap.S().Errorf("init OpenTelemetry fail: %s", err)
+		zap.S().Errorf("init OTel Traces fail: %s", err)
 		return
 	}
 
-	// 初始化 Profiling
-	if globalConfig.Profiling.Enabled {
-		if err := tracing.InitProfiling(&globalConfig.Profiling, globalConfig.Trace.Enabled); err != nil {
-			zap.S().Errorf("init Profiling fail: %v", err)
-			return
-		}
+	zap.S().Info("init OTel Traces success")
+}
+
+func initProfiling() {
+	if !globalConfig.Profiling.Enabled {
+		zap.S().Info("Profiling is not enabled, will not init it")
+		return
 	}
 
-	zap.S().Info("Observability initialized successfully")
+	if err := tracing.InitProfiling(&globalConfig.Profiling, globalConfig.Trace.Enabled); err != nil {
+		zap.S().Errorf("init Profiling fail: %v", err)
+		return
+	}
+
+	zap.S().Info("init Profiling success")
 }

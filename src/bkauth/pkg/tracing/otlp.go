@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -43,15 +42,7 @@ const (
 	ExporterGRPC ExporterType = "grpc"
 )
 
-type closer interface {
-	Shutdown(context.Context) error
-}
-
 type OTLPService struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
-
 	config         *config.TraceConfig
 	gRPCConn       *grpc.ClientConn
 	tracerProvider *sdktrace.TracerProvider
@@ -86,16 +77,12 @@ func InitOTLP(cfg *config.TraceConfig) error {
 
 // Start 启动 OTLP 服务
 func (s *OTLPService) Start(ctx context.Context) error {
-	s.ctx, s.cancel = context.WithCancel(ctx)
-
-	// 创建资源
-	res, err := s.newResource()
+	res, err := s.newResource(ctx)
 	if err != nil {
 		return err
 	}
 
-	// 初始化 Trace
-	if err := s.setUpTraces(s.ctx, res); err != nil {
+	if err := s.setUpTraces(ctx, res); err != nil {
 		return fmt.Errorf("failed to setup traces: %w", err)
 	}
 
@@ -110,21 +97,11 @@ func Shutdown(ctx context.Context) error {
 }
 
 func (s *OTLPService) Stop(ctx context.Context) error {
-	defer s.cancel()
-
-	shutdownFunc := func(provider closer, name string) {
-		defer s.wg.Done()
-		if err := provider.Shutdown(ctx); err != nil {
-			zap.S().Warnf("OpenTelemetry %s provider shutdown error: %v", name, err)
+	if s.tracerProvider != nil {
+		if err := s.tracerProvider.Shutdown(ctx); err != nil {
+			zap.S().Warnf("OpenTelemetry tracer provider shutdown error: %v", err)
 		}
 	}
-
-	if s.tracerProvider != nil {
-		s.wg.Add(1)
-		go shutdownFunc(s.tracerProvider, "tracer")
-	}
-
-	s.wg.Wait()
 
 	if s.gRPCConn != nil {
 		if err := s.gRPCConn.Close(); err != nil {
@@ -158,8 +135,8 @@ func (s *OTLPService) setUpTraces(ctx context.Context, res *resource.Resource) e
 	return nil
 }
 
-func (s *OTLPService) newResource() (*resource.Resource, error) {
-	extraRes, err := resource.New(s.ctx,
+func (s *OTLPService) newResource(ctx context.Context) (*resource.Resource, error) {
+	extraRes, err := resource.New(ctx,
 		resource.WithProcess(),
 		resource.WithOS(),
 		resource.WithContainer(),

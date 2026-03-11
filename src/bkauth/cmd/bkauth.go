@@ -93,6 +93,7 @@ func Start() {
 	initCryptos()
 	initAPIAllowList()
 	initTracing()
+	initProfiling()
 
 	// 2. watch the signal
 	ctx, cancelFunc := context.WithCancel(context.Background())

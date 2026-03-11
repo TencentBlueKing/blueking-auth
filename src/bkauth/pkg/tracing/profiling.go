@@ -31,12 +31,12 @@ var profiler *pyroscope.Profiler
 
 // InitProfiling 初始化 Profiling
 func InitProfiling(cfg *config.ProfilingConfig, traceEnabled bool) error {
-	endpoint := fmt.Sprintf("%s://%s:%d%s",
-		cfg.Pyroscope.Type, cfg.Pyroscope.Host, cfg.Pyroscope.Port, cfg.Pyroscope.Path)
-
 	if cfg.Pyroscope.Host == "" {
 		return fmt.Errorf("profiling pyroscope.host is empty")
 	}
+
+	endpoint := fmt.Sprintf("%s://%s:%d%s",
+		cfg.Pyroscope.Type, cfg.Pyroscope.Host, cfg.Pyroscope.Port, cfg.Pyroscope.Path)
 
 	uploadRate, err := time.ParseDuration(cfg.UploadInterval)
 	if err != nil {
@@ -67,7 +67,7 @@ func InitProfiling(cfg *config.ProfilingConfig, traceEnabled bool) error {
 			pyroscope.ProfileBlockDuration, // 阻塞耗时
 		},
 
-		Logger: pyroscope.StandardLogger,
+		Logger: zap.S(),
 	})
 	if err != nil {
 		return err
