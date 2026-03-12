@@ -19,7 +19,9 @@
 package common
 
 import (
+	"bkauth/pkg/metric"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/gin-gonic/gin"
 
@@ -94,6 +96,11 @@ func NewAPIAllowMiddleware(api string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		accessAppCode := util.GetAccessAppCode(c)
 		if !IsAPIAllow(api, accessAppCode) {
+			metric.APIForbiddenTotal.With(prometheus.Labels{
+				"access_app_code": accessAppCode,
+				"api":             api,
+			}).Inc()
+
 			util.ForbiddenJSONResponse(c, fmt.Sprintf("this app_code(%s) can't call api(%s)", accessAppCode, api))
 			c.Abort()
 			return

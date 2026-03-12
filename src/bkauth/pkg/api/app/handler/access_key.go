@@ -19,7 +19,9 @@
 package handler
 
 import (
+	"bkauth/pkg/metric"
 	"errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"io"
 
 	"github.com/gin-gonic/gin"
@@ -210,6 +212,16 @@ func VerifyAccessKey(c *gin.Context) {
 		util.SystemErrorJSONResponse(c, err)
 		return
 	}
+
+	// 记录验证结果
+	result := "success"
+	if !exists {
+		result = "fail"
+	}
+	metric.AppSecretVerificationTotal.With(prometheus.Labels{
+		"verified_app_code": appCode,
+		"result":            result,
+	}).Inc()
 
 	data := gin.H{"is_match": exists}
 	if !exists {

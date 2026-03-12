@@ -19,6 +19,8 @@
 package metric
 
 import (
+	"bkauth/pkg/version"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -57,6 +59,42 @@ var (
 	},
 		[]string{"method", "path", "status", "component"},
 	)
+
+	// APIAuthTotal 调用方访问接口的认证结果计数
+	APIAuthTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name:        serviceName + "_api_auth_total",
+		Help:        "Total number of API authentication attempts by callers.",
+		ConstLabels: prometheus.Labels{"service": serviceName},
+	},
+		[]string{"result"},
+	)
+
+	// APIForbiddenTotal 调用方因权限不足被拒绝的计数
+	APIForbiddenTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name:        serviceName + "_api_forbidden_total",
+		Help:        "Total number of API calls rejected due to insufficient permissions.",
+		ConstLabels: prometheus.Labels{"service": serviceName},
+	},
+		[]string{"access_app_code", "api"},
+	)
+
+	// AppSecretVerificationTotal 验证目标应用密钥的结果计数
+	AppSecretVerificationTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name:        serviceName + "_app_secret_verification_total",
+		Help:        "Total number of app secret verification requests.",
+		ConstLabels: prometheus.Labels{"service": serviceName},
+	},
+		[]string{"verified_app_code", "result"},
+	)
+
+	// BuildInfo 构建版本信息
+	BuildInfo = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name:        serviceName + "_build_info",
+		Help:        "Records the version, commit, build time, and Go version used to build " + serviceName + ".",
+		ConstLabels: prometheus.Labels{"service": serviceName},
+	},
+		[]string{"version", "commit", "build_time", "go_version"},
+	)
 )
 
 // InitMetrics ...
@@ -65,4 +103,15 @@ func InitMetrics() {
 	prometheus.MustRegister(RequestCount)
 	prometheus.MustRegister(RequestDuration)
 	prometheus.MustRegister(ComponentRequestDuration)
+	prometheus.MustRegister(APIAuthTotal)
+	prometheus.MustRegister(APIForbiddenTotal)
+	prometheus.MustRegister(AppSecretVerificationTotal)
+	prometheus.MustRegister(BuildInfo)
+
+	BuildInfo.With(prometheus.Labels{
+		"version":    version.Version,
+		"commit":     version.Commit,
+		"build_time": version.BuildTime,
+		"go_version": version.GoVersion,
+	}).Set(1)
 }
