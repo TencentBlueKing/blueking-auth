@@ -13,13 +13,15 @@
  * limitations under the License.
  */
 
-package tracing
+package observability
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	otelpyroscope "github.com/grafana/otel-profiling-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -38,8 +40,9 @@ import (
 type ExporterType string
 
 const (
-	ExporterHTTP ExporterType = "http"
-	ExporterGRPC ExporterType = "grpc"
+	ExporterHTTP  ExporterType = "http"
+	ExporterGRPC  ExporterType = "grpc"
+	headerBKToken              = "x-bk-token"
 )
 
 type OTLPService struct {
@@ -51,7 +54,11 @@ type OTLPService struct {
 var globalOTLPService *OTLPService
 
 // InitOTLP 初始化 OTLP 服务
-func InitOTLP(cfg *config.TraceConfig) error {
+func InitOTLP(cfg *config.TraceConfig, profilingEnabled bool) error {
+	if cfg.OTLP.Host == "" {
+		return fmt.Errorf("trace otlp.host is empty")
+	}
+
 	service := &OTLPService{config: cfg}
 
 	endpoint := fmt.Sprintf("%s:%d", cfg.OTLP.Host, cfg.OTLP.Port)
@@ -69,6 +76,17 @@ func InitOTLP(cfg *config.TraceConfig) error {
 	if err := service.Start(ctx); err != nil {
 		return fmt.Errorf("failed to start OTLP service: %w", err)
 	}
+
+	if profilingEnabled {
+		otel.SetTracerProvider(otelpyroscope.NewTracerProvider(service.tracerProvider))
+	} else {
+		otel.SetTracerProvider(service.tracerProvider)
+	}
+
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
 
 	globalOTLPService = service
 	zap.S().Infof("OpenTelemetry initialized: endpoint=%s, type=%s", endpoint, cfg.OTLP.Type)
@@ -97,20 +115,17 @@ func Shutdown(ctx context.Context) error {
 }
 
 func (s *OTLPService) Stop(ctx context.Context) error {
+	var err error
+
 	if s.tracerProvider != nil {
-		if err := s.tracerProvider.Shutdown(ctx); err != nil {
-			zap.S().Warnf("OpenTelemetry tracer provider shutdown error: %v", err)
-		}
+		err = errors.Join(err, s.tracerProvider.Shutdown(ctx))
 	}
 
 	if s.gRPCConn != nil {
-		if err := s.gRPCConn.Close(); err != nil {
-			zap.S().Warnf("gRPC connection close error: %v", err)
-		}
+		err = errors.Join(err, s.gRPCConn.Close())
 	}
 
-	zap.S().Info("OpenTelemetry shutdown completed")
-	return nil
+	return err
 }
 
 func (s *OTLPService) setUpTraces(ctx context.Context, res *resource.Resource) error {
@@ -125,13 +140,6 @@ func (s *OTLPService) setUpTraces(ctx context.Context, res *resource.Resource) e
 		sdktrace.WithSampler(s.getSampler()),
 	)
 
-	otel.SetTracerProvider(s.tracerProvider)
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
-		propagation.TraceContext{},
-		propagation.Baggage{},
-	))
-
-	zap.S().Info("OpenTelemetry Trace provider initialized")
 	return nil
 }
 
@@ -181,7 +189,7 @@ func newGRPCTracerExporter(
 }
 
 func (s *OTLPService) newTracerExporter(ctx context.Context) (*otlptrace.Exporter, error) {
-	headers := map[string]string{"x-bk-token": s.config.OTLP.Token}
+	headers := map[string]string{headerBKToken: s.config.OTLP.Token}
 	endpoint := fmt.Sprintf("%s:%d", s.config.OTLP.Host, s.config.OTLP.Port)
 
 	switch ExporterType(strings.ToLower(s.config.OTLP.Type)) {

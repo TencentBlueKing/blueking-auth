@@ -13,24 +13,31 @@
  * limitations under the License.
  */
 
-package tracing
+package observability
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
-	otelpyroscope "github.com/grafana/otel-profiling-go"
 	"github.com/grafana/pyroscope-go"
-	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 
 	"bkauth/pkg/config"
 )
 
+const (
+	// 采样率参考 Grafana Alloy / Istio 生产默认值，开销极低
+	// defaultMutexProfileFraction: 每 1000 次 mutex 竞争事件采样 1 次 (0.1%)
+	defaultMutexProfileFraction = 1000
+	// defaultBlockProfileRate: 每阻塞 10000ns (10µs) 采样一次
+	defaultBlockProfileRate = 10000
+)
+
 var profiler *pyroscope.Profiler
 
 // InitProfiling 初始化 Profiling
-func InitProfiling(cfg *config.ProfilingConfig, traceEnabled bool) error {
+func InitProfiling(cfg *config.ProfilingConfig) error {
 	if cfg.Pyroscope.Host == "" {
 		return fmt.Errorf("profiling pyroscope.host is empty")
 	}
@@ -44,16 +51,19 @@ func InitProfiling(cfg *config.ProfilingConfig, traceEnabled bool) error {
 		uploadRate = 15 * time.Second
 	}
 
+	// 启用 mutex 和 block profiling 的 runtime 采样
+	runtime.SetMutexProfileFraction(defaultMutexProfileFraction)
+	runtime.SetBlockProfileRate(defaultBlockProfileRate)
+
 	profiler, err = pyroscope.Start(pyroscope.Config{
 		ApplicationName: cfg.ServiceName,
 		ServerAddress:   endpoint,
 
 		HTTPHeaders: map[string]string{
-			"x-bk-token": cfg.Pyroscope.Token,
+			headerBKToken: cfg.Pyroscope.Token,
 		},
 
 		UploadRate: uploadRate,
-
 		ProfileTypes: []pyroscope.ProfileType{
 			pyroscope.ProfileCPU,           // CPU 使用
 			pyroscope.ProfileAllocObjects,  // 内存分配对象数
@@ -64,7 +74,7 @@ func InitProfiling(cfg *config.ProfilingConfig, traceEnabled bool) error {
 			pyroscope.ProfileMutexCount,    // 互斥锁竞争次数
 			pyroscope.ProfileMutexDuration, // 互斥锁竞争耗时
 			pyroscope.ProfileBlockCount,    // 阻塞事件次数
-			pyroscope.ProfileBlockDuration, // 阻塞耗时
+			pyroscope.ProfileBlockDuration, // 阻塞事件耗时
 		},
 
 		Logger: zap.S(),
@@ -73,16 +83,7 @@ func InitProfiling(cfg *config.ProfilingConfig, traceEnabled bool) error {
 		return err
 	}
 
-	// Trace 开启时，通过 otelpyroscope 关联 Trace 与 Profiling
-	if traceEnabled {
-		otel.SetTracerProvider(otelpyroscope.NewTracerProvider(otel.GetTracerProvider()))
-		zap.S().Infof("Profiling initialized: endpoint=%s, uploadInterval=%s (OTel-Pyroscope integration enabled)",
-			endpoint, cfg.UploadInterval)
-	} else {
-		zap.S().Infof("Profiling initialized: endpoint=%s, uploadInterval=%s "+
-			"(OTel-Pyroscope integration skipped: traces disabled)",
-			endpoint, cfg.UploadInterval)
-	}
+	zap.S().Infof("Profiling initialized: endpoint=%s, uploadInterval=%s", endpoint, cfg.UploadInterval)
 	return nil
 }
 

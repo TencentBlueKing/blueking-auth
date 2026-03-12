@@ -28,7 +28,7 @@ import (
 
 	"bkauth/pkg/config"
 	"bkauth/pkg/logging"
-	"bkauth/pkg/tracing"
+	"bkauth/pkg/observability"
 )
 
 const (
@@ -129,12 +129,14 @@ func (s *Server) Stop() {
 	// use an independent timeout budget for telemetry flush to avoid losing data
 	telemetryShutdownCtx, telemetryShutdownCancel := context.WithTimeout(context.Background(), graceTimeout)
 	defer telemetryShutdownCancel()
-	if err := tracing.Shutdown(telemetryShutdownCtx); err != nil {
+	if err := observability.Shutdown(telemetryShutdownCtx); err != nil {
 		zap.S().Errorf("shutdown OpenTelemetry fail: %s", err)
+	} else {
+		zap.S().Info("OpenTelemetry shutdown completed")
 	}
 
 	// stop profiling
-	if err := tracing.StopProfiling(); err != nil {
+	if err := observability.StopProfiling(); err != nil {
 		zap.S().Warnf("stop Profiling fail: %v", err)
 	}
 

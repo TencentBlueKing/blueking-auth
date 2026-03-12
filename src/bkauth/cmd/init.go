@@ -34,8 +34,8 @@ import (
 	"bkauth/pkg/errorx"
 	"bkauth/pkg/logging"
 	"bkauth/pkg/metric"
+	"bkauth/pkg/observability"
 	"bkauth/pkg/redis"
-	"bkauth/pkg/tracing"
 )
 
 var globalConfig *config.Config
@@ -168,7 +168,7 @@ func initTracing() {
 		return
 	}
 
-	if err := tracing.InitOTLP(&globalConfig.Trace); err != nil {
+	if err := observability.InitOTLP(&globalConfig.Trace, globalConfig.Profiling.Enabled); err != nil {
 		zap.S().Errorf("init OTel Traces fail: %s", err)
 		return
 	}
@@ -182,7 +182,7 @@ func initProfiling() {
 		return
 	}
 
-	if err := tracing.InitProfiling(&globalConfig.Profiling, globalConfig.Trace.Enabled); err != nil {
+	if err := observability.InitProfiling(&globalConfig.Profiling); err != nil {
 		zap.S().Errorf("init Profiling fail: %v", err)
 		return
 	}
