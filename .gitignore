@@ -22,3 +22,4 @@ src/bkauth/config.yaml
 .idea
 
 pre_commit_hooks
+bkcodeai.json
