@@ -52,8 +52,7 @@ func InitProfiling(cfg *config.ProfilingConfig) error {
 	}
 
 	// 启用 mutex 和 block profiling 的 runtime 采样
-	runtime.SetMutexProfileFraction(defaultMutexProfileFraction)
-	runtime.SetBlockProfileRate(defaultBlockProfileRate)
+	enableRuntimeProfiling()
 
 	profiler, err = pyroscope.Start(pyroscope.Config{
 		ApplicationName: cfg.ServiceName,
@@ -80,6 +79,7 @@ func InitProfiling(cfg *config.ProfilingConfig) error {
 		Logger: zap.S(),
 	})
 	if err != nil {
+		disableRuntimeProfiling()
 		return err
 	}
 
@@ -90,7 +90,19 @@ func InitProfiling(cfg *config.ProfilingConfig) error {
 // StopProfiling 停止 Profiling
 func StopProfiling() error {
 	if profiler != nil {
-		return profiler.Stop()
+		err := profiler.Stop()
+		disableRuntimeProfiling()
+		return err
 	}
 	return nil
+}
+
+func enableRuntimeProfiling() {
+	runtime.SetMutexProfileFraction(defaultMutexProfileFraction)
+	runtime.SetBlockProfileRate(defaultBlockProfileRate)
+}
+
+func disableRuntimeProfiling() {
+	runtime.SetMutexProfileFraction(0)
+	runtime.SetBlockProfileRate(0)
 }
