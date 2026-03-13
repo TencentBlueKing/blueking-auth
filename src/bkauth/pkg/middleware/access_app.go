@@ -19,7 +19,9 @@
 package middleware
 
 import (
+	"bkauth/pkg/metric"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 
 	cacheImpls "bkauth/pkg/cache/impls"
@@ -38,6 +40,7 @@ func AccessAppAuthMiddleware() gin.HandlerFunc {
 		// 1. check not empty
 		var h accessAppHeader
 		if err := c.ShouldBindHeader(&h); err != nil {
+			metric.APIAuthTotal.With(prometheus.Labels{"result": "fail"}).Inc()
 			util.UnauthorizedJSONResponse(c, "app code and app secret required")
 			c.Abort()
 			return
@@ -49,10 +52,13 @@ func AccessAppAuthMiddleware() gin.HandlerFunc {
 		// 2. validate from cache -> database
 		valid := cacheImpls.VerifyAccessApp(appCode, appSecret)
 		if !valid {
+			metric.APIAuthTotal.With(prometheus.Labels{"result": "fail"}).Inc()
 			util.UnauthorizedJSONResponse(c, "app code or app secret wrong")
 			c.Abort()
 			return
 		}
+
+		metric.APIAuthTotal.With(prometheus.Labels{"result": "success"}).Inc()
 
 		// 3. set client_id
 		util.SetAccessAppCode(c, appCode)
