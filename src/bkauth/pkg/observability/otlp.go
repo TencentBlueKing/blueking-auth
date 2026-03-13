@@ -195,8 +195,10 @@ func (s *OTLPService) newTracerExporter(ctx context.Context) (*otlptrace.Exporte
 	switch ExporterType(strings.ToLower(s.config.OTLP.Type)) {
 	case ExporterGRPC:
 		return newGRPCTracerExporter(ctx, s.gRPCConn, headers)
-	default:
+	case ExporterHTTP:
 		return newHTTPTracerExporter(ctx, endpoint, headers)
+	default:
+		return nil, fmt.Errorf("unsupported exporter type: %s", s.config.OTLP.Type)
 	}
 }
 

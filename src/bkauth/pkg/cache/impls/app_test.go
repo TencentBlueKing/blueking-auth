@@ -1,6 +1,7 @@
 package impls
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -45,27 +46,27 @@ var _ = Describe("AppCache", func() {
 		It("AppCache Get ok", func() {
 			mockService := mock.NewMockAppService(ctl)
 			mockApp := types.App{Code: "test"}
-			mockService.EXPECT().Get("test").Return(mockApp, nil).AnyTimes()
+			mockService.EXPECT().Get(gomock.Any(), "test").Return(mockApp, nil).AnyTimes()
 
 			patches = gomonkey.ApplyFunc(service.NewAppService,
 				func() service.AppService {
 					return mockService
 				})
 
-			app, err := GetApp("test")
+			app, err := GetApp(context.Background(), "test")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), app, mockApp)
 		})
 		It("AppCache Get fail", func() {
 			mockService := mock.NewMockAppService(ctl)
-			mockService.EXPECT().Get("test").Return(types.App{}, errors.New("error")).AnyTimes()
+			mockService.EXPECT().Get(gomock.Any(), "test").Return(types.App{}, errors.New("error")).AnyTimes()
 
 			patches = gomonkey.ApplyFunc(service.NewAppService,
 				func() service.AppService {
 					return mockService
 				})
 
-			app, err := GetApp("test")
+			app, err := GetApp(context.Background(), "test")
 			assert.Error(GinkgoT(), err)
 			assert.Equal(GinkgoT(), app, types.App{})
 		})

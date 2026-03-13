@@ -19,6 +19,7 @@
 package dao
 
 import (
+	"context"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -49,7 +50,7 @@ func Test_appManager_CreateWithTx(t *testing.T) {
 		}
 
 		manager := &appManager{DB: db}
-		err = manager.CreateWithTx(tx, app)
+		err = manager.CreateWithTx(context.Background(), tx, app)
 
 		tx.Commit()
 
@@ -66,7 +67,7 @@ func Test_appManager_Exists(t *testing.T) {
 
 		manager := &appManager{DB: db}
 
-		exists, err := manager.Exists("bkauth")
+		exists, err := manager.Exists(context.Background(), "bkauth")
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Equal(t, exists, true)
@@ -82,7 +83,7 @@ func Test_appManager_NameExists(t *testing.T) {
 
 		manager := &appManager{DB: db}
 
-		exists, err := manager.NameExists("bkauth")
+		exists, err := manager.NameExists(context.Background(), "bkauth")
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Equal(t, exists, true)
@@ -98,7 +99,7 @@ func Test_appManager_Get(t *testing.T) {
 
 		manager := &appManager{DB: db}
 
-		app, err := manager.Get("bkauth")
+		app, err := manager.Get(context.Background(), "bkauth")
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Equal(t, app.Code, "bkauth")
@@ -119,7 +120,7 @@ func Test_appManager_List(t *testing.T) {
 
 		manager := &appManager{DB: db}
 
-		apps, err := manager.List("type1", "default", 10, 0, "", "")
+		apps, err := manager.List(context.Background(), "type1", "default", 10, 0, "", "")
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Len(t, apps, 2)
@@ -136,7 +137,7 @@ func Test_appManager_Count(t *testing.T) {
 
 		manager := &appManager{DB: db}
 
-		count, err := manager.Count("type1", "default")
+		count, err := manager.Count(context.Background(), "type1", "default")
 
 		assert.NoError(t, err, "query from db fail.")
 		assert.Equal(t, count, 2)
@@ -156,7 +157,7 @@ func Test_appManager_DeleteWithTx(t *testing.T) {
 		require.NoError(t, err)
 
 		manager := &appManager{DB: db}
-		affected, err := manager.DeleteWithTx(tx, "test-app")
+		affected, err := manager.DeleteWithTx(context.Background(), tx, "test-app")
 		require.NoError(t, err)
 		assert.Equal(t, affected, int64(1))
 

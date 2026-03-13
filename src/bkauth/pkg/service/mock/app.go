@@ -11,6 +11,7 @@ package mock
 
 import (
 	types "bkauth/pkg/service/types"
+	context "context"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -41,81 +42,81 @@ func (m *MockAppService) EXPECT() *MockAppServiceMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockAppService) Create(app types.App, createdSource string) error {
+func (m *MockAppService) Create(ctx context.Context, app types.App, createdSource string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", app, createdSource)
+	ret := m.ctrl.Call(m, "Create", ctx, app, createdSource)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockAppServiceMockRecorder) Create(app, createdSource any) *gomock.Call {
+func (mr *MockAppServiceMockRecorder) Create(ctx, app, createdSource any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockAppService)(nil).Create), app, createdSource)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockAppService)(nil).Create), ctx, app, createdSource)
 }
 
 // CreateWithSecret mocks base method.
-func (m *MockAppService) CreateWithSecret(app types.App, appSecret, createdSource string) error {
+func (m *MockAppService) CreateWithSecret(ctx context.Context, app types.App, appSecret, createdSource string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateWithSecret", app, appSecret, createdSource)
+	ret := m.ctrl.Call(m, "CreateWithSecret", ctx, app, appSecret, createdSource)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateWithSecret indicates an expected call of CreateWithSecret.
-func (mr *MockAppServiceMockRecorder) CreateWithSecret(app, appSecret, createdSource any) *gomock.Call {
+func (mr *MockAppServiceMockRecorder) CreateWithSecret(ctx, app, appSecret, createdSource any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateWithSecret", reflect.TypeOf((*MockAppService)(nil).CreateWithSecret), app, appSecret, createdSource)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateWithSecret", reflect.TypeOf((*MockAppService)(nil).CreateWithSecret), ctx, app, appSecret, createdSource)
 }
 
 // Delete mocks base method.
-func (m *MockAppService) Delete(code string) error {
+func (m *MockAppService) Delete(ctx context.Context, code string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", code)
+	ret := m.ctrl.Call(m, "Delete", ctx, code)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockAppServiceMockRecorder) Delete(code any) *gomock.Call {
+func (mr *MockAppServiceMockRecorder) Delete(ctx, code any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockAppService)(nil).Delete), code)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockAppService)(nil).Delete), ctx, code)
 }
 
 // Exists mocks base method.
-func (m *MockAppService) Exists(code string) (bool, error) {
+func (m *MockAppService) Exists(ctx context.Context, code string) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exists", code)
+	ret := m.ctrl.Call(m, "Exists", ctx, code)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Exists indicates an expected call of Exists.
-func (mr *MockAppServiceMockRecorder) Exists(code any) *gomock.Call {
+func (mr *MockAppServiceMockRecorder) Exists(ctx, code any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockAppService)(nil).Exists), code)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockAppService)(nil).Exists), ctx, code)
 }
 
 // Get mocks base method.
-func (m *MockAppService) Get(code string) (types.App, error) {
+func (m *MockAppService) Get(ctx context.Context, code string) (types.App, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", code)
+	ret := m.ctrl.Call(m, "Get", ctx, code)
 	ret0, _ := ret[0].(types.App)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockAppServiceMockRecorder) Get(code any) *gomock.Call {
+func (mr *MockAppServiceMockRecorder) Get(ctx, code any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockAppService)(nil).Get), code)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockAppService)(nil).Get), ctx, code)
 }
 
 // List mocks base method.
-func (m *MockAppService) List(tenantMode, tenantID string, page, pageSize int, orderBy, orderByDirection string) (int, []types.App, error) {
+func (m *MockAppService) List(ctx context.Context, tenantMode, tenantID string, page, pageSize int, orderBy, orderByDirection string) (int, []types.App, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", tenantMode, tenantID, page, pageSize, orderBy, orderByDirection)
+	ret := m.ctrl.Call(m, "List", ctx, tenantMode, tenantID, page, pageSize, orderBy, orderByDirection)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].([]types.App)
 	ret2, _ := ret[2].(error)
@@ -123,22 +124,22 @@ func (m *MockAppService) List(tenantMode, tenantID string, page, pageSize int, o
 }
 
 // List indicates an expected call of List.
-func (mr *MockAppServiceMockRecorder) List(tenantMode, tenantID, page, pageSize, orderBy, orderByDirection any) *gomock.Call {
+func (mr *MockAppServiceMockRecorder) List(ctx, tenantMode, tenantID, page, pageSize, orderBy, orderByDirection any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAppService)(nil).List), tenantMode, tenantID, page, pageSize, orderBy, orderByDirection)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAppService)(nil).List), ctx, tenantMode, tenantID, page, pageSize, orderBy, orderByDirection)
 }
 
 // NameExists mocks base method.
-func (m *MockAppService) NameExists(name string) (bool, error) {
+func (m *MockAppService) NameExists(ctx context.Context, name string) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NameExists", name)
+	ret := m.ctrl.Call(m, "NameExists", ctx, name)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // NameExists indicates an expected call of NameExists.
-func (mr *MockAppServiceMockRecorder) NameExists(name any) *gomock.Call {
+func (mr *MockAppServiceMockRecorder) NameExists(ctx, name any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NameExists", reflect.TypeOf((*MockAppService)(nil).NameExists), name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NameExists", reflect.TypeOf((*MockAppService)(nil).NameExists), ctx, name)
 }

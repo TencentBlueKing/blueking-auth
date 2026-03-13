@@ -19,10 +19,12 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
 	"net/url"
 	"time"
 
+	"github.com/XSAM/otelsql"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
@@ -59,10 +61,11 @@ type DBClient struct {
 
 // TestConnection ...
 func (db *DBClient) TestConnection() (err error) {
-	conn, err := sqlx.Connect("mysql", db.dataSource)
+	rawDB, err := db.openInstrumentedDB()
 	if err != nil {
 		return
 	}
+	conn := sqlx.NewDb(rawDB, "mysql")
 
 	conn.Close()
 	return nil
@@ -71,10 +74,11 @@ func (db *DBClient) TestConnection() (err error) {
 // Connect connect to db, and update some settings
 func (db *DBClient) Connect() error {
 	var err error
-	db.DB, err = sqlx.Connect("mysql", db.dataSource)
+	rawDB, err := db.openInstrumentedDB()
 	if err != nil {
 		return err
 	}
+	db.DB = sqlx.NewDb(rawDB, "mysql")
 
 	db.DB.SetMaxOpenConns(db.maxOpenConns)
 	db.DB.SetMaxIdleConns(db.maxIdleConns)
@@ -84,6 +88,18 @@ func (db *DBClient) Connect() error {
 		db.name, db.maxOpenConns, db.maxIdleConns, db.connMaxLifetime)
 
 	return nil
+}
+
+func (db *DBClient) openInstrumentedDB() (*sql.DB, error) {
+	rawDB, err := otelsql.Open("mysql", db.dataSource)
+	if err != nil {
+		return nil, err
+	}
+	if err := rawDB.Ping(); err != nil {
+		rawDB.Close()
+		return nil, err
+	}
+	return rawDB, nil
 }
 
 // Close close db connection

@@ -39,8 +39,10 @@ func AppCodeExists() gin.HandlerFunc {
 		}
 		appCode := uriParams.AppCode
 
+		ctx := c.Request.Context()
+
 		// use cache here
-		exists, err := cacheImpls.AppExists(appCode)
+		exists, err := cacheImpls.AppExists(ctx, appCode)
 		if err != nil {
 			util.SystemErrorJSONResponse(c, fmt.Errorf("query app(%s) fail, error: %w", appCode, err))
 			c.Abort()
@@ -69,8 +71,10 @@ func AccessKeyExists() gin.HandlerFunc {
 		appCode := uriParams.AppCode
 		accessKeyID := uriParams.AccessKeyID
 
+		ctx := c.Request.Context()
+
 		// check access_key exists
-		exists, err := service.NewAccessKeyService().ExistsByAppCodeAndID(appCode, accessKeyID)
+		exists, err := service.NewAccessKeyService().ExistsByAppCodeAndID(ctx, appCode, accessKeyID)
 		if err != nil {
 			util.SystemErrorJSONResponse(
 				c,

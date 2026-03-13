@@ -19,6 +19,7 @@
 package fixture
 
 import (
+	"context"
 	"fmt"
 
 	"go.uber.org/zap"
@@ -35,15 +36,18 @@ func createAccessKey(appCode, appSecret, tenantMode, tenantID string) {
 		return
 	}
 
+	ctx := context.Background()
+
 	// 查询 App 是否存在
 	appSvc := service.NewAppService()
-	exists, err := appSvc.Exists(appCode)
+	exists, err := appSvc.Exists(ctx, appCode)
 	if err != nil {
 		zap.S().Panic(err, fmt.Sprintf("appSvc.Exists appCode=%s fail", appCode))
 	}
 	// 不存在则创建
 	if !exists {
 		err = appSvc.CreateWithSecret(
+			ctx,
 			types.App{Code: appCode, Name: appCode, Description: appCode, TenantMode: tenantMode, TenantID: tenantID},
 			appSecret,
 			createdSource,
@@ -57,13 +61,13 @@ func createAccessKey(appCode, appSecret, tenantMode, tenantID string) {
 	// APP 存在则只需要创建 Secret
 	// 查询对应的 AppCode 和 AppSecret 是否已存在
 	svc := service.NewAccessKeyService()
-	exists, err = svc.Verify(appCode, appSecret)
+	exists, err = svc.Verify(ctx, appCode, appSecret)
 	if err != nil {
 		zap.S().Panic(err, fmt.Sprintf("svc.Verify appCode=%s fail", appCode))
 	}
 	// 不存在则创建
 	if !exists {
-		err = svc.CreateWithSecret(appCode, appSecret, createdSource, "initialized during shell deployment")
+		err = svc.CreateWithSecret(ctx, appCode, appSecret, createdSource, "initialized during shell deployment")
 		if err != nil {
 			zap.S().Panic(err, fmt.Sprintf("svc.CreateWithSecret appCode=%s fail", appCode))
 		}

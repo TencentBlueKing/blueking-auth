@@ -19,6 +19,8 @@
 package impls
 
 import (
+	"context"
+
 	"go.uber.org/zap"
 
 	"bkauth/pkg/cache"
@@ -36,12 +38,12 @@ func (k AccessKeysKey) Key() string {
 	return k.AppCode
 }
 
-func retrieveAccessKeys(key cache.Key) (interface{}, error) {
+func retrieveAccessKeys(ctx context.Context, key cache.Key) (interface{}, error) {
 	k := key.(AccessKeysKey)
 
 	svc := service.NewAccessKeyService()
 
-	secretList, err := svc.ListEncryptedAccessKeyByAppCode(k.AppCode)
+	secretList, err := svc.ListEncryptedAccessKeyByAppCode(ctx, k.AppCode)
 	if err != nil {
 		return nil, err
 	}
@@ -54,13 +56,13 @@ func retrieveAccessKeys(key cache.Key) (interface{}, error) {
 }
 
 // VerifyAccessKey ...
-func VerifyAccessKey(appCode, appSecret string) (bool, error) {
+func VerifyAccessKey(ctx context.Context, appCode, appSecret string) (bool, error) {
 	key := AccessKeysKey{
 		AppCode: appCode,
 	}
 	// key: secret;value: enabled
 	var encryptedAppSecretsMap map[string]bool
-	err := AccessKeysCache.GetInto(key, &encryptedAppSecretsMap, retrieveAccessKeys)
+	err := AccessKeysCache.WithContext(ctx).GetInto(key, &encryptedAppSecretsMap, retrieveAccessKeys)
 	if err != nil {
 		err = errorx.Wrapf(err, CacheLayer, "VerifyAccessKey",
 			"AccessKeysCache.Get appCode=`%s` fail", appCode)
@@ -86,9 +88,9 @@ func VerifyAccessKey(appCode, appSecret string) (bool, error) {
 	return false, nil
 }
 
-func DeleteAccessKey(appCode string) (err error) {
+func DeleteAccessKey(ctx context.Context, appCode string) (err error) {
 	key := AccessKeysKey{
 		AppCode: appCode,
 	}
-	return AccessKeysCache.Delete(key)
+	return AccessKeysCache.WithContext(ctx).Delete(key)
 }
