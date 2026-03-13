@@ -13,35 +13,37 @@
  * limitations under the License.
  */
 
-package tracing
+package observability
 
 import (
 	"fmt"
-	"net/url"
-	"strings"
+	"runtime"
 	"time"
 
-	otelpyroscope "github.com/grafana/otel-profiling-go"
 	"github.com/grafana/pyroscope-go"
-	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
+
+	"bkauth/pkg/config"
+)
+
+const (
+	// 采样率参考 Grafana Alloy / Istio 生产默认值，开销极低
+	// defaultMutexProfileFraction: 每 1000 次 mutex 竞争事件采样 1 次 (0.1%)
+	defaultMutexProfileFraction = 1000
+	// defaultBlockProfileRate: 每阻塞 10000ns (10µs) 采样一次
+	defaultBlockProfileRate = 10000
 )
 
 var profiler *pyroscope.Profiler
 
 // InitProfiling 初始化 Profiling
-func InitProfiling(cfg *ProfilingConfig, otelTracesEnabled bool) error {
-	// Profiling 仅支持 HTTP(S) 上报
-	if cfg.Endpoint == "" {
-		return fmt.Errorf(
-			"profiling endpoint is empty or invalid; it must be HTTP(S). " +
-				"if OTLP exporter uses grpc/grpcs, configure observability.signals.profiling.endpoint explicitly",
-		)
+func InitProfiling(cfg *config.ProfilingConfig) error {
+	if cfg.Pyroscope.Host == "" {
+		return fmt.Errorf("profiling pyroscope.host is empty")
 	}
-	u, err := url.Parse(cfg.Endpoint)
-	if err != nil || (strings.ToLower(u.Scheme) != "http" && strings.ToLower(u.Scheme) != "https") {
-		return fmt.Errorf("profiling endpoint must use http/https, got: %q", cfg.Endpoint)
-	}
+
+	endpoint := fmt.Sprintf("%s://%s:%d%s",
+		cfg.Pyroscope.Type, cfg.Pyroscope.Host, cfg.Pyroscope.Port, cfg.Pyroscope.Path)
 
 	uploadRate, err := time.ParseDuration(cfg.UploadInterval)
 	if err != nil {
@@ -49,16 +51,18 @@ func InitProfiling(cfg *ProfilingConfig, otelTracesEnabled bool) error {
 		uploadRate = 15 * time.Second
 	}
 
+	// 启用 mutex 和 block profiling 的 runtime 采样
+	enableRuntimeProfiling()
+
 	profiler, err = pyroscope.Start(pyroscope.Config{
 		ApplicationName: cfg.ServiceName,
-		ServerAddress:   cfg.Endpoint,
+		ServerAddress:   endpoint,
 
 		HTTPHeaders: map[string]string{
-			"x-bk-token": cfg.Token,
+			headerBKToken: cfg.Pyroscope.Token,
 		},
 
 		UploadRate: uploadRate,
-
 		ProfileTypes: []pyroscope.ProfileType{
 			pyroscope.ProfileCPU,           // CPU 使用
 			pyroscope.ProfileAllocObjects,  // 内存分配对象数
@@ -69,32 +73,36 @@ func InitProfiling(cfg *ProfilingConfig, otelTracesEnabled bool) error {
 			pyroscope.ProfileMutexCount,    // 互斥锁竞争次数
 			pyroscope.ProfileMutexDuration, // 互斥锁竞争耗时
 			pyroscope.ProfileBlockCount,    // 阻塞事件次数
-			pyroscope.ProfileBlockDuration, // 阻塞耗时
+			pyroscope.ProfileBlockDuration, // 阻塞事件耗时
 		},
 
-		Logger: pyroscope.StandardLogger,
+		Logger: zap.S(),
 	})
 	if err != nil {
+		disableRuntimeProfiling()
 		return err
 	}
 
-	// 仅当 Traces 已初始化时才包 otelpyroscope，否则全局 TracerProvider 仍是 noop
-	if otelTracesEnabled {
-		otel.SetTracerProvider(otelpyroscope.NewTracerProvider(otel.GetTracerProvider()))
-		zap.S().Infof("Profiling initialized: endpoint=%s, uploadInterval=%s (OTel-Pyroscope integration enabled)",
-			cfg.Endpoint, cfg.UploadInterval)
-	} else {
-		zap.S().Infof("Profiling initialized: endpoint=%s, uploadInterval=%s "+
-			"(OTel-Pyroscope integration skipped: traces disabled)",
-			cfg.Endpoint, cfg.UploadInterval)
-	}
+	zap.S().Infof("Profiling initialized: endpoint=%s, uploadInterval=%s", endpoint, cfg.UploadInterval)
 	return nil
 }
 
 // StopProfiling 停止 Profiling
 func StopProfiling() error {
 	if profiler != nil {
-		return profiler.Stop()
+		err := profiler.Stop()
+		disableRuntimeProfiling()
+		return err
 	}
 	return nil
+}
+
+func enableRuntimeProfiling() {
+	runtime.SetMutexProfileFraction(defaultMutexProfileFraction)
+	runtime.SetBlockProfileRate(defaultBlockProfileRate)
+}
+
+func disableRuntimeProfiling() {
+	runtime.SetMutexProfileFraction(0)
+	runtime.SetBlockProfileRate(0)
 }

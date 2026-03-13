@@ -39,6 +39,8 @@ type AccessKey struct {
 	CreatedSource string `db:"created_source"`
 	// 启用状态:1:enable;0:disable
 	Enabled bool `db:"enabled"`
+	// 备注描述
+	Description string `db:"description"`
 }
 
 type AccessKeyWithCreatedAt struct {
@@ -51,7 +53,7 @@ type AccessKeyManager interface {
 	Create(ctx context.Context, accessKey AccessKey) (int64, error)
 	DeleteByID(ctx context.Context, appCode string, id int64) (int64, error)
 	DeleteByAppCodeWithTx(ctx context.Context, tx *sqlx.Tx, appCode string) (int64, error)
-	UpdateByID(ctx context.Context, id int64, updateFiledMap map[string]interface{}) (int64, error)
+	UpdateByID(ctx context.Context, id int64, updateFieldMap map[string]interface{}) (int64, error)
 	ListWithCreatedAtByAppCode(ctx context.Context, appCode string) ([]AccessKeyWithCreatedAt, error)
 	Exists(ctx context.Context, appCode, appSecret string) (bool, error)
 	Count(ctx context.Context, appCode string) (int64, error)
@@ -76,12 +78,14 @@ func (m *accessKeyManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx, secret
 		app_code,
 		app_secret,
 		created_source,
-		enabled
+		enabled,
+		description
 	) VALUES (
 		:app_code,
 		:app_secret,
 		:created_source,
-		:enabled
+		:enabled,
+		:description
 	)`
 	return database.SqlxInsertWithTx(ctx, tx, query, secret)
 }
@@ -91,12 +95,14 @@ func (m *accessKeyManager) Create(ctx context.Context, secret AccessKey) (int64,
 		app_code,
 		app_secret,
 		created_source,
-		enabled
+		enabled,
+		description
 	) VALUES (
 		:app_code,
 		:app_secret,
 		:created_source,
-		:enabled
+		:enabled,
+		:description
 	)`
 	return database.SqlxInsert(ctx, m.DB, query, secret)
 }
@@ -114,17 +120,17 @@ func (m *accessKeyManager) DeleteByAppCodeWithTx(ctx context.Context, tx *sqlx.T
 func (m *accessKeyManager) UpdateByID(
 	ctx context.Context,
 	id int64,
-	updateFiledMap map[string]interface{},
+	updateFieldMap map[string]interface{},
 ) (int64, error) {
 	// get setCause
-	setCause := database.GetSetClause(updateFiledMap)
+	setCause := database.GetSetClause(updateFieldMap)
 
 	// build sql
 	query := `UPDATE access_key SET ` + setCause + ` WHERE id = :id`
 
 	// add where data
-	updateFiledMap["id"] = id
-	return database.SqlxUpdate(ctx, m.DB, query, updateFiledMap)
+	updateFieldMap["id"] = id
+	return database.SqlxUpdate(ctx, m.DB, query, updateFieldMap)
 }
 
 func (m *accessKeyManager) ListWithCreatedAtByAppCode(
@@ -149,7 +155,8 @@ func (m *accessKeyManager) selectAccessKeyWithCreatedAt(
 		app_secret,
 		created_source,
 		enabled,
-		created_at
+		created_at,
+		description
 		FROM access_key
 		WHERE app_code = ?
 		ORDER BY id DESC`
@@ -197,7 +204,7 @@ func (m *accessKeyManager) ListAccessKeyByAppCode(
 
 func (m *accessKeyManager) selectAccessKey(ctx context.Context, appCode string) ([]AccessKey, error) {
 	var accessKeys []AccessKey
-	query := `SELECT id, app_code, app_secret, enabled, created_source  FROM access_key WHERE app_code = ?`
+	query := `SELECT id, app_code, app_secret, enabled, created_source, description FROM access_key WHERE app_code = ?`
 	err := database.SqlxSelect(ctx, m.DB, &accessKeys, query, appCode)
 	if err != nil {
 		return nil, err
@@ -206,7 +213,7 @@ func (m *accessKeyManager) selectAccessKey(ctx context.Context, appCode string) 
 }
 
 func (m *accessKeyManager) List(ctx context.Context) (accessKeys []AccessKey, err error) {
-	query := `SELECT id, app_code, app_secret, enabled, created_source FROM access_key`
+	query := `SELECT id, app_code, app_secret, enabled, created_source, description FROM access_key`
 	err = database.SqlxSelect(ctx, m.DB, &accessKeys, query)
 	if errors.Is(err, sql.ErrNoRows) {
 		return accessKeys, nil

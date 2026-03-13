@@ -1,0 +1,23 @@
+meta {
+  name: verify_fail_no_auth
+  type: http
+  seq: 8
+}
+
+post {
+  url: http://{{host}}:{{port}}/api/v1/apps/demo/access-keys/verify
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "bk_app_secret": ""
+  }
+}
+
+assert {
+  res.status: eq 401
+  res.body.code: eq 1903401
+  res.body.message: eq unauthorized:app code and app secret required
+}

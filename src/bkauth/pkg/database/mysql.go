@@ -21,6 +21,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/XSAM/otelsql"
@@ -110,14 +111,19 @@ func (db *DBClient) Close() {
 
 // NewDBClient :
 func NewDBClient(cfg *config.Database) *DBClient {
-	dataSource := fmt.Sprintf("%s:%s@(%s:%d)/%s?charset=%s&parseTime=True&interpolateParams=true&loc=%s",
+	dataSource := fmt.Sprintf("%s:%s@(%s:%d)/%s?charset=%s&parseTime=True&interpolateParams=true&loc=%s&time_zone=%s",
 		cfg.User,
 		cfg.Password,
 		cfg.Host,
 		cfg.Port,
 		cfg.Name,
 		"utf8",
-		"UTC",
+		// 指定从 MySQL 读取的时间转到 go 的 time.Time 所用时区
+		url.QueryEscape("UTC"),
+		// 指定连接 MySQL 的时区
+		// Q: 为什么是使用指定时区，而不使用命名时区，比如 UTC、Asia/Shanghai 等
+		// A: 仅当 MySQL 中存在时区信息表时，才能使用命名时区；所以使用指定时区可适应所有场景
+		url.QueryEscape("'+00:00'"),
 	)
 
 	if cfg.TLS.Enabled {

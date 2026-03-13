@@ -193,16 +193,16 @@ func (mr *MockAccessKeyManagerMockRecorder) ListWithCreatedAtByAppCode(ctx, appC
 }
 
 // UpdateByID mocks base method.
-func (m *MockAccessKeyManager) UpdateByID(ctx context.Context, id int64, updateFiledMap map[string]any) (int64, error) {
+func (m *MockAccessKeyManager) UpdateByID(ctx context.Context, id int64, updateFieldMap map[string]any) (int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateByID", ctx, id, updateFiledMap)
+	ret := m.ctrl.Call(m, "UpdateByID", ctx, id, updateFieldMap)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateByID indicates an expected call of UpdateByID.
-func (mr *MockAccessKeyManagerMockRecorder) UpdateByID(ctx, id, updateFiledMap any) *gomock.Call {
+func (mr *MockAccessKeyManagerMockRecorder) UpdateByID(ctx, id, updateFieldMap any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateByID", reflect.TypeOf((*MockAccessKeyManager)(nil).UpdateByID), ctx, id, updateFiledMap)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateByID", reflect.TypeOf((*MockAccessKeyManager)(nil).UpdateByID), ctx, id, updateFieldMap)
 }

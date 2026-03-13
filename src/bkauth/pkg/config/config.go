@@ -136,49 +136,33 @@ type APIAllowList struct {
 	AllowList string
 }
 
-type Observability struct {
-	Enable bool
+type OTLPEndpoint struct {
+	Host  string
+	Port  int
+	Token string
+	Type  string
+}
 
-	Service struct {
-		Name        string
-		Version     string
-		Environment string
-	}
+type TraceConfig struct {
+	Enabled     bool
+	OTLP        OTLPEndpoint
+	ServiceName string
+	Sampler     string
+}
 
-	Exporter struct {
-		Endpoint string
-		Token    string
-	}
+type PyroscopeEndpoint struct {
+	Host  string
+	Port  int
+	Type  string
+	Token string
+	Path  string
+}
 
-	Signals struct {
-		Traces struct {
-			Enable  bool
-			Sampler struct {
-				Type  string
-				Ratio float64
-			}
-			Batch struct {
-				Timeout            string
-				MaxExportBatchSize int
-				MaxQueueSize       int
-			}
-		}
-		Metrics struct {
-			Enable bool
-		}
-		Logs struct {
-			Enable  bool
-			Level   string
-			Loggers []string
-		}
-		Profiling struct {
-			Enable         bool
-			Path           string
-			UploadInterval string
-			Endpoint       string
-			Token          string
-		}
-	}
+type ProfilingConfig struct {
+	Enabled        bool
+	Pyroscope      PyroscopeEndpoint
+	ServiceName    string
+	UploadInterval string
 }
 
 type Config struct {
@@ -189,7 +173,8 @@ type Config struct {
 	Server Server
 	Sentry Sentry
 
-	PprofPassword string
+	PprofPassword   string
+	MonitoringToken string
 
 	Databases   []Database
 	DatabaseMap map[string]Database
@@ -205,7 +190,8 @@ type Config struct {
 
 	Logger Logger
 
-	Observability Observability
+	Trace     TraceConfig
+	Profiling ProfilingConfig
 }
 
 // Load 从 viper 中读取配置文件

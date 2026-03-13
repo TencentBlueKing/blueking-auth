@@ -18,11 +18,13 @@
 
 package types
 
+// TODO：目前该结构用于“对外 API 响应 DTO”和“内部缓存载体”，后续拆分出专用类型，避免边界污染
 type AccessKey struct {
-	ID        int64  `json:"id"`
-	AppCode   string `json:"bk_app_code"`
-	AppSecret string `json:"bk_app_secret"`
-	Enabled   bool   `json:"enabled"`
+	ID          int64  `json:"id"`
+	AppCode     string `json:"bk_app_code"`
+	AppSecret   string `json:"bk_app_secret"`
+	Enabled     bool   `json:"enabled"`
+	Description string `json:"description"`
 }
 
 type AccessKeyWithCreatedAt struct {

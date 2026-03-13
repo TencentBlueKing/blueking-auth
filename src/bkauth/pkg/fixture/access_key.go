@@ -67,7 +67,7 @@ func createAccessKey(appCode, appSecret, tenantMode, tenantID string) {
 	}
 	// 不存在则创建
 	if !exists {
-		err = svc.CreateWithSecret(ctx, appCode, appSecret, createdSource)
+		err = svc.CreateWithSecret(ctx, appCode, appSecret, createdSource, "initialized during shell deployment")
 		if err != nil {
 			zap.S().Panic(err, fmt.Sprintf("svc.CreateWithSecret appCode=%s fail", appCode))
 		}

@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -16,17 +16,34 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package handler
+package basic
 
-type appSecretSerializer struct {
-	AppSecret string `json:"bk_app_secret" binding:"required,max=128" example:"bk_paas"`
+import (
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+)
+
+// MonitoringAuth 对相关接口进行鉴权。
+// 优先从 Authorization Header (Bearer Token) 中提取，若不存在则从 Query 参数 token 中提取。
+func MonitoringAuth(authToken string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := extractToken(c)
+		if token == "" || token != authToken {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+			return
+		}
+		c.Next()
+	}
 }
 
-type createAccessKeySerializer struct {
-	Description string `json:"description" binding:"omitempty,max=1024"`
-}
-
-type updateAccessKeySerializer struct {
-	Enabled     *bool   `json:"enabled" binding:"omitempty" example:"true" mapstructure:"enabled,omitempty"`
-	Description *string `json:"description" binding:"omitempty,max=1024" mapstructure:"description,omitempty"`
+// extractToken 按优先级提取 Token
+func extractToken(c *gin.Context) string {
+	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			return strings.TrimPrefix(authHeader, "Bearer ")
+		}
+	}
+	return c.Query("token")
 }

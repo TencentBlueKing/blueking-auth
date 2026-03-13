@@ -16,7 +16,7 @@ sentry:
   dsn: ""
 
 pprofPassword: "DebugModel@bk"
-
+monitoringToken: "YbqrbLCTcbZyCHS82JDqYvMpuDuM3t2Dq4iF"
 
 crypto:
   # contains letters(a-z, A-Z), numbers(0-9), length should be 32 bit
@@ -103,47 +103,25 @@ logger:
     writer: file
     settings: {name: bkauth_web.log, size: 100, backups: 10, age: 7, path: ./}
 
-observability:
-  enable: false
-
-  service:
-    name: "bkauth"
-    version: "v1.0.0"
-    environment: "prod"
-
-  exporter:
-    endpoint: "http://localhost:4318"
+trace:
+  enabled: false
+  otlp:
+    host: "localhost"
+    port: 4318
     token: ""
+    type: "http"
+  serviceName: "bkauth"
+  # always_on: 总是上报，前端或上游没接入时建议使用
+  # parentbased_always_on: 跟随上游采样决策
+  sampler: "always_on"
 
-  signals:
-    traces:
-      enable: true
-      sampler:
-        # 支持 always_on / always_off / traceidratio / parentbased
-        type: "always_on"
-        # 采样比例: type=traceidratio 或 parentbased 时生效
-        ratio: 0.1
-      batch:
-        timeout: "5s"
-        maxExportBatchSize: 512
-        maxQueueSize: 2048
-
-    metrics:
-      enable: false
-
-    logs:
-      enable: false
-      # 上报到观测平台的最低日志级别: debug / info / warn / error（默认 info）
-      level: "info"
-      # 指定哪些 logger 上报到 OTEL，可选: system / api / web / sql / audit
-      loggers:
-        - system
-
-    profiling:
-      enable: false
-      path: "/pyroscope"
-      uploadInterval: "15s"
-      # Pyroscope 专用 Endpoint: 为空时继承 exporter.endpoint
-      endpoint: ""
-      # Pyroscope 专用 Token: 为空时继承 exporter.token
-      token: ""
+profiling:
+  enabled: false
+  pyroscope:
+    host: "localhost"
+    port: 4318
+    token: ""
+    type: "http"
+    path: "/pyroscope"
+  serviceName: "bkauth"
+  uploadInterval: "15s"
