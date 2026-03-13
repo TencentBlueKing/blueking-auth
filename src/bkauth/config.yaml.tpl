@@ -102,3 +102,26 @@ logger:
     encoding: json
     writer: file
     settings: {name: bkauth_web.log, size: 100, backups: 10, age: 7, path: ./}
+
+trace:
+  enabled: false
+  otlp:
+    host: "localhost"
+    port: 4318
+    token: ""
+    type: "http"
+  serviceName: "bkauth"
+  # always_on: 总是上报，前端或上游没接入时建议使用
+  # parentbased_always_on: 跟随上游采样决策
+  sampler: "always_on"
+
+profiling:
+  enabled: false
+  pyroscope:
+    host: "localhost"
+    port: 4318
+    token: ""
+    type: "http"
+    path: "/pyroscope"
+  serviceName: "bkauth"
+  uploadInterval: "15s"

@@ -136,6 +136,35 @@ type APIAllowList struct {
 	AllowList string
 }
 
+type OTLPEndpoint struct {
+	Host  string
+	Port  int
+	Token string
+	Type  string
+}
+
+type TraceConfig struct {
+	Enabled     bool
+	OTLP        OTLPEndpoint
+	ServiceName string
+	Sampler     string
+}
+
+type PyroscopeEndpoint struct {
+	Host  string
+	Port  int
+	Type  string
+	Token string
+	Path  string
+}
+
+type ProfilingConfig struct {
+	Enabled        bool
+	Pyroscope      PyroscopeEndpoint
+	ServiceName    string
+	UploadInterval string
+}
+
 type Config struct {
 	Debug bool
 	// 是否开启多租户模式
@@ -160,6 +189,9 @@ type Config struct {
 	APIAllowLists []APIAllowList
 
 	Logger Logger
+
+	Trace     TraceConfig
+	Profiling ProfilingConfig
 }
 
 // Load 从 viper 中读取配置文件

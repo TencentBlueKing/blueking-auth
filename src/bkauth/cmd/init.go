@@ -34,6 +34,7 @@ import (
 	"bkauth/pkg/errorx"
 	"bkauth/pkg/logging"
 	"bkauth/pkg/metric"
+	"bkauth/pkg/observability"
 	"bkauth/pkg/redis"
 )
 
@@ -159,4 +160,32 @@ func initPprof() {
 	if globalConfig.PprofPassword == "" {
 		globalConfig.PprofPassword = "DebugModel@bk"
 	}
+}
+
+func initTracing() {
+	if !globalConfig.Trace.Enabled {
+		zap.S().Info("OTel Traces is not enabled, will not init it")
+		return
+	}
+
+	if err := observability.InitOTLP(&globalConfig.Trace, globalConfig.Profiling.Enabled); err != nil {
+		zap.S().Errorf("init OTel Traces fail: %s", err)
+		return
+	}
+
+	zap.S().Info("init OTel Traces success")
+}
+
+func initProfiling() {
+	if !globalConfig.Profiling.Enabled {
+		zap.S().Info("Profiling is not enabled, will not init it")
+		return
+	}
+
+	if err := observability.InitProfiling(&globalConfig.Profiling); err != nil {
+		zap.S().Errorf("init Profiling fail: %v", err)
+		return
+	}
+
+	zap.S().Info("init Profiling success")
 }
