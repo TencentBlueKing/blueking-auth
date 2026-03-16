@@ -19,6 +19,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -37,11 +38,12 @@ func ListAccessKey(appCodeParam string) {
 	}
 
 	// 2. 遍历查询
+	ctx := context.Background()
 	appCodes := strings.Split(appCodeParam, ",")
 	svc := service.NewAccessKeyService()
 	accessKeyList := make([]types.AccessKeyWithCreatedAt, 0, len(appCodes)*3) // 业务逻辑限制了一个App最多两个，所以这里3个是足够了
 	for _, appCode := range appCodes {
-		accessKeys, err := svc.ListWithCreatedAtByAppCode(appCode)
+		accessKeys, err := svc.ListWithCreatedAtByAppCode(ctx, appCode)
 		if err != nil {
 			zap.S().Error(err, fmt.Sprintf("svc.ListWithCreatedAtByAppCode appCode=%s fail", appCode))
 			continue
@@ -75,8 +77,9 @@ func DeleteAccessKey(appCode string, accessKeyID int64) {
 	}
 
 	// 2. 直接删除
+	ctx := context.Background()
 	svc := service.NewAccessKeyService()
-	err := svc.DeleteByID(appCode, accessKeyID)
+	err := svc.DeleteByID(ctx, appCode, accessKeyID)
 	if err != nil {
 		zap.S().Error(err, fmt.Sprintf("svc.DeleteByID appCode=%s accessKeyID=%d fail", appCode, accessKeyID))
 		return

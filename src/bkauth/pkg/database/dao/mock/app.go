@@ -11,6 +11,7 @@ package mock
 
 import (
 	dao "bkauth/pkg/database/dao"
+	context "context"
 	reflect "reflect"
 
 	sqlx "github.com/jmoiron/sqlx"
@@ -42,105 +43,105 @@ func (m *MockAppManager) EXPECT() *MockAppManagerMockRecorder {
 }
 
 // Count mocks base method.
-func (m *MockAppManager) Count(tenantMode, tenantID string) (int, error) {
+func (m *MockAppManager) Count(ctx context.Context, tenantMode, tenantID string) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Count", tenantMode, tenantID)
+	ret := m.ctrl.Call(m, "Count", ctx, tenantMode, tenantID)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Count indicates an expected call of Count.
-func (mr *MockAppManagerMockRecorder) Count(tenantMode, tenantID any) *gomock.Call {
+func (mr *MockAppManagerMockRecorder) Count(ctx, tenantMode, tenantID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockAppManager)(nil).Count), tenantMode, tenantID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockAppManager)(nil).Count), ctx, tenantMode, tenantID)
 }
 
 // CreateWithTx mocks base method.
-func (m *MockAppManager) CreateWithTx(tx *sqlx.Tx, app dao.App) error {
+func (m *MockAppManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx, app dao.App) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateWithTx", tx, app)
+	ret := m.ctrl.Call(m, "CreateWithTx", ctx, tx, app)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CreateWithTx indicates an expected call of CreateWithTx.
-func (mr *MockAppManagerMockRecorder) CreateWithTx(tx, app any) *gomock.Call {
+func (mr *MockAppManagerMockRecorder) CreateWithTx(ctx, tx, app any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateWithTx", reflect.TypeOf((*MockAppManager)(nil).CreateWithTx), tx, app)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateWithTx", reflect.TypeOf((*MockAppManager)(nil).CreateWithTx), ctx, tx, app)
 }
 
 // DeleteWithTx mocks base method.
-func (m *MockAppManager) DeleteWithTx(tx *sqlx.Tx, code string) (int64, error) {
+func (m *MockAppManager) DeleteWithTx(ctx context.Context, tx *sqlx.Tx, code string) (int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteWithTx", tx, code)
+	ret := m.ctrl.Call(m, "DeleteWithTx", ctx, tx, code)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // DeleteWithTx indicates an expected call of DeleteWithTx.
-func (mr *MockAppManagerMockRecorder) DeleteWithTx(tx, code any) *gomock.Call {
+func (mr *MockAppManagerMockRecorder) DeleteWithTx(ctx, tx, code any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteWithTx", reflect.TypeOf((*MockAppManager)(nil).DeleteWithTx), tx, code)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteWithTx", reflect.TypeOf((*MockAppManager)(nil).DeleteWithTx), ctx, tx, code)
 }
 
 // Exists mocks base method.
-func (m *MockAppManager) Exists(code string) (bool, error) {
+func (m *MockAppManager) Exists(ctx context.Context, code string) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exists", code)
+	ret := m.ctrl.Call(m, "Exists", ctx, code)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Exists indicates an expected call of Exists.
-func (mr *MockAppManagerMockRecorder) Exists(code any) *gomock.Call {
+func (mr *MockAppManagerMockRecorder) Exists(ctx, code any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockAppManager)(nil).Exists), code)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockAppManager)(nil).Exists), ctx, code)
 }
 
 // Get mocks base method.
-func (m *MockAppManager) Get(code string) (dao.App, error) {
+func (m *MockAppManager) Get(ctx context.Context, code string) (dao.App, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", code)
+	ret := m.ctrl.Call(m, "Get", ctx, code)
 	ret0, _ := ret[0].(dao.App)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockAppManagerMockRecorder) Get(code any) *gomock.Call {
+func (mr *MockAppManagerMockRecorder) Get(ctx, code any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockAppManager)(nil).Get), code)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockAppManager)(nil).Get), ctx, code)
 }
 
 // List mocks base method.
-func (m *MockAppManager) List(tenantMode, tenantID string, limit, offset int, orderBy, orderByDirection string) ([]dao.App, error) {
+func (m *MockAppManager) List(ctx context.Context, tenantMode, tenantID string, limit, offset int, orderBy, orderByDirection string) ([]dao.App, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", tenantMode, tenantID, limit, offset, orderBy, orderByDirection)
+	ret := m.ctrl.Call(m, "List", ctx, tenantMode, tenantID, limit, offset, orderBy, orderByDirection)
 	ret0, _ := ret[0].([]dao.App)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockAppManagerMockRecorder) List(tenantMode, tenantID, limit, offset, orderBy, orderByDirection any) *gomock.Call {
+func (mr *MockAppManagerMockRecorder) List(ctx, tenantMode, tenantID, limit, offset, orderBy, orderByDirection any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAppManager)(nil).List), tenantMode, tenantID, limit, offset, orderBy, orderByDirection)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockAppManager)(nil).List), ctx, tenantMode, tenantID, limit, offset, orderBy, orderByDirection)
 }
 
 // NameExists mocks base method.
-func (m *MockAppManager) NameExists(name string) (bool, error) {
+func (m *MockAppManager) NameExists(ctx context.Context, name string) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NameExists", name)
+	ret := m.ctrl.Call(m, "NameExists", ctx, name)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // NameExists indicates an expected call of NameExists.
-func (mr *MockAppManagerMockRecorder) NameExists(name any) *gomock.Call {
+func (mr *MockAppManagerMockRecorder) NameExists(ctx, name any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NameExists", reflect.TypeOf((*MockAppManager)(nil).NameExists), name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NameExists", reflect.TypeOf((*MockAppManager)(nil).NameExists), ctx, name)
 }

@@ -19,8 +19,11 @@
 package service
 
 import (
+	"context"
 	"errors"
+
 	"github.com/agiledragon/gomonkey"
+	"github.com/jmoiron/sqlx"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -45,7 +48,7 @@ var _ = Describe("App", func() {
 
 		It("ok", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().Exists("bkauth").Return(true, nil)
+			mockAppManager.EXPECT().Exists(gomock.Any(), "bkauth").Return(true, nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
 
@@ -53,14 +56,14 @@ var _ = Describe("App", func() {
 				manager:          mockAppManager,
 				accessKeyManager: mockAccessKeyManager,
 			}
-			exists, err := svc.Exists("bkauth")
+			exists, err := svc.Exists(context.Background(), "bkauth")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), true, exists)
 		})
 
 		It("error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().Exists("bkauth").Return(false, errors.New("error"))
+			mockAppManager.EXPECT().Exists(gomock.Any(), "bkauth").Return(false, errors.New("error"))
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
 
@@ -69,7 +72,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			_, err := svc.Exists("bkauth")
+			_, err := svc.Exists(context.Background(), "bkauth")
 			assert.Error(GinkgoT(), err)
 		})
 	})
@@ -87,7 +90,7 @@ var _ = Describe("App", func() {
 
 		It("ok", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().NameExists("bkauth").Return(true, nil)
+			mockAppManager.EXPECT().NameExists(gomock.Any(), "bkauth").Return(true, nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
 
@@ -95,14 +98,14 @@ var _ = Describe("App", func() {
 				manager:          mockAppManager,
 				accessKeyManager: mockAccessKeyManager,
 			}
-			exists, err := svc.NameExists("bkauth")
+			exists, err := svc.NameExists(context.Background(), "bkauth")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), true, exists)
 		})
 
 		It("error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().NameExists("bkauth").Return(false, errors.New("error"))
+			mockAppManager.EXPECT().NameExists(gomock.Any(), "bkauth").Return(false, errors.New("error"))
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
 
@@ -111,7 +114,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			_, err := svc.NameExists("bkauth")
+			_, err := svc.NameExists(context.Background(), "bkauth")
 			assert.Error(GinkgoT(), err)
 		})
 	})
@@ -129,12 +132,12 @@ var _ = Describe("App", func() {
 
 		It("ok", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), dao.App{
+			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.App{
 				Code: "bkauth", Name: "bkauth", Description: "bkauth intro",
 			}).Return(nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), dao.AccessKey{
+			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.AccessKey{
 				AppCode:       "bkauth",
 				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				CreatedSource: "bk_paas",
@@ -145,7 +148,10 @@ var _ = Describe("App", func() {
 			dbMock.ExpectBegin()
 			dbMock.ExpectCommit()
 
-			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			patches := gomonkey.ApplyFunc(
+				database.GenerateDefaultDBTx,
+				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
+			)
 			defer patches.Reset()
 
 			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) dao.AccessKey {
@@ -162,7 +168,11 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			err := svc.Create(types.App{Code: "bkauth", Name: "bkauth", Description: "bkauth intro"}, "bk_paas")
+			err := svc.Create(
+				context.Background(),
+				types.App{Code: "bkauth", Name: "bkauth", Description: "bkauth intro"},
+				"bk_paas",
+			)
 			assert.NoError(GinkgoT(), err)
 
 			err = dbMock.ExpectationsWereMet()
@@ -171,7 +181,7 @@ var _ = Describe("App", func() {
 
 		It("app create error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), dao.App{
+			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.App{
 				Code: "bkauth", Name: "bkauth", Description: "bkauth intro",
 			}).Return(errors.New("error"))
 
@@ -181,7 +191,10 @@ var _ = Describe("App", func() {
 			dbMock.ExpectBegin()
 			dbMock.ExpectCommit()
 
-			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			patches := gomonkey.ApplyFunc(
+				database.GenerateDefaultDBTx,
+				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
+			)
 			defer patches.Reset()
 
 			svc := appService{
@@ -189,19 +202,23 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			err := svc.Create(types.App{Code: "bkauth", Name: "bkauth", Description: "bkauth intro"}, "bk_paas")
+			err := svc.Create(
+				context.Background(),
+				types.App{Code: "bkauth", Name: "bkauth", Description: "bkauth intro"},
+				"bk_paas",
+			)
 			assert.Error(GinkgoT(), err)
 			assert.Contains(GinkgoT(), err.Error(), "manager.CreateWithTx")
 		})
 
 		It("access key create error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), dao.App{
+			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.App{
 				Code: "bkauth", Name: "bkauth", Description: "bkauth intro",
 			}).Return(nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), dao.AccessKey{
+			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.AccessKey{
 				AppCode:       "bkauth",
 				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				CreatedSource: "bk_paas",
@@ -212,7 +229,10 @@ var _ = Describe("App", func() {
 			dbMock.ExpectBegin()
 			dbMock.ExpectCommit()
 
-			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			patches := gomonkey.ApplyFunc(
+				database.GenerateDefaultDBTx,
+				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
+			)
 			defer patches.Reset()
 
 			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) dao.AccessKey {
@@ -229,7 +249,11 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			err := svc.Create(types.App{Code: "bkauth", Name: "bkauth", Description: "bkauth intro"}, "bk_paas")
+			err := svc.Create(
+				context.Background(),
+				types.App{Code: "bkauth", Name: "bkauth", Description: "bkauth intro"},
+				"bk_paas",
+			)
 			assert.Error(GinkgoT(), err)
 			assert.Contains(GinkgoT(), err.Error(), "accessKeyManager.CreateWithTx")
 		})
@@ -248,12 +272,12 @@ var _ = Describe("App", func() {
 
 		It("ok", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), dao.App{
+			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.App{
 				Code: "bkauth", Name: "bkauth", Description: "bkauth intro",
 			}).Return(nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), dao.AccessKey{
+			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.AccessKey{
 				AppCode:       "bkauth",
 				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				CreatedSource: "bk_paas",
@@ -264,7 +288,10 @@ var _ = Describe("App", func() {
 			dbMock.ExpectBegin()
 			dbMock.ExpectCommit()
 
-			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			patches := gomonkey.ApplyFunc(
+				database.GenerateDefaultDBTx,
+				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
+			)
 			defer patches.Reset()
 
 			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) dao.AccessKey {
@@ -282,6 +309,7 @@ var _ = Describe("App", func() {
 			}
 
 			err := svc.CreateWithSecret(
+				context.Background(),
 				types.App{Code: "bkauth", Name: "bkauth", Description: "bkauth intro"},
 				"4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				"bk_paas",
@@ -294,7 +322,7 @@ var _ = Describe("App", func() {
 
 		It("app create error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), dao.App{
+			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.App{
 				Code: "bkauth", Name: "bkauth", Description: "bkauth intro",
 			}).Return(errors.New("error"))
 
@@ -304,7 +332,10 @@ var _ = Describe("App", func() {
 			dbMock.ExpectBegin()
 			dbMock.ExpectCommit()
 
-			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			patches := gomonkey.ApplyFunc(
+				database.GenerateDefaultDBTx,
+				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
+			)
 			defer patches.Reset()
 
 			svc := appService{
@@ -313,6 +344,7 @@ var _ = Describe("App", func() {
 			}
 
 			err := svc.CreateWithSecret(
+				context.Background(),
 				types.App{Code: "bkauth", Name: "bkauth", Description: "bkauth intro"},
 				"4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				"bk_paas",
@@ -323,12 +355,12 @@ var _ = Describe("App", func() {
 
 		It("access key create error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), dao.App{
+			mockAppManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.App{
 				Code: "bkauth", Name: "bkauth", Description: "bkauth intro",
 			}).Return(nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), dao.AccessKey{
+			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.AccessKey{
 				AppCode:       "bkauth",
 				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				CreatedSource: "bk_paas",
@@ -339,7 +371,10 @@ var _ = Describe("App", func() {
 			dbMock.ExpectBegin()
 			dbMock.ExpectCommit()
 
-			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			patches := gomonkey.ApplyFunc(
+				database.GenerateDefaultDBTx,
+				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
+			)
 			defer patches.Reset()
 
 			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) dao.AccessKey {
@@ -357,6 +392,7 @@ var _ = Describe("App", func() {
 			}
 
 			err := svc.CreateWithSecret(
+				context.Background(),
 				types.App{Code: "bkauth", Name: "bkauth", Description: "bkauth intro"},
 				"4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 				"bk_paas",
@@ -379,7 +415,7 @@ var _ = Describe("App", func() {
 
 		It("ok", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().Get("bkauth").Return(dao.App{
+			mockAppManager.EXPECT().Get(gomock.Any(), "bkauth").Return(dao.App{
 				Code:        "bkauth",
 				Name:        "bkauth",
 				Description: "bkauth intro",
@@ -394,7 +430,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			app, err := svc.Get("bkauth")
+			app, err := svc.Get(context.Background(), "bkauth")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "bkauth", app.Code)
 			assert.Equal(GinkgoT(), "bkauth", app.Name)
@@ -405,7 +441,7 @@ var _ = Describe("App", func() {
 
 		It("error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().Get("bkauth").Return(dao.App{}, errors.New("error"))
+			mockAppManager.EXPECT().Get(gomock.Any(), "bkauth").Return(dao.App{}, errors.New("error"))
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
 
@@ -414,7 +450,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			_, err := svc.Get("bkauth")
+			_, err := svc.Get(context.Background(), "bkauth")
 			assert.Error(GinkgoT(), err)
 		})
 	})
@@ -432,8 +468,8 @@ var _ = Describe("App", func() {
 
 		It("ok", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().Count("type1", "tenant1").Return(1, nil)
-			mockAppManager.EXPECT().List("type1", "tenant1", 10, 0, "", "").Return([]dao.App{
+			mockAppManager.EXPECT().Count(gomock.Any(), "type1", "tenant1").Return(1, nil)
+			mockAppManager.EXPECT().List(gomock.Any(), "type1", "tenant1", 10, 0, "", "").Return([]dao.App{
 				{
 					Code:        "bkauth",
 					Name:        "bkauth",
@@ -450,7 +486,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			total, apps, err := svc.List("type1", "tenant1", 1, 10, "", "")
+			total, apps, err := svc.List(context.Background(), "type1", "tenant1", 1, 10, "", "")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), 1, total)
 			assert.Len(GinkgoT(), apps, 1)
@@ -463,7 +499,7 @@ var _ = Describe("App", func() {
 
 		It("count error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().Count("type1", "tenant1").Return(0, errors.New("error"))
+			mockAppManager.EXPECT().Count(gomock.Any(), "type1", "tenant1").Return(0, errors.New("error"))
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
 
@@ -472,14 +508,16 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			_, _, err := svc.List("type1", "tenant1", 1, 10, "", "")
+			_, _, err := svc.List(context.Background(), "type1", "tenant1", 1, 10, "", "")
 			assert.Error(GinkgoT(), err)
 		})
 
 		It("list error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().Count("type1", "tenant1").Return(1, nil)
-			mockAppManager.EXPECT().List("type1", "tenant1", 10, 0, "", "").Return(nil, errors.New("error"))
+			mockAppManager.EXPECT().Count(gomock.Any(), "type1", "tenant1").Return(1, nil)
+			mockAppManager.EXPECT().
+				List(gomock.Any(), "type1", "tenant1", 10, 0, "", "").
+				Return(nil, errors.New("error"))
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
 
@@ -488,7 +526,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			_, _, err := svc.List("type1", "tenant1", 1, 10, "", "")
+			_, _, err := svc.List(context.Background(), "type1", "tenant1", 1, 10, "", "")
 			assert.Error(GinkgoT(), err)
 		})
 	})
@@ -506,16 +544,21 @@ var _ = Describe("App", func() {
 
 		It("ok", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().DeleteWithTx(gomock.Any(), "bkauth").Return(int64(1), nil)
+			mockAppManager.EXPECT().DeleteWithTx(gomock.Any(), gomock.Any(), "bkauth").Return(int64(1), nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().DeleteByAppCodeWithTx(gomock.Any(), "bkauth").Return(int64(1), nil)
+			mockAccessKeyManager.EXPECT().
+				DeleteByAppCodeWithTx(gomock.Any(), gomock.Any(), "bkauth").
+				Return(int64(1), nil)
 
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
 			dbMock.ExpectCommit()
 
-			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			patches := gomonkey.ApplyFunc(
+				database.GenerateDefaultDBTx,
+				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
+			)
 			defer patches.Reset()
 
 			svc := appService{
@@ -523,7 +566,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			err := svc.Delete("bkauth")
+			err := svc.Delete(context.Background(), "bkauth")
 			assert.NoError(GinkgoT(), err)
 
 			err = dbMock.ExpectationsWereMet()
@@ -534,13 +577,18 @@ var _ = Describe("App", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().DeleteByAppCodeWithTx(gomock.Any(), "bkauth").Return(int64(0), errors.New("delete access_key error"))
+			mockAccessKeyManager.EXPECT().
+				DeleteByAppCodeWithTx(gomock.Any(), gomock.Any(), "bkauth").
+				Return(int64(0), errors.New("delete access_key error"))
 
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
 			dbMock.ExpectRollback()
 
-			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			patches := gomonkey.ApplyFunc(
+				database.GenerateDefaultDBTx,
+				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
+			)
 			defer patches.Reset()
 
 			svc := appService{
@@ -548,7 +596,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			err := svc.Delete("bkauth")
+			err := svc.Delete(context.Background(), "bkauth")
 			assert.Error(GinkgoT(), err)
 			assert.Contains(GinkgoT(), err.Error(), "accessKeyManager.DeleteByAppCodeWithTx")
 
@@ -558,16 +606,23 @@ var _ = Describe("App", func() {
 
 		It("delete app error", func() {
 			mockAppManager := mock.NewMockAppManager(ctl)
-			mockAppManager.EXPECT().DeleteWithTx(gomock.Any(), "bkauth").Return(int64(0), errors.New("delete app error"))
+			mockAppManager.EXPECT().
+				DeleteWithTx(gomock.Any(), gomock.Any(), "bkauth").
+				Return(int64(0), errors.New("delete app error"))
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().DeleteByAppCodeWithTx(gomock.Any(), "bkauth").Return(int64(1), nil)
+			mockAccessKeyManager.EXPECT().
+				DeleteByAppCodeWithTx(gomock.Any(), gomock.Any(), "bkauth").
+				Return(int64(1), nil)
 
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
 			dbMock.ExpectRollback()
 
-			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
+			patches := gomonkey.ApplyFunc(
+				database.GenerateDefaultDBTx,
+				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
+			)
 			defer patches.Reset()
 
 			svc := appService{
@@ -575,7 +630,7 @@ var _ = Describe("App", func() {
 				accessKeyManager: mockAccessKeyManager,
 			}
 
-			err := svc.Delete("bkauth")
+			err := svc.Delete(context.Background(), "bkauth")
 			assert.Error(GinkgoT(), err)
 			assert.Contains(GinkgoT(), err.Error(), "manager.DeleteWithTx")
 

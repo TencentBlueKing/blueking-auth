@@ -47,7 +47,7 @@ func AccessAppAuthMiddleware() gin.HandlerFunc {
 		appSecret := h.AppSecret
 
 		// 2. validate from cache -> database
-		valid := cacheImpls.VerifyAccessApp(appCode, appSecret)
+		valid := cacheImpls.VerifyAccessApp(c.Request.Context(), appCode, appSecret)
 		if !valid {
 			util.UnauthorizedJSONResponse(c, "app code or app secret wrong")
 			c.Abort()

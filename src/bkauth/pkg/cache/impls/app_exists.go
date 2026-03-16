@@ -19,6 +19,8 @@
 package impls
 
 import (
+	"context"
+
 	"bkauth/pkg/cache"
 	"bkauth/pkg/errorx"
 	"bkauth/pkg/service"
@@ -32,20 +34,20 @@ func (k AppExistsKey) Key() string {
 	return k.AppCode
 }
 
-func retrieveAppExists(key cache.Key) (interface{}, error) {
+func retrieveAppExists(ctx context.Context, key cache.Key) (interface{}, error) {
 	k := key.(AppExistsKey)
 
 	svc := service.NewAppService()
-	return svc.Exists(k.AppCode)
+	return svc.Exists(ctx, k.AppCode)
 }
 
 // AppExists ...
-func AppExists(appCode string) (exists bool, err error) {
+func AppExists(ctx context.Context, appCode string) (exists bool, err error) {
 	key := AppExistsKey{
 		AppCode: appCode,
 	}
 
-	err = AppExistsCache.GetInto(key, &exists, retrieveAppExists)
+	err = AppExistsCache.GetInto(ctx, key, &exists, retrieveAppExists)
 	if err != nil {
 		err = errorx.Wrapf(err, CacheLayer, "AppExists",
 			"AppExistsCache.GetInto appCode=`%s` fail", appCode)

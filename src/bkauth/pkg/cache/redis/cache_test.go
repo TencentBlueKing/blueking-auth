@@ -19,6 +19,7 @@
 package redis
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -47,58 +48,62 @@ var _ = Describe("RedisCache", func() {
 
 	It("Set_Exists_Get", func() {
 		key := cache.NewStringKey("abc")
+		ctx := context.Background()
 		// set
-		err := c.Set(key, 1, 0)
+		err := c.Set(ctx, key, 1, 0)
 		assert.NoError(GinkgoT(), err)
 
 		// exists
-		exists := c.Exists(key)
+		exists := c.Exists(ctx, key)
 		assert.True(GinkgoT(), exists)
 
 		// get
 		var a int
-		err = c.Get(key, &a)
+		err = c.Get(ctx, key, &a)
 		assert.NoError(GinkgoT(), err)
 		assert.Equal(GinkgoT(), 1, a)
 	})
 
 	It("GetInto", func() {
-		retrieveTest := func(key cache.Key) (interface{}, error) {
+		retrieveTest := func(ctx context.Context, key cache.Key) (interface{}, error) {
 			return "ok", nil
 		}
 
 		key := cache.NewStringKey("akey")
+		ctx := context.Background()
 
 		var i string
-		err := c.GetInto(key, &i, retrieveTest)
+		err := c.GetInto(ctx, key, &i, retrieveTest)
 		assert.NoError(GinkgoT(), err)
 		assert.Equal(GinkgoT(), "ok", i)
 
 		var i2 string
-		err = c.GetInto(key, &i2, retrieveTest)
+		err = c.GetInto(ctx, key, &i2, retrieveTest)
 		assert.NoError(GinkgoT(), err)
 		assert.Equal(GinkgoT(), "ok", i2)
 	})
 
 	It("Delete", func() {
 		key := cache.NewStringKey("dkey")
+		ctx := context.Background()
 
 		// do delete
-		err := c.Delete(key)
+		err := c.Delete(ctx, key)
 		assert.NoError(GinkgoT(), err)
 
 		// set
-		err = c.Set(key, 1, 0)
+		err = c.Set(ctx, key, 1, 0)
 		assert.NoError(GinkgoT(), err)
 
 		// do it again
-		err = c.Delete(key)
+		err = c.Delete(ctx, key)
 		assert.NoError(GinkgoT(), err)
 	})
 
 	It("BatchDelete", func() {
 		key1 := cache.NewStringKey("d1key")
 		key2 := cache.NewStringKey("d2key")
+		ctx := context.Background()
 
 		keys := []cache.Key{
 			key1,
@@ -106,16 +111,16 @@ var _ = Describe("RedisCache", func() {
 		}
 
 		// do delete 0 key
-		err := c.BatchDelete(keys)
+		err := c.BatchDelete(ctx, keys)
 		// assert.Equal(t, int64(0), count)
 		assert.NoError(GinkgoT(), err)
 
 		// set
-		err = c.Set(key1, 1, 0)
+		err = c.Set(ctx, key1, 1, 0)
 		assert.NoError(GinkgoT(), err)
 
 		// do delete 1 key
-		err = c.BatchDelete(keys)
+		err = c.BatchDelete(ctx, keys)
 		// assert.Equal(t, int64(1), count)
 		assert.NoError(GinkgoT(), err)
 	})
@@ -123,17 +128,19 @@ var _ = Describe("RedisCache", func() {
 	It("BatchExpireWithTx", func() {
 		key1 := cache.NewStringKey("d1key")
 		key2 := cache.NewStringKey("d2key")
+		ctx := context.Background()
 
 		keys := []cache.Key{
 			key1,
 			key2,
 		}
 
-		err := c.BatchExpireWithTx(keys, 1*time.Minute)
+		err := c.BatchExpireWithTx(ctx, keys, 1*time.Minute)
 		assert.NoError(GinkgoT(), err)
 	})
 
 	It("BatchSetWithTx_And_BatchGet", func() {
+		ctx := context.Background()
 		kvs := []KV{
 			{
 				Key:   "a",
@@ -145,7 +152,7 @@ var _ = Describe("RedisCache", func() {
 			},
 		}
 
-		err := c.BatchSetWithTx(kvs, 5*time.Minute)
+		err := c.BatchSetWithTx(ctx, kvs, 5*time.Minute)
 		assert.NoError(GinkgoT(), err)
 
 		keys := []cache.Key{
@@ -153,7 +160,7 @@ var _ = Describe("RedisCache", func() {
 			cache.NewStringKey("b"),
 		}
 
-		data, err := c.BatchGet(keys)
+		data, err := c.BatchGet(ctx, keys)
 		assert.NoError(GinkgoT(), err)
 		assert.Len(GinkgoT(), data, 2)
 
@@ -173,13 +180,14 @@ var _ = Describe("RedisCache", func() {
 
 		// compressionThreshold = 64
 		It("less than compressionThreshold", func() {
-			c.Set(key, Abc{
+			ctx := context.Background()
+			c.Set(ctx, key, Abc{
 				X: "hello",
 				Y: 123,
 				Z: "",
 			}, 5*time.Minute)
 
-			data, err := c.BatchGet([]cache.Key{key})
+			data, err := c.BatchGet(ctx, []cache.Key{key})
 			assert.NoError(GinkgoT(), err)
 			assert.Len(GinkgoT(), data, 1)
 
@@ -199,13 +207,14 @@ var _ = Describe("RedisCache", func() {
 		})
 
 		It("greater than compressThreshold", func() {
-			c.Set(key, Abc{
+			ctx := context.Background()
+			c.Set(ctx, key, Abc{
 				X: "hello",
 				Y: 123,
 				Z: "123456789012345678901234567890123456789012345678901234567890",
 			}, 5*time.Minute)
 
-			data, err := c.BatchGet([]cache.Key{key})
+			data, err := c.BatchGet(ctx, []cache.Key{key})
 			assert.NoError(GinkgoT(), err)
 			assert.Len(GinkgoT(), data, 1)
 
@@ -254,19 +263,20 @@ var _ = Describe("RedisCache", func() {
 			},
 		}
 
-		err := c.BatchSetWithTx(kvs, 5*time.Minute)
+		ctx := context.Background()
+		err := c.BatchSetWithTx(ctx, kvs, 5*time.Minute)
 		assert.NoError(GinkgoT(), err)
 
 		// get single: small without compress
 		var v1 Abc
-		err = c.Get(cache.NewStringKey("a"), &v1)
+		err = c.Get(ctx, cache.NewStringKey("a"), &v1)
 		assert.NoError(GinkgoT(), err)
 		assert.Equal(GinkgoT(), v1.X, "hello")
 		assert.Equal(GinkgoT(), v1.Y, 123)
 		assert.Equal(GinkgoT(), v1.Z, "")
 		// get single: huge with compress
 		var v2 Abc
-		err = c.Get(cache.NewStringKey("b"), &v2)
+		err = c.Get(ctx, cache.NewStringKey("b"), &v2)
 		assert.NoError(GinkgoT(), err)
 		assert.Equal(GinkgoT(), v2.X, "hello")
 		assert.Equal(GinkgoT(), v2.Y, 123)

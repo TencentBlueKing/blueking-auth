@@ -21,6 +21,8 @@ package service
 //go:generate mockgen -source=$GOFILE -destination=./mock/$GOFILE -package=mock
 
 import (
+	"context"
+
 	"bkauth/pkg/database"
 	"bkauth/pkg/database/dao"
 	"bkauth/pkg/errorx"
@@ -30,13 +32,18 @@ import (
 const AppSVC = "AppSVC"
 
 type AppService interface {
-	Get(code string) (types.App, error)
-	Exists(code string) (bool, error)
-	NameExists(name string) (bool, error)
-	Create(app types.App, createdSource string) error
-	CreateWithSecret(app types.App, appSecret, createdSource string) error
-	List(tenantMode, tenantID string, page, pageSize int, orderBy, orderByDirection string) (int, []types.App, error)
-	Delete(code string) error
+	Get(ctx context.Context, code string) (types.App, error)
+	Exists(ctx context.Context, code string) (bool, error)
+	NameExists(ctx context.Context, name string) (bool, error)
+	Create(ctx context.Context, app types.App, createdSource string) error
+	CreateWithSecret(ctx context.Context, app types.App, appSecret, createdSource string) error
+	List(
+		ctx context.Context,
+		tenantMode, tenantID string,
+		page, pageSize int,
+		orderBy, orderByDirection string,
+	) (int, []types.App, error)
+	Delete(ctx context.Context, code string) error
 }
 
 type appService struct {
@@ -51,10 +58,10 @@ func NewAppService() AppService {
 	}
 }
 
-func (s *appService) Get(code string) (app types.App, err error) {
+func (s *appService) Get(ctx context.Context, code string) (app types.App, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "Get")
 
-	daoApp, err := s.manager.Get(code)
+	daoApp, err := s.manager.Get(ctx, code)
 	if err != nil {
 		return app, errorWrapf(err, "manager.Get fail")
 	}
@@ -68,20 +75,20 @@ func (s *appService) Get(code string) (app types.App, err error) {
 	}, nil
 }
 
-func (s *appService) Exists(code string) (bool, error) {
+func (s *appService) Exists(ctx context.Context, code string) (bool, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "Exists")
 
-	exists, err := s.manager.Exists(code)
+	exists, err := s.manager.Exists(ctx, code)
 	if err != nil {
 		return false, errorWrapf(err, "manager.Exists code=`%s` fail", code)
 	}
 	return exists, nil
 }
 
-func (s *appService) NameExists(name string) (bool, error) {
+func (s *appService) NameExists(ctx context.Context, name string) (bool, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "NameExists")
 
-	exists, err := s.manager.NameExists(name)
+	exists, err := s.manager.NameExists(ctx, name)
 	if err != nil {
 		return false, errorWrapf(err, "manager.NameExists name=`%s` fail", name)
 	}
@@ -89,11 +96,11 @@ func (s *appService) NameExists(name string) (bool, error) {
 }
 
 // Create :创建应用，createdSource 为创建的来源，即哪个系统创建了该 APP
-func (s *appService) Create(app types.App, createdSource string) (err error) {
+func (s *appService) Create(ctx context.Context, app types.App, createdSource string) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "Create")
 
 	// 使用事务
-	tx, err := database.GenerateDefaultDBTx()
+	tx, err := database.GenerateDefaultDBTx(ctx)
 
 	defer database.RollBackWithLog(tx)
 
@@ -109,14 +116,14 @@ func (s *appService) Create(app types.App, createdSource string) (err error) {
 		TenantMode:  app.TenantMode,
 		TenantID:    app.TenantID,
 	}
-	err = s.manager.CreateWithTx(tx, daoApp)
+	err = s.manager.CreateWithTx(ctx, tx, daoApp)
 	if err != nil {
 		return errorWrapf(err, "manager.CreateWithTx app=`%+v` fail", daoApp)
 	}
 
 	// 创建应用对应 Secret
 	daoAccessKey := newDaoAccessKey(app.Code, createdSource, "initialized by default when the app is created")
-	_, err = s.accessKeyManager.CreateWithTx(tx, daoAccessKey)
+	_, err = s.accessKeyManager.CreateWithTx(ctx, tx, daoAccessKey)
 	if err != nil {
 		return errorWrapf(err, "accessKeyManager.CreateWithTx secret=`%+v` fail", daoAccessKey)
 	}
@@ -126,11 +133,11 @@ func (s *appService) Create(app types.App, createdSource string) (err error) {
 }
 
 // CreateWithSecret :创建应用，但支持指定 appSecret 的值，createdSource 为创建的来源，即哪个系统创建了该 APP
-func (s *appService) CreateWithSecret(app types.App, appSecret, createdSource string) (err error) {
+func (s *appService) CreateWithSecret(ctx context.Context, app types.App, appSecret, createdSource string) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "CreateWithSecret")
 
 	// 使用事务
-	tx, err := database.GenerateDefaultDBTx()
+	tx, err := database.GenerateDefaultDBTx(ctx)
 	defer database.RollBackWithLog(tx)
 
 	if err != nil {
@@ -145,14 +152,19 @@ func (s *appService) CreateWithSecret(app types.App, appSecret, createdSource st
 		TenantMode:  app.TenantMode,
 		TenantID:    app.TenantID,
 	}
-	err = s.manager.CreateWithTx(tx, daoApp)
+	err = s.manager.CreateWithTx(ctx, tx, daoApp)
 	if err != nil {
 		return errorWrapf(err, "manager.CreateWithTx app=`%+v` fail", daoApp)
 	}
 
 	// 创建应用对应 Secret
-	daoAccessKey := newDaoAccessKeyWithAppSecret(app.Code, appSecret, createdSource, "specified when the app is created")
-	_, err = s.accessKeyManager.CreateWithTx(tx, daoAccessKey)
+	daoAccessKey := newDaoAccessKeyWithAppSecret(
+		app.Code,
+		appSecret,
+		createdSource,
+		"specified when the app is created",
+	)
+	_, err = s.accessKeyManager.CreateWithTx(ctx, tx, daoAccessKey)
 	if err != nil {
 		return errorWrapf(err, "accessKeyManager.CreateWithTx secret=`%+v` fail", daoAccessKey)
 	}
@@ -163,13 +175,14 @@ func (s *appService) CreateWithSecret(app types.App, appSecret, createdSource st
 }
 
 func (s *appService) List(
+	ctx context.Context,
 	tenantMode, tenantID string,
 	page, pageSize int,
 	orderBy, orderByDirection string,
 ) (total int, apps []types.App, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "List")
 
-	total, err = s.manager.Count(tenantMode, tenantID)
+	total, err = s.manager.Count(ctx, tenantMode, tenantID)
 	if err != nil {
 		return 0, nil, errorWrapf(err, "manager.Count fail")
 	}
@@ -177,7 +190,7 @@ func (s *appService) List(
 	limit := pageSize
 	offset := (page - 1) * pageSize
 
-	daoApps, err := s.manager.List(tenantMode, tenantID, limit, offset, orderBy, orderByDirection)
+	daoApps, err := s.manager.List(ctx, tenantMode, tenantID, limit, offset, orderBy, orderByDirection)
 	if err != nil {
 		return 0, nil, errorWrapf(err, "manager.List fail")
 	}
@@ -197,11 +210,11 @@ func (s *appService) List(
 }
 
 // Delete :删除应用，同时删除相关的 access_key
-func (s *appService) Delete(code string) (err error) {
+func (s *appService) Delete(ctx context.Context, code string) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "Delete")
 
 	// 使用事务
-	tx, err := database.GenerateDefaultDBTx()
+	tx, err := database.GenerateDefaultDBTx(ctx)
 	defer database.RollBackWithLog(tx)
 
 	if err != nil {
@@ -209,13 +222,13 @@ func (s *appService) Delete(code string) (err error) {
 	}
 
 	// 先删除相关的 access_key
-	_, err = s.accessKeyManager.DeleteByAppCodeWithTx(tx, code)
+	_, err = s.accessKeyManager.DeleteByAppCodeWithTx(ctx, tx, code)
 	if err != nil {
 		return errorWrapf(err, "accessKeyManager.DeleteByAppCodeWithTx code=`%s` fail", code)
 	}
 
 	// 删除应用
-	_, err = s.manager.DeleteWithTx(tx, code)
+	_, err = s.manager.DeleteWithTx(ctx, tx, code)
 	if err != nil {
 		return errorWrapf(err, "manager.DeleteWithTx code=`%s` fail", code)
 	}

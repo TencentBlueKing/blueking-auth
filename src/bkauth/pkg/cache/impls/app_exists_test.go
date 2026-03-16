@@ -19,6 +19,7 @@
 package impls
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -61,27 +62,27 @@ var _ = Describe("AppCodeCache", func() {
 		})
 		It("AppCodeCache Get ok", func() {
 			mockService := mock.NewMockAppService(ctl)
-			mockService.EXPECT().Exists("test").Return(true, nil).AnyTimes()
+			mockService.EXPECT().Exists(gomock.Any(), "test").Return(true, nil).AnyTimes()
 
 			patches = gomonkey.ApplyFunc(service.NewAppService,
 				func() service.AppService {
 					return mockService
 				})
 
-			exists, err := AppExists("test")
+			exists, err := AppExists(context.Background(), "test")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, true)
 		})
 		It("AppCodeCache Get fail", func() {
 			mockService := mock.NewMockAppService(ctl)
-			mockService.EXPECT().Exists("test").Return(false, errors.New("error")).AnyTimes()
+			mockService.EXPECT().Exists(gomock.Any(), "test").Return(false, errors.New("error")).AnyTimes()
 
 			patches = gomonkey.ApplyFunc(service.NewAppService,
 				func() service.AppService {
 					return mockService
 				})
 
-			exists, err := AppExists("test")
+			exists, err := AppExists(context.Background(), "test")
 			assert.Error(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, false)
 		})

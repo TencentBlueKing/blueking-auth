@@ -19,6 +19,7 @@
 package database
 
 import (
+	"context"
 	"sync"
 
 	"github.com/dlmiddlecote/sqlstats"
@@ -60,6 +61,6 @@ func GetDefaultDBClient() *DBClient {
 }
 
 // GenerateDefaultDBTx 生成一个事务链接
-func GenerateDefaultDBTx() (*sqlx.Tx, error) {
-	return GetDefaultDBClient().DB.Beginx()
+func GenerateDefaultDBTx(ctx context.Context) (*sqlx.Tx, error) {
+	return GetDefaultDBClient().DB.BeginTxx(ctx, nil)
 }

@@ -19,6 +19,7 @@
 package memory
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -38,11 +39,13 @@ var _ = Describe("Base Cache", func() {
 		be = backend.NewMemoryBackend("test", expiration, nil)
 	})
 
+	ctx := context.Background()
+
 	Context("retrieve OK", func() {
 		var retrieveTest RetrieveFunc
 		var c Cache
 		BeforeEach(func() {
-			retrieveTest = func(k cache.Key) (interface{}, error) {
+			retrieveTest = func(ctx context.Context, k cache.Key) (interface{}, error) {
 				kStr := k.Key()
 				switch kStr {
 				case "a":
@@ -68,11 +71,11 @@ var _ = Describe("Base Cache", func() {
 
 		It("get from cache", func() {
 			aKey := cache.NewStringKey("a")
-			x, err := c.Get(aKey)
+			x, err := c.Get(ctx, aKey)
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "1", x.(string))
 
-			x, err = c.Get(aKey)
+			x, err = c.Get(ctx, aKey)
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "1", x.(string))
 
@@ -84,35 +87,35 @@ var _ = Describe("Base Cache", func() {
 
 		It("get string", func() {
 			aKey := cache.NewStringKey("a")
-			x, err := c.GetString(aKey)
+			x, err := c.GetString(ctx, aKey)
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "1", x)
 		})
 
 		It("get bool", func() {
 			boolKey := cache.NewStringKey("bool")
-			x, err := c.GetBool(boolKey)
+			x, err := c.GetBool(ctx, boolKey)
 			assert.NoError(GinkgoT(), err)
 			assert.True(GinkgoT(), x)
 		})
 
 		It("get time", func() {
 			timeKey := cache.NewStringKey("time")
-			x, err := c.GetTime(timeKey)
+			x, err := c.GetTime(ctx, timeKey)
 			assert.NoError(GinkgoT(), err)
 			assert.IsType(GinkgoT(), time.Time{}, x)
 		})
 
 		It("get fail", func() {
 			errorKey := cache.NewStringKey("error")
-			x, err := c.Get(errorKey)
+			x, err := c.Get(ctx, errorKey)
 			assert.Error(GinkgoT(), err)
 			assert.Nil(GinkgoT(), x)
 
 			err1 := err
 
 			// get fail twice
-			x, err = c.Get(errorKey)
+			x, err = c.Get(ctx, errorKey)
 			assert.Error(GinkgoT(), err)
 			assert.Nil(GinkgoT(), x)
 
@@ -121,14 +124,14 @@ var _ = Describe("Base Cache", func() {
 			// the error should be the same
 			assert.Equal(GinkgoT(), err1, err2)
 
-			x, err = c.GetString(errorKey)
+			x, err = c.GetString(ctx, errorKey)
 			assert.Error(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "", x)
 		})
 
 		It("delete", func() {
 			delKey := cache.NewStringKey("a")
-			x, err := c.Get(delKey)
+			x, err := c.Get(ctx, delKey)
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "1", x.(string))
 
@@ -143,7 +146,7 @@ var _ = Describe("Base Cache", func() {
 		It("set", func() {
 			setKey := cache.NewStringKey("s")
 			c.Set(setKey, "1")
-			x, err := c.GetString(setKey)
+			x, err := c.GetString(ctx, setKey)
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "1", x)
 		})
@@ -153,18 +156,18 @@ var _ = Describe("Base Cache", func() {
 			assert.NotNil(GinkgoT(), c)
 
 			aKey := cache.NewStringKey("a")
-			x, err := c.Get(aKey)
+			x, err := c.Get(ctx, aKey)
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "1", x.(string))
 
 			timeKey := cache.NewStringKey("time")
-			_, err = c.GetString(timeKey)
+			_, err = c.GetString(ctx, timeKey)
 			assert.Error(GinkgoT(), err)
 
-			_, err = c.GetBool(aKey)
+			_, err = c.GetBool(ctx, aKey)
 			assert.Error(GinkgoT(), err)
 
-			_, err = c.GetTime(aKey)
+			_, err = c.GetTime(ctx, aKey)
 			assert.Error(GinkgoT(), err)
 		})
 	})
@@ -172,7 +175,7 @@ var _ = Describe("Base Cache", func() {
 	Context("retrieve Error", func() {
 		var c Cache
 		BeforeEach(func() {
-			retrieveError := func(k cache.Key) (interface{}, error) {
+			retrieveError := func(ctx context.Context, k cache.Key) (interface{}, error) {
 				return nil, errors.New("test error")
 			}
 			c = NewBaseCache(true, retrieveError, be)
@@ -181,26 +184,26 @@ var _ = Describe("Base Cache", func() {
 			assert.NotNil(GinkgoT(), c)
 
 			aKey := cache.NewStringKey("a")
-			_, err := c.Get(aKey)
+			_, err := c.Get(ctx, aKey)
 			assert.Error(GinkgoT(), err)
 
 			timeKey := cache.NewStringKey("time")
-			_, err = c.GetString(timeKey)
+			_, err = c.GetString(ctx, timeKey)
 			assert.Error(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "test error", err.Error())
 
-			_, err = c.GetBool(aKey)
+			_, err = c.GetBool(ctx, aKey)
 			assert.Error(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "test error", err.Error())
 
-			_, err = c.GetTime(aKey)
+			_, err = c.GetTime(ctx, aKey)
 			assert.Error(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "test error", err.Error())
 		})
 	})
 })
 
-func retrieveBenchmark(k cache.Key) (interface{}, error) {
+func retrieveBenchmark(ctx context.Context, k cache.Key) (interface{}, error) {
 	return "", nil
 }
 
@@ -221,7 +224,7 @@ func BenchmarkRawRetrieve(b *testing.B) {
 		if index > 99999 {
 			index = 0
 		}
-		retrieveBenchmark(key)
+		retrieveBenchmark(context.Background(), key)
 	}
 }
 
@@ -245,7 +248,7 @@ func BenchmarkSingleFlightRetrieve(b *testing.B) {
 		}
 
 		g.Do(key.Key(), func() (interface{}, error) {
-			return retrieveBenchmark(key)
+			return retrieveBenchmark(context.Background(), key)
 		})
 	}
 }

@@ -19,6 +19,8 @@
 package impls
 
 import (
+	"context"
+
 	"go.uber.org/zap"
 
 	"bkauth/pkg/cache"
@@ -35,19 +37,19 @@ func (k AppKey) Key() string {
 	return k.AppCode
 }
 
-func retrieveApp(key cache.Key) (interface{}, error) {
+func retrieveApp(ctx context.Context, key cache.Key) (interface{}, error) {
 	k := key.(AppKey)
 
 	svc := service.NewAppService()
-	return svc.Get(k.AppCode)
+	return svc.Get(ctx, k.AppCode)
 }
 
-func GetApp(appCode string) (app types.App, err error) {
+func GetApp(ctx context.Context, appCode string) (app types.App, err error) {
 	key := AppKey{
 		AppCode: appCode,
 	}
 
-	err = AppCache.GetInto(key, &app, retrieveApp)
+	err = AppCache.GetInto(ctx, key, &app, retrieveApp)
 	if err != nil {
 		err = errorx.Wrapf(err, CacheLayer, "GetApp",
 			"AppCache.GetInto appCode=`%s` fail", appCode)
@@ -57,12 +59,12 @@ func GetApp(appCode string) (app types.App, err error) {
 	return app, nil
 }
 
-func DeleteAppCache(appCode string) (err error) {
+func DeleteAppCache(ctx context.Context, appCode string) (err error) {
 	// delete app exists cache
 	key := AppExistsKey{
 		AppCode: appCode,
 	}
-	err = AppExistsCache.Delete(key)
+	err = AppExistsCache.Delete(ctx, key)
 	if err != nil {
 		zap.S().Errorf("delete app exists cache fail, appCode=%s, err=%v", appCode, err)
 		return err
@@ -73,7 +75,7 @@ func DeleteAppCache(appCode string) (err error) {
 		AppCode: appCode,
 	}
 
-	err = AppCache.Delete(key2)
+	err = AppCache.Delete(ctx, key2)
 	if err != nil {
 		zap.S().Errorf("delete app cache fail, appCode=%s, err=%v", appCode, err)
 		return err

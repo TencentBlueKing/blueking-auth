@@ -67,8 +67,10 @@ func CreateApp(c *gin.Context) {
 		}
 	}
 
+	ctx := c.Request.Context()
+
 	// check app code/name is unique
-	if err := checkAppCreateUnique(body.AppCode, body.Name); err != nil {
+	if err := checkAppCreateUnique(ctx, body.AppCode, body.Name); err != nil {
 		util.ConflictJSONResponse(c, err.Error())
 		return
 	}
@@ -86,7 +88,7 @@ func CreateApp(c *gin.Context) {
 	svc := service.NewAppService()
 	// Note: 兼容 PaaS2 双写 DB 和 bkauth 时 AppSecret 已经从 AppEngine 生成，需要支持带 Secret 的 App 创建
 	if body.AppSecret != "" {
-		err := svc.CreateWithSecret(app, body.AppSecret, createdSource)
+		err := svc.CreateWithSecret(ctx, app, body.AppSecret, createdSource)
 		if err != nil {
 			err = errorx.Wrapf(err, "Handler", "CreateApp",
 				"svc.CreateWithSecret app=`%+v` createdSource=`%s` fail", app, createdSource)
@@ -94,7 +96,7 @@ func CreateApp(c *gin.Context) {
 			return
 		}
 	} else {
-		err := svc.Create(app, createdSource)
+		err := svc.Create(ctx, app, createdSource)
 		if err != nil {
 			err = errorx.Wrapf(err, "Handler", "CreateApp", "svc.Create app=`%+v` createdSource=`%s` fail", app, createdSource)
 			util.SystemErrorJSONResponse(c, err)
@@ -103,7 +105,7 @@ func CreateApp(c *gin.Context) {
 	}
 
 	// 由于应用在创建前可能调用相关接口查询，导致`是否存在该App/app基本信息`的查询已被缓存，若不删除缓存，则创建后在缓存未实现前，还是会出现 app 不存在的
-	cacheImpls.DeleteAppCache(app.Code)
+	cacheImpls.DeleteAppCache(ctx, app.Code)
 
 	data := common.AppResponse{
 		AppCode:     app.Code,
@@ -140,7 +142,8 @@ func GetApp(c *gin.Context) {
 	}
 	appCode := uriParams.AppCode
 
-	app, err := cacheImpls.GetApp(appCode)
+	ctx := c.Request.Context()
+	app, err := cacheImpls.GetApp(ctx, appCode)
 	if err != nil {
 		err = errorx.Wrapf(err, "Handler", "GetApp", "cacheImpls.GetApp appCode=`%s` fail", appCode)
 		util.SystemErrorJSONResponse(c, err)
@@ -181,8 +184,10 @@ func ListApp(c *gin.Context) {
 		return
 	}
 
+	ctx := c.Request.Context()
 	svc := service.NewAppService()
 	total, apps, err := svc.List(
+		ctx,
 		query.TenantMode,
 		query.TenantID,
 		query.GetPage(),
@@ -238,9 +243,11 @@ func DeleteApp(c *gin.Context) {
 	}
 	appCode := uriParams.AppCode
 
+	ctx := c.Request.Context()
+
 	// 删除应用
 	svc := service.NewAppService()
-	err := svc.Delete(appCode)
+	err := svc.Delete(ctx, appCode)
 	if err != nil {
 		// 校验不通过
 		if util.IsValidationError(err) {
@@ -255,8 +262,8 @@ func DeleteApp(c *gin.Context) {
 	}
 
 	// 删除缓存
-	cacheImpls.DeleteAppCache(appCode)
-	cacheImpls.DeleteAccessKey(appCode)
+	cacheImpls.DeleteAppCache(ctx, appCode)
+	cacheImpls.DeleteAccessKey(ctx, appCode)
 
 	util.SuccessJSONResponse(c, "ok", nil)
 }
