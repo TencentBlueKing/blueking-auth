@@ -39,20 +39,20 @@ func (k AccessAppCacheKey) Key() string {
 	return k.AppCode + ":" + k.AppSecret
 }
 
-func retrieveAccessApp(key cache.Key) (interface{}, error) {
+func retrieveAccessApp(ctx context.Context, key cache.Key) (interface{}, error) {
 	k := key.(AccessAppCacheKey)
 
 	svc := service.NewAccessKeyService()
-	return svc.Verify(context.Background(), k.AppCode, k.AppSecret)
+	return svc.Verify(ctx, k.AppCode, k.AppSecret)
 }
 
 // VerifyAccessApp ...
-func VerifyAccessApp(appCode, appSecret string) bool {
+func VerifyAccessApp(ctx context.Context, appCode, appSecret string) bool {
 	key := AccessAppCacheKey{
 		AppCode:   appCode,
 		AppSecret: appSecret,
 	}
-	exists, err := LocalAccessAppCache.GetBool(key)
+	exists, err := LocalAccessAppCache.GetBool(ctx, key)
 	if err != nil {
 		zap.S().Errorf("get app_code_app_secret from memory cache fail, key=%s, err=%s", key.Key(), err)
 		return false

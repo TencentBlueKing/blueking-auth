@@ -47,7 +47,7 @@ func AppExists(ctx context.Context, appCode string) (exists bool, err error) {
 		AppCode: appCode,
 	}
 
-	err = AppExistsCache.WithContext(ctx).GetInto(key, &exists, retrieveAppExists)
+	err = AppExistsCache.GetInto(ctx, key, &exists, retrieveAppExists)
 	if err != nil {
 		err = errorx.Wrapf(err, CacheLayer, "AppExists",
 			"AppExistsCache.GetInto appCode=`%s` fail", appCode)

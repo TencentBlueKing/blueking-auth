@@ -19,6 +19,7 @@
 package impls
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -40,22 +41,22 @@ var _ = Describe("LocalAccessApp", func() {
 	})
 	Context("VerifyAccessApp", func() {
 		It("paas", func() {
-			retrieveFunc := func(key cache.Key) (interface{}, error) {
+			retrieveFunc := func(ctx context.Context, key cache.Key) (interface{}, error) {
 				return true, nil
 			}
 			mockCache := memory.NewCache(
 				"mockCache", false, retrieveFunc, expiration, nil)
 			LocalAccessAppCache = mockCache
-			assert.True(GinkgoT(), VerifyAccessApp("test", "123"))
+			assert.True(GinkgoT(), VerifyAccessApp(context.Background(), "test", "123"))
 		})
 		It("no paas", func() {
-			retrieveFunc := func(key cache.Key) (interface{}, error) {
+			retrieveFunc := func(ctx context.Context, key cache.Key) (interface{}, error) {
 				return false, errors.New("error here")
 			}
 			mockCache := memory.NewCache(
 				"mockCache", false, retrieveFunc, expiration, nil)
 			LocalAccessAppCache = mockCache
-			assert.False(GinkgoT(), VerifyAccessApp("test", "123"))
+			assert.False(GinkgoT(), VerifyAccessApp(context.Background(), "test", "123"))
 		})
 	})
 })

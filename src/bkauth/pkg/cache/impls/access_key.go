@@ -62,7 +62,7 @@ func VerifyAccessKey(ctx context.Context, appCode, appSecret string) (bool, erro
 	}
 	// key: secret;value: enabled
 	var encryptedAppSecretsMap map[string]bool
-	err := AccessKeysCache.WithContext(ctx).GetInto(key, &encryptedAppSecretsMap, retrieveAccessKeys)
+	err := AccessKeysCache.GetInto(ctx, key, &encryptedAppSecretsMap, retrieveAccessKeys)
 	if err != nil {
 		err = errorx.Wrapf(err, CacheLayer, "VerifyAccessKey",
 			"AccessKeysCache.Get appCode=`%s` fail", appCode)
@@ -92,5 +92,5 @@ func DeleteAccessKey(ctx context.Context, appCode string) (err error) {
 	key := AccessKeysKey{
 		AppCode: appCode,
 	}
-	return AccessKeysCache.WithContext(ctx).Delete(key)
+	return AccessKeysCache.Delete(ctx, key)
 }

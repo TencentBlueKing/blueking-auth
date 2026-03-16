@@ -43,6 +43,8 @@ const (
 	CacheVersion = "00"
 
 	PipelineSizeThreshold = 100
+
+	retrieveTimeout = 10 * time.Second
 )
 
 // RetrieveFunc ...
@@ -55,8 +57,7 @@ type Cache struct {
 	codec             *cache.Cache
 	cli               *redis.Client
 	defaultExpiration time.Duration
-	ctx               context.Context
-	G                 *singleflight.Group
+	g                 singleflight.Group
 }
 
 // NewCache create a cache instance
@@ -74,7 +75,6 @@ func NewCache(cli *redis.Client, name string, expiration time.Duration) *Cache {
 		codec:             codec,
 		cli:               cli,
 		defaultExpiration: expiration,
-		G:                 &singleflight.Group{},
 	}
 }
 
@@ -93,33 +93,11 @@ func NewMockCache(cli *redis.Client, name string, expiration time.Duration) *Cac
 		codec:             codec,
 		cli:               cli,
 		defaultExpiration: expiration,
-		G:                 &singleflight.Group{},
 	}
 }
 
 func (c *Cache) genKey(key string) string {
 	return c.keyPrefix + ":" + key
-}
-
-// WithContext returns a shallow copy bound to a request context.
-func (c *Cache) WithContext(ctx context.Context) *Cache {
-	cp := *c
-	cp.ctx = ctx
-	return &cp
-}
-
-func (c *Cache) getContext() context.Context {
-	if c.ctx != nil {
-		return c.ctx
-	}
-	return context.Background()
-}
-
-func (c *Cache) getSingleFlightGroup() *singleflight.Group {
-	if c.G == nil {
-		c.G = &singleflight.Group{}
-	}
-	return c.G
 }
 
 func (c *Cache) copyTo(source interface{}, dest interface{}) error {
@@ -133,14 +111,14 @@ func (c *Cache) copyTo(source interface{}, dest interface{}) error {
 }
 
 // Set execute `set`
-func (c *Cache) Set(key bkauthCache.Key, value interface{}, duration time.Duration) error {
+func (c *Cache) Set(ctx context.Context, key bkauthCache.Key, value interface{}, duration time.Duration) error {
 	if duration == time.Duration(0) {
 		duration = c.defaultExpiration
 	}
 
 	k := c.genKey(key.Key())
 	return c.codec.Set(&cache.Item{
-		Ctx:   c.getContext(),
+		Ctx:   ctx,
 		Key:   k,
 		Value: value,
 		TTL:   duration,
@@ -148,24 +126,29 @@ func (c *Cache) Set(key bkauthCache.Key, value interface{}, duration time.Durati
 }
 
 // Get execute `get`
-func (c *Cache) Get(key bkauthCache.Key, value interface{}) error {
+func (c *Cache) Get(ctx context.Context, key bkauthCache.Key, value interface{}) error {
 	k := c.genKey(key.Key())
-	return c.codec.Get(c.getContext(), k, value)
+	return c.codec.Get(ctx, k, value)
 }
 
 // Exists execute `exists`
-func (c *Cache) Exists(key bkauthCache.Key) bool {
+func (c *Cache) Exists(ctx context.Context, key bkauthCache.Key) bool {
 	k := c.genKey(key.Key())
 
-	count, err := c.cli.Exists(c.getContext(), k).Result()
+	count, err := c.cli.Exists(ctx, k).Result()
 
 	return err == nil && count == 1
 }
 
 // GetInto will retrieve the data from cache and unmarshal into the obj
-func (c *Cache) GetInto(key bkauthCache.Key, obj interface{}, retrieveFunc RetrieveFunc) (err error) {
+func (c *Cache) GetInto(
+	ctx context.Context,
+	key bkauthCache.Key,
+	obj interface{},
+	retrieveFunc RetrieveFunc,
+) (err error) {
 	// 1. get from cache, hit, return
-	err = c.Get(key, obj)
+	err = c.Get(ctx, key, obj)
 	if err == nil {
 		return
 	}
@@ -173,9 +156,12 @@ func (c *Cache) GetInto(key bkauthCache.Key, obj interface{}, retrieveFunc Retri
 	// 2. if missing
 	// 2.1 check the guard
 	// 2.2 do retrieve
-	ctx := c.getContext()
-	data, err, _ := c.getSingleFlightGroup().Do(key.Key(), func() (interface{}, error) {
-		return retrieveFunc(ctx, key)
+	// 防止首个请求取消导致后续请求失败
+	retrieveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), retrieveTimeout)
+	defer cancel()
+
+	data, err, _ := c.g.Do(key.Key(), func() (interface{}, error) {
+		return retrieveFunc(retrieveCtx, key)
 	})
 	// 2.3 do retrieve fail, make guard and return
 	if err != nil {
@@ -185,7 +171,7 @@ func (c *Cache) GetInto(key bkauthCache.Key, obj interface{}, retrieveFunc Retri
 	}
 
 	// 3. set to cache
-	errNotImportant := c.Set(key, data, 0)
+	errNotImportant := c.Set(ctx, key, data, 0)
 	if errNotImportant != nil {
 		zap.S().Errorf("set to redis fail, key=%s, err=%s", key.Key(), errNotImportant)
 	}
@@ -196,22 +182,19 @@ func (c *Cache) GetInto(key bkauthCache.Key, obj interface{}, retrieveFunc Retri
 }
 
 // Delete execute `del`
-func (c *Cache) Delete(key bkauthCache.Key) (err error) {
+func (c *Cache) Delete(ctx context.Context, key bkauthCache.Key) (err error) {
 	k := c.genKey(key.Key())
-
-	ctx := c.getContext()
 
 	_, err = c.cli.Del(ctx, k).Result()
 	return err
 }
 
 // BatchDelete execute `del` with pipeline
-func (c *Cache) BatchDelete(keys []bkauthCache.Key) error {
+func (c *Cache) BatchDelete(ctx context.Context, keys []bkauthCache.Key) error {
 	newKeys := make([]string, 0, len(keys))
 	for _, key := range keys {
 		newKeys = append(newKeys, c.genKey(key.Key()))
 	}
-	ctx := c.getContext()
 
 	var err error
 	if len(newKeys) < PipelineSizeThreshold {
@@ -229,9 +212,8 @@ func (c *Cache) BatchDelete(keys []bkauthCache.Key) error {
 }
 
 // BatchExpireWithTx execute `expire` with tx pipeline
-func (c *Cache) BatchExpireWithTx(keys []bkauthCache.Key, expiration time.Duration) error {
+func (c *Cache) BatchExpireWithTx(ctx context.Context, keys []bkauthCache.Key, expiration time.Duration) error {
 	pipe := c.cli.TxPipeline()
-	ctx := c.getContext()
 
 	for _, k := range keys {
 		key := c.genKey(k.Key())
@@ -249,10 +231,8 @@ type KV struct {
 }
 
 // BatchGet execute `get` with pipeline
-func (c *Cache) BatchGet(keys []bkauthCache.Key) (map[bkauthCache.Key]string, error) {
+func (c *Cache) BatchGet(ctx context.Context, keys []bkauthCache.Key) (map[bkauthCache.Key]string, error) {
 	pipe := c.cli.Pipeline()
-
-	ctx := c.getContext()
 
 	cmds := map[bkauthCache.Key]*redis.StringCmd{}
 	for _, k := range keys {
@@ -284,11 +264,9 @@ func (c *Cache) BatchGet(keys []bkauthCache.Key) (map[bkauthCache.Key]string, er
 }
 
 // BatchSetWithTx execute `set` with tx pipeline
-func (c *Cache) BatchSetWithTx(kvs []KV, expiration time.Duration) error {
+func (c *Cache) BatchSetWithTx(ctx context.Context, kvs []KV, expiration time.Duration) error {
 	// tx, all success or all fail
 	pipe := c.cli.TxPipeline()
-
-	ctx := c.getContext()
 
 	for _, kv := range kvs {
 		key := c.genKey(kv.Key)
@@ -306,9 +284,8 @@ type ZData struct {
 }
 
 // BatchZAdd execute `zadd` with pipeline
-func (c *Cache) BatchZAdd(zDataList []ZData) error {
+func (c *Cache) BatchZAdd(ctx context.Context, zDataList []ZData) error {
 	pipe := c.cli.TxPipeline()
-	ctx := c.getContext()
 
 	for _, zData := range zDataList {
 		key := c.genKey(zData.Key)
@@ -320,10 +297,15 @@ func (c *Cache) BatchZAdd(zDataList []ZData) error {
 }
 
 // ZRevRangeByScore execute `zrevrangebyscorewithscores`
-func (c *Cache) ZRevRangeByScore(k string, min int64, max int64, offset int64, count int64) ([]redis.Z, error) {
+func (c *Cache) ZRevRangeByScore(
+	ctx context.Context,
+	k string,
+	min int64,
+	max int64,
+	offset int64,
+	count int64,
+) ([]redis.Z, error) {
 	// 时间戳, 从大到小排序
-	ctx := c.getContext()
-
 	key := c.genKey(k)
 	// TODO: add limit, offset, count => to ignore the too large list size
 	// LIMIT 0 -1 equals no args
@@ -338,9 +320,8 @@ func (c *Cache) ZRevRangeByScore(k string, min int64, max int64, offset int64, c
 }
 
 // BatchZRemove execute `zremrangebyscore` with pipeline
-func (c *Cache) BatchZRemove(keys []string, min int64, max int64) error {
+func (c *Cache) BatchZRemove(ctx context.Context, keys []string, min int64, max int64) error {
 	pipe := c.cli.TxPipeline()
-	ctx := c.getContext()
 
 	minStr := strconv.FormatInt(min, 10)
 	maxStr := strconv.FormatInt(max, 10)
@@ -367,10 +348,9 @@ type Hash struct {
 }
 
 // BatchHSetWithTx execute `hset` with tx pipeline
-func (c *Cache) BatchHSetWithTx(hashes []Hash) error {
+func (c *Cache) BatchHSetWithTx(ctx context.Context, hashes []Hash) error {
 	// tx, all success or all fail
 	pipe := c.cli.TxPipeline()
-	ctx := c.getContext()
 
 	for _, h := range hashes {
 		key := c.genKey(h.Key)
@@ -382,10 +362,9 @@ func (c *Cache) BatchHSetWithTx(hashes []Hash) error {
 }
 
 // BatchHGet execute `hget` with pipeline
-func (c *Cache) BatchHGet(hashKeyFields []HashKeyField) (map[HashKeyField]string, error) {
+func (c *Cache) BatchHGet(ctx context.Context, hashKeyFields []HashKeyField) (map[HashKeyField]string, error) {
 	pipe := c.cli.Pipeline()
 
-	ctx := c.getContext()
 	cmds := make(map[HashKeyField]*redis.StringCmd, len(hashKeyFields))
 	for _, h := range hashKeyFields {
 		key := c.genKey(h.Key)
@@ -416,9 +395,9 @@ func (c *Cache) BatchHGet(hashKeyFields []HashKeyField) (map[HashKeyField]string
 }
 
 // HKeys execute `hkeys`
-func (c *Cache) HKeys(hashKey string) ([]string, error) {
+func (c *Cache) HKeys(ctx context.Context, hashKey string) ([]string, error) {
 	key := c.genKey(hashKey)
-	return c.cli.HKeys(c.getContext(), key).Result()
+	return c.cli.HKeys(ctx, key).Result()
 }
 
 // Unmarshal with compress, via go-redis/cache, use s2 compression

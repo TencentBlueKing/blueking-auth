@@ -19,23 +19,26 @@
 package memory
 
 import (
+	"context"
 	"time"
 
 	"bkauth/pkg/cache"
 )
 
 // RetrieveFunc ...
-type RetrieveFunc func(key cache.Key) (interface{}, error)
+type RetrieveFunc func(ctx context.Context, key cache.Key) (interface{}, error)
 
-// Cache ...
+// Cache 本地内存缓存接口
+// 仅 retrieve 相关方法需要 ctx
+// Set/Delete/Exists 为纯内存操作，无需 ctx
 type Cache interface {
-	Get(key cache.Key) (interface{}, error)
+	Get(ctx context.Context, key cache.Key) (interface{}, error)
 	Set(key cache.Key, data interface{})
 
-	GetString(key cache.Key) (string, error)
-	GetBool(key cache.Key) (bool, error)
-	GetTime(key cache.Key) (time.Time, error)
-	GetInt64(key cache.Key) (int64, error)
+	GetString(ctx context.Context, key cache.Key) (string, error)
+	GetBool(ctx context.Context, key cache.Key) (bool, error)
+	GetTime(ctx context.Context, key cache.Key) (time.Time, error)
+	GetInt64(ctx context.Context, key cache.Key) (int64, error)
 
 	Delete(key cache.Key) error
 	Exists(key cache.Key) bool

@@ -49,7 +49,7 @@ func GetApp(ctx context.Context, appCode string) (app types.App, err error) {
 		AppCode: appCode,
 	}
 
-	err = AppCache.WithContext(ctx).GetInto(key, &app, retrieveApp)
+	err = AppCache.GetInto(ctx, key, &app, retrieveApp)
 	if err != nil {
 		err = errorx.Wrapf(err, CacheLayer, "GetApp",
 			"AppCache.GetInto appCode=`%s` fail", appCode)
@@ -60,13 +60,11 @@ func GetApp(ctx context.Context, appCode string) (app types.App, err error) {
 }
 
 func DeleteAppCache(ctx context.Context, appCode string) (err error) {
-	c := AppExistsCache.WithContext(ctx)
-
 	// delete app exists cache
 	key := AppExistsKey{
 		AppCode: appCode,
 	}
-	err = c.Delete(key)
+	err = AppExistsCache.Delete(ctx, key)
 	if err != nil {
 		zap.S().Errorf("delete app exists cache fail, appCode=%s, err=%v", appCode, err)
 		return err
@@ -77,7 +75,7 @@ func DeleteAppCache(ctx context.Context, appCode string) (err error) {
 		AppCode: appCode,
 	}
 
-	err = AppCache.WithContext(ctx).Delete(key2)
+	err = AppCache.Delete(ctx, key2)
 	if err != nil {
 		zap.S().Errorf("delete app cache fail, appCode=%s, err=%v", appCode, err)
 		return err

@@ -19,6 +19,7 @@
 package memory
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -27,7 +28,7 @@ import (
 	"bkauth/pkg/cache"
 )
 
-func retrieveOK(k cache.Key) (interface{}, error) {
+func retrieveOK(ctx context.Context, k cache.Key) (interface{}, error) {
 	return "ok", nil
 }
 

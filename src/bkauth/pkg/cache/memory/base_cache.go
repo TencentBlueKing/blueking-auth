@@ -19,6 +19,7 @@
 package memory
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -28,8 +29,12 @@ import (
 	"bkauth/pkg/cache/memory/backend"
 )
 
-// EmptyCacheExpiration ...
-const EmptyCacheExpiration = 5 * time.Second
+const (
+	// EmptyCacheExpiration ...
+	EmptyCacheExpiration = 5 * time.Second
+
+	retrieveTimeout = 10 * time.Second
+)
 
 // BaseCache ...
 type BaseCache struct {
@@ -53,10 +58,10 @@ func (c *BaseCache) Exists(key cache.Key) bool {
 }
 
 // Get will get the key from cache, if missing, will call the retrieveFunc to get the data, add to cache, then return
-func (c *BaseCache) Get(key cache.Key) (interface{}, error) {
+func (c *BaseCache) Get(ctx context.Context, key cache.Key) (interface{}, error) {
 	// 1. if cache is disabled, fetch and return
 	if c.disabled {
-		value, err := c.retrieveFunc(key)
+		value, err := c.retrieveFunc(ctx, key)
 		if err != nil {
 			return nil, err
 		}
@@ -76,15 +81,18 @@ func (c *BaseCache) Get(key cache.Key) (interface{}, error) {
 	}
 
 	// 3. if not exists in cache, retrieve it
-	return c.doRetrieve(key)
+	return c.doRetrieve(ctx, key)
 }
 
-func (c *BaseCache) doRetrieve(k cache.Key) (interface{}, error) {
+func (c *BaseCache) doRetrieve(ctx context.Context, k cache.Key) (interface{}, error) {
 	key := k.Key()
 
-	// 3.2 fetch
+	// 防止首个请求取消导致后续请求失败
+	retrieveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), retrieveTimeout)
+	defer cancel()
+
 	value, err, _ := c.g.Do(key, func() (interface{}, error) {
-		return c.retrieveFunc(k)
+		return c.retrieveFunc(retrieveCtx, k)
 	})
 
 	if err != nil {
@@ -108,8 +116,8 @@ func (c *BaseCache) Set(key cache.Key, data interface{}) {
 // TODO: 这里需要实现所有类型的 GetXXXX
 
 // ! if retrieve fail, will return ("", err) for expire time
-func (c *BaseCache) GetString(k cache.Key) (string, error) {
-	value, err := c.Get(k)
+func (c *BaseCache) GetString(ctx context.Context, k cache.Key) (string, error) {
+	value, err := c.Get(ctx, k)
 	if err != nil {
 		return "", err
 	}
@@ -122,22 +130,22 @@ func (c *BaseCache) GetString(k cache.Key) (string, error) {
 }
 
 // GetBool ...
-func (c *BaseCache) GetBool(k cache.Key) (bool, error) {
-	value, err := c.Get(k)
+func (c *BaseCache) GetBool(ctx context.Context, k cache.Key) (bool, error) {
+	value, err := c.Get(ctx, k)
 	if err != nil {
 		return false, err
 	}
 
 	v, ok := value.(bool)
 	if !ok {
-		return false, fmt.Errorf("not a string value. key=%s, value=%v(%T)", k.Key(), value, value)
+		return false, fmt.Errorf("not a bool value. key=%s, value=%v(%T)", k.Key(), value, value)
 	}
 	return v, nil
 }
 
 // GetInt64 ...
-func (c *BaseCache) GetInt64(k cache.Key) (int64, error) {
-	value, err := c.Get(k)
+func (c *BaseCache) GetInt64(ctx context.Context, k cache.Key) (int64, error) {
+	value, err := c.Get(ctx, k)
 	if err != nil {
 		return 0, err
 	}
@@ -152,15 +160,15 @@ func (c *BaseCache) GetInt64(k cache.Key) (int64, error) {
 var defaultZeroTime = time.Time{}
 
 // GetTime ...
-func (c *BaseCache) GetTime(k cache.Key) (time.Time, error) {
-	value, err := c.Get(k)
+func (c *BaseCache) GetTime(ctx context.Context, k cache.Key) (time.Time, error) {
+	value, err := c.Get(ctx, k)
 	if err != nil {
 		return defaultZeroTime, err
 	}
 
 	v, ok := value.(time.Time)
 	if !ok {
-		return defaultZeroTime, fmt.Errorf("not a string value. key=%s, value=%v(%T)", k.Key(), value, value)
+		return defaultZeroTime, fmt.Errorf("not a time.Time value. key=%s, value=%v(%T)", k.Key(), value, value)
 	}
 	return v, nil
 }
