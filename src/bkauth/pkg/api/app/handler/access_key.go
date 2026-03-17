@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package handler provides HTTP handlers for app-related APIs.
 package handler
 
 import (
@@ -24,6 +25,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
+	"go.uber.org/zap"
 
 	"bkauth/pkg/api/common"
 	cacheImpls "bkauth/pkg/cache/impls"
@@ -87,7 +89,9 @@ func CreateAccessKey(c *gin.Context) {
 	}
 
 	// 缓存里删除 appCode 的所有 Secret
-	cacheImpls.DeleteAccessKey(ctx, appCode)
+	if err := cacheImpls.DeleteAccessKey(ctx, appCode); err != nil {
+		zap.S().Warnf("delete access key cache failed, appCode=%s, err=%s", appCode, err)
+	}
 
 	util.SuccessJSONResponse(c, "ok", accessKey)
 }
@@ -139,7 +143,9 @@ func DeleteAccessKey(c *gin.Context) {
 	}
 
 	// 缓存里删除 appCode 的所有 Secret
-	cacheImpls.DeleteAccessKey(ctx, appCode)
+	if err := cacheImpls.DeleteAccessKey(ctx, appCode); err != nil {
+		zap.S().Warnf("delete access key cache failed, appCode=%s, err=%s", appCode, err)
+	}
 
 	util.SuccessJSONResponse(c, "ok", nil)
 }
@@ -172,7 +178,13 @@ func ListAccessKey(c *gin.Context) {
 	svc := service.NewAccessKeyService()
 	accessKeys, err := svc.ListWithCreatedAtByAppCode(ctx, appCode)
 	if err != nil {
-		err = errorx.Wrapf(err, "Handler", "ListAccessKey", "svc.ListWithCreatedAtByAppCode appCode=`%s` fail", appCode)
+		err = errorx.Wrapf(
+			err,
+			"Handler",
+			"ListAccessKey",
+			"svc.ListWithCreatedAtByAppCode appCode=`%s` fail",
+			appCode,
+		)
 		util.SystemErrorJSONResponse(c, err)
 		return
 	}
@@ -213,7 +225,13 @@ func VerifyAccessKey(c *gin.Context) {
 	ctx := c.Request.Context()
 	exists, err := cacheImpls.VerifyAccessKey(ctx, appCode, appSecret)
 	if err != nil {
-		err = errorx.Wrapf(err, "Handler", "VerifyAccessKey", "impls.VerifyAccessKey appCode=`%s` fail", appCode)
+		err = errorx.Wrapf(
+			err,
+			"Handler",
+			"VerifyAccessKey",
+			"impls.VerifyAccessKey appCode=`%s` fail",
+			appCode,
+		)
 		util.SystemErrorJSONResponse(c, err)
 		return
 	}
@@ -264,7 +282,7 @@ func UpdateAccessKey(c *gin.Context) {
 	// 更新 accessKey
 
 	// 获取更新的 updateFieldMap：如果是空则不更新
-	var updateFieldMap map[string]interface{}
+	var updateFieldMap map[string]any
 	err := mapstructure.Decode(body, &updateFieldMap)
 	if err != nil {
 		util.BadRequestErrorJSONResponse(c, err.Error())

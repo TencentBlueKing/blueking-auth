@@ -19,6 +19,7 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -43,7 +44,7 @@ func (v ValidationFieldError) String() string {
 
 	switch e.Tag() {
 	case "required":
-		return fmt.Sprintf("%s is required", e.Field())
+		return e.Field() + " is required"
 	case "max":
 		return fmt.Sprintf("%s cannot be longer than %s", e.Field(), e.Param())
 	case "min":
@@ -69,12 +70,12 @@ func (v ValidationFieldError) String() string {
 
 // ValidationErrorMessage ...
 func ValidationErrorMessage(err error) string {
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		return "EOF, json decode fail"
 	}
 
-	validationErrs, ok := err.(validator.ValidationErrors)
-	if !ok {
+	var validationErrs validator.ValidationErrors
+	if !errors.As(err, &validationErrs) {
 		message := fmt.Sprintf("json decode or validate fail, err=%s", err)
 		zap.S().Info(message)
 		return message

@@ -69,6 +69,7 @@ var AuditRequestMethod = map[string]bool{
 	"PATCH":  true,
 }
 
+// AuditLogger records audit logs for mutating requests and API logs for the rest.
 func AuditLogger() gin.HandlerFunc {
 	auditLogger := logging.GetAuditLogger()
 	apiLogger := logging.GetAPILogger()
@@ -141,7 +142,7 @@ func logContextFields(c *gin.Context, logFullRequestBody bool) []zap.Field {
 	if hasError && e != nil {
 		util.ReportToSentry(
 			fmt.Sprintf("%s %s error", c.Request.Method, c.Request.URL.Path),
-			map[string]interface{}{
+			map[string]any{
 				"fields": fields,
 			},
 		)

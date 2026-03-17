@@ -59,7 +59,7 @@ var _ = Describe("Basic", func() {
 			Get("/version").
 			Expect(t).
 			Assert(
-				util.NewJSONAssertFunc(t, func(m map[string]interface{}) error {
+				util.NewJSONAssertFunc(t, func(m map[string]any) error {
 					assert.Contains(t, m, "version")
 					assert.Contains(t, m, "commit")
 					assert.Contains(t, m, "buildTime")

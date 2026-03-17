@@ -44,14 +44,14 @@ var TestingContent = []byte("Hello, World!")
 
 // NewRequestResponse ...
 func NewRequestResponse() (*http.Request, *httptest.ResponseRecorder) {
-	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(TestingContent))
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(TestingContent)) //nolint:noctx
 	w := httptest.NewRecorder()
 	return r, w
 }
 
 // NewRequestResponseWithContent ...
 func NewRequestResponseWithContent(content []byte) (*http.Request, *httptest.ResponseRecorder) {
-	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(content))
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(content)) //nolint:noctx
 	w := httptest.NewRecorder()
 	return r, w
 }
@@ -74,7 +74,7 @@ func (errReader) Read(p []byte) (n int, err error) {
 
 // NewRequestErrorResponse ...
 func NewRequestErrorResponse() (*http.Request, *httptest.ResponseRecorder) {
-	r := httptest.NewRequest(http.MethodPost, "/", errReader(0))
+	r := httptest.NewRequest(http.MethodPost, "/", errReader(0)) //nolint:noctx
 	w := httptest.NewRecorder()
 	return r, w
 }
@@ -112,11 +112,11 @@ func NewTestRouter(r *gin.Engine) {
 }
 
 // CreateTestingServer ...
-func CreateTestingServer(data interface{}) *httptest.Server {
+func CreateTestingServer(data any) *httptest.Server {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		respBody, _ := jsoniter.Marshal(data)
 		w.WriteHeader(http.StatusOK)
-		w.Write(respBody)
+		w.Write(respBody) //nolint:errcheck
 	}))
 	return ts
 }
@@ -124,10 +124,10 @@ func CreateTestingServer(data interface{}) *httptest.Server {
 // CreateTesting500Server ...
 func CreateTesting500Server() *httptest.Server {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		respBody, _ := jsoniter.Marshal(map[string]interface{}{})
+		respBody, _ := jsoniter.Marshal(map[string]any{})
 		w.WriteHeader(http.StatusInternalServerError)
 		// w.Write([]byte("Internal Server Error"))
-		w.Write(respBody)
+		w.Write(respBody) //nolint:errcheck
 	}))
 	return ts
 }
@@ -135,7 +135,7 @@ func CreateTesting500Server() *httptest.Server {
 // for apitest https://github.com/steinfletcher/apitest
 
 // JSONAssertFunc ...
-type JSONAssertFunc func(map[string]interface{}) error
+type JSONAssertFunc func(map[string]any) error
 
 // type JSONAssertFunc func(Response) error
 
@@ -145,9 +145,9 @@ func NewJSONAssertFunc(t assert.TestingT, assertFunc JSONAssertFunc) func(res *h
 		body, err := io.ReadAll(res.Body)
 		assert.NoError(t, err, "read body from response fail")
 
-		defer res.Body.Close()
+		defer res.Body.Close() //nolint:errcheck
 
-		var data map[string]interface{}
+		var data map[string]any
 		// var data Response
 
 		err = json.Unmarshal(body, &data)
@@ -169,7 +169,7 @@ func NewResponseAssertFunc(
 		body, err := io.ReadAll(res.Body)
 		assert.NoError(t, err, "read body from response fail")
 
-		defer res.Body.Close()
+		defer res.Body.Close() //nolint:errcheck
 
 		var data Response
 
@@ -232,15 +232,20 @@ func CreateNewAPIRequestFunc(
 			caser.String(method),
 		).Call([]reflect.Value{reflect.ValueOf(url)})
 
+		req, ok := reflectValues[0].Interface().(*apitest.Request)
+		if !ok {
+			t.Fatalf("unexpected type from apitest method: %T", reflectValues[0].Interface())
+		}
+
 		return &GinAPIRequest{
 			t:       t,
-			request: reflectValues[0].Interface().(*apitest.Request),
+			request: req,
 		}
 	}
 }
 
 // JSON ...
-func (g *GinAPIRequest) JSON(data interface{}) *GinAPIRequest {
+func (g *GinAPIRequest) JSON(data any) *GinAPIRequest {
 	g.request.JSON(data)
 
 	return g
@@ -250,7 +255,7 @@ func (g *GinAPIRequest) JSON(data interface{}) *GinAPIRequest {
 func (g *GinAPIRequest) NoJSON() {
 	g.request.
 		Expect(g.t).
-		Assert(NewResponseAssertFunc(g.t, func(resp Response) error {
+		Assert(NewResponseAssertFunc(g.t, func(resp Response) error { //nolint:bodyclose
 			assert.Equal(g.t, BadRequestError, resp.Code)
 			return nil
 		})).
@@ -262,7 +267,7 @@ func (g *GinAPIRequest) NoJSON() {
 func (g *GinAPIRequest) BadRequest(message string) {
 	g.request.
 		Expect(g.t).
-		Assert(NewResponseAssertFunc(g.t, func(resp Response) error {
+		Assert(NewResponseAssertFunc(g.t, func(resp Response) error { //nolint:bodyclose
 			assert.Equal(g.t, BadRequestError, resp.Code)
 			assert.Equal(g.t, message, resp.Message)
 			return nil
@@ -275,7 +280,7 @@ func (g *GinAPIRequest) BadRequest(message string) {
 func (g *GinAPIRequest) BadRequestContainsMessage(message string) {
 	g.request.
 		Expect(g.t).
-		Assert(NewResponseAssertFunc(g.t, func(resp Response) error {
+		Assert(NewResponseAssertFunc(g.t, func(resp Response) error { //nolint:bodyclose
 			assert.Equal(g.t, BadRequestError, resp.Code)
 			assert.Contains(g.t, resp.Message, message)
 			return nil
@@ -288,6 +293,7 @@ func (g *GinAPIRequest) BadRequestContainsMessage(message string) {
 func (g *GinAPIRequest) SystemError() {
 	g.request.
 		Expect(g.t).
+		//nolint:bodyclose // closed inside NewResponseAssertFunc
 		Assert(NewResponseAssertFunc(g.t, func(resp Response) error {
 			assert.Equal(g.t, SystemError, resp.Code)
 			assert.Contains(g.t, resp.Message, "system error")
@@ -301,7 +307,7 @@ func (g *GinAPIRequest) SystemError() {
 func (g *GinAPIRequest) OK() {
 	g.request.
 		Expect(g.t).
-		Assert(NewResponseAssertFunc(g.t, func(resp Response) error {
+		Assert(NewResponseAssertFunc(g.t, func(resp Response) error { //nolint:bodyclose
 			assert.Equal(g.t, NoError, resp.Code)
 			return nil
 		})).

@@ -59,6 +59,7 @@ func AppCodeExists() gin.HandlerFunc {
 	}
 }
 
+// AccessKeyExists ensures the requested access key exists for the given app.
 func AccessKeyExists() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var uriParams AccessKeyAndAppCodeSerializer
@@ -78,14 +79,22 @@ func AccessKeyExists() gin.HandlerFunc {
 		if err != nil {
 			util.SystemErrorJSONResponse(
 				c,
-				fmt.Errorf("query access_key_id(%d) of app(%s) fail, error: %w", accessKeyID, appCode, err),
+				fmt.Errorf(
+					"query access_key_id(%d) of app(%s) fail, error: %w",
+					accessKeyID,
+					appCode,
+					err,
+				),
 			)
 			c.Abort()
 			return
 		}
 
 		if !exists {
-			util.NotFoundJSONResponse(c, fmt.Sprintf("AccessKeyID(%d) of app(%s) not exists", accessKeyID, appCode))
+			util.NotFoundJSONResponse(
+				c,
+				fmt.Sprintf("AccessKeyID(%d) of app(%s) not exists", accessKeyID, appCode),
+			)
 			c.Abort()
 			return
 		}
@@ -94,11 +103,15 @@ func AccessKeyExists() gin.HandlerFunc {
 	}
 }
 
+// NewAPIAllowMiddleware checks whether the calling app is allowed to use the API.
 func NewAPIAllowMiddleware(api string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		accessAppCode := util.GetAccessAppCode(c)
 		if !IsAPIAllow(api, accessAppCode) {
-			util.ForbiddenJSONResponse(c, fmt.Sprintf("this app_code(%s) can't call api(%s)", accessAppCode, api))
+			util.ForbiddenJSONResponse(
+				c,
+				fmt.Sprintf("this app_code(%s) can't call api(%s)", accessAppCode, api),
+			)
 			c.Abort()
 			return
 		}

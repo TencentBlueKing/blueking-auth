@@ -26,14 +26,14 @@ import (
 var _ = Describe("sqlx", func() {
 	Describe("GetSetClause", func() {
 		It("one parameters", func() {
-			b := GetSetClause(map[string]interface{}{
+			b := GetSetClause(map[string]any{
 				"user_name": "test",
 			})
 			assert.Equal(GinkgoT(), "user_name = :user_name", b)
 		})
 
 		It("multiple parameters", func() {
-			b := GetSetClause(map[string]interface{}{
+			b := GetSetClause(map[string]any{
 				"user_name": "test",
 				"status":    true,
 			})

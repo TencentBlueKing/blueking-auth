@@ -50,6 +50,7 @@ type AccessKeyAndAppCodeSerializer struct {
 	AccessKeyID int64 `uri:"access_key_id" binding:"required" example:"1"`
 }
 
+// ValidateAppCode validates the app code format.
 func (s *AppCodeSerializer) ValidateAppCode() error {
 	// app_code 的规则是：
 	// 由小写英文字母、连接符 (-)、下划线 (_) 或数字组成，长度为 [1~32] 个字符，并且以字母或数字开头 (^[a-z0-9][a-z0-9_-]{0,31}$)
@@ -64,6 +65,7 @@ type PageParamSerializer struct {
 	PageSize int `form:"page_size" binding:"omitempty,min=1,max=100" example:"10"`
 }
 
+// GetPage returns the current page, defaulting to 1.
 func (p *PageParamSerializer) GetPage() int {
 	if p.Page == 0 {
 		return 1
@@ -71,6 +73,7 @@ func (p *PageParamSerializer) GetPage() int {
 	return p.Page
 }
 
+// GetPageSize returns the current page size, defaulting to `DefaultPageSize`.
 func (p *PageParamSerializer) GetPageSize() int {
 	if p.PageSize == 0 {
 		return DefaultPageSize
@@ -91,6 +94,6 @@ type AppResponse struct {
 }
 
 type PaginatedResponse struct {
-	Count   int         `json:"count"`
-	Results interface{} `json:"results"`
+	Count   int `json:"count"`
+	Results any `json:"results"`
 }

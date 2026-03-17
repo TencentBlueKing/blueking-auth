@@ -20,6 +20,7 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -45,13 +46,13 @@ func RollBackWithLog(tx *sqlx.Tx) {
 		return
 	}
 	err := tx.Rollback()
-	if err != sql.ErrTxDone && err != nil {
+	if err != nil && !errors.Is(err, sql.ErrTxDone) {
 		logging.GetSQLLogger().Sugar().Error(err)
 	}
 }
 
 // ============== slow sql logger ==============
-func logSlowSQL(start time.Time, query string, args interface{}) {
+func logSlowSQL(start time.Time, query string, args any) {
 	elapsed := time.Since(start)
 	// to ms
 	latency := float64(elapsed / time.Millisecond)
@@ -69,7 +70,7 @@ func logSlowSQL(start time.Time, query string, args interface{}) {
 	}
 }
 
-func truncateArgs(args interface{}, length int) string {
+func truncateArgs(args any, length int) string {
 	s, err := jsoniter.MarshalToString(args)
 	if err != nil {
 		s = fmt.Sprintf("%v", args)
@@ -119,9 +120,9 @@ func (a *AllowBlankFields) AddKey(key string) {
 }
 
 // ParseUpdateStruct parse a struct into updated fields
-func ParseUpdateStruct(values interface{}, allowBlankFields AllowBlankFields) (string, map[string]interface{}, error) {
+func ParseUpdateStruct(values any, allowBlankFields AllowBlankFields) (string, map[string]any, error) {
 	var setFields []string
-	updateData := map[string]interface{}{}
+	updateData := map[string]any{}
 
 	// TODO: allowBlankFields maybe nil?
 
@@ -130,7 +131,7 @@ func ParseUpdateStruct(values interface{}, allowBlankFields AllowBlankFields) (s
 		v = v.Elem()
 	}
 	if v.Kind() == reflect.Struct {
-		for i := 0; i < v.NumField(); i++ {
+		for i := range v.NumField() {
 			dbField := v.Type().Field(i).Tag.Get("db")
 			if dbField == "" {
 				continue

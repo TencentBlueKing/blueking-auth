@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package cli provides command-line helpers for manual administration tasks.
 package cli
 
 import (
@@ -30,6 +31,7 @@ import (
 	"bkauth/pkg/service/types"
 )
 
+// ListAccessKey lists access keys for one or more comma-separated app codes.
 func ListAccessKey(appCodeParam string) {
 	// 1. 不允许为空
 	if appCodeParam == "" {
@@ -65,6 +67,7 @@ func ListAccessKey(appCodeParam string) {
 	}
 }
 
+// DeleteAccessKey deletes an access key by app code and access key id.
 func DeleteAccessKey(appCode string, accessKeyID int64) {
 	// 1. 不允许为空
 	if appCode == "" {

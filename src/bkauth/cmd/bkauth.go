@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package cmd defines the application command-line entrypoints and subcommands.
 package cmd
 
 import (
@@ -41,7 +42,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
 	rootCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
 
-	rootCmd.MarkFlagRequired("config")
+	rootCmd.MarkFlagRequired("config") //nolint:errcheck
 	viper.SetDefault("author", "blueking-paas")
 }
 

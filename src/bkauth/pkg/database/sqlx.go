@@ -27,40 +27,40 @@ import (
 )
 
 // ============== timer ==============
-type queryFunc func(ctx context.Context, db *sqlx.DB, dest interface{}, query string, args ...interface{}) error
+type queryFunc func(ctx context.Context, db *sqlx.DB, dest any, query string, args ...any) error
 
 func queryTimer(f queryFunc) queryFunc {
-	return func(ctx context.Context, db *sqlx.DB, dest interface{}, query string, args ...interface{}) error {
+	return func(ctx context.Context, db *sqlx.DB, dest any, query string, args ...any) error {
 		start := time.Now()
 		defer logSlowSQL(start, query, args)
 		return f(ctx, db, dest, query, args...)
 	}
 }
 
-type deleteFunc func(ctx context.Context, db *sqlx.DB, query string, args ...interface{}) (int64, error)
+type deleteFunc func(ctx context.Context, db *sqlx.DB, query string, args ...any) (int64, error)
 
 func deleteTimer(f deleteFunc) deleteFunc {
-	return func(ctx context.Context, db *sqlx.DB, query string, args ...interface{}) (int64, error) {
+	return func(ctx context.Context, db *sqlx.DB, query string, args ...any) (int64, error) {
 		start := time.Now()
 		defer logSlowSQL(start, query, args)
 		return f(ctx, db, query, args...)
 	}
 }
 
-type insertFunc func(ctx context.Context, db *sqlx.DB, query string, args interface{}) (int64, error)
+type insertFunc func(ctx context.Context, db *sqlx.DB, query string, args any) (int64, error)
 
 func insertTimer(f insertFunc) insertFunc {
-	return func(ctx context.Context, db *sqlx.DB, query string, args interface{}) (int64, error) {
+	return func(ctx context.Context, db *sqlx.DB, query string, args any) (int64, error) {
 		start := time.Now()
 		defer logSlowSQL(start, query, args)
 		return f(ctx, db, query, args)
 	}
 }
 
-type updateFunc func(ctx context.Context, db *sqlx.DB, query string, args interface{}) (int64, error)
+type updateFunc func(ctx context.Context, db *sqlx.DB, query string, args any) (int64, error)
 
 func updateTimer(f updateFunc) updateFunc {
-	return func(ctx context.Context, db *sqlx.DB, query string, args interface{}) (int64, error) {
+	return func(ctx context.Context, db *sqlx.DB, query string, args any) (int64, error) {
 		start := time.Now()
 		defer logSlowSQL(start, query, args)
 		return f(ctx, db, query, args)
@@ -68,7 +68,7 @@ func updateTimer(f updateFunc) updateFunc {
 }
 
 // ================== raw execute func ==================
-func sqlxSelectFunc(ctx context.Context, db *sqlx.DB, dest interface{}, query string, args ...interface{}) error {
+func sqlxSelectFunc(ctx context.Context, db *sqlx.DB, dest any, query string, args ...any) error {
 	query, args, err := sqlx.In(query, args...)
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func sqlxSelectFunc(ctx context.Context, db *sqlx.DB, dest interface{}, query st
 	return db.SelectContext(ctx, dest, query, args...)
 }
 
-func sqlxGetFunc(ctx context.Context, db *sqlx.DB, dest interface{}, query string, args ...interface{}) error {
+func sqlxGetFunc(ctx context.Context, db *sqlx.DB, dest any, query string, args ...any) error {
 	query, args, err := sqlx.In(query, args...)
 	if err != nil {
 		return err
@@ -84,7 +84,7 @@ func sqlxGetFunc(ctx context.Context, db *sqlx.DB, dest interface{}, query strin
 	return db.GetContext(ctx, dest, query, args...)
 }
 
-func sqlxDeleteFunc(ctx context.Context, db *sqlx.DB, query string, args ...interface{}) (int64, error) {
+func sqlxDeleteFunc(ctx context.Context, db *sqlx.DB, query string, args ...any) (int64, error) {
 	query, args, err := sqlx.In(query, args...)
 	if err != nil {
 		return 0, err
@@ -101,7 +101,7 @@ func sqlxDeleteFunc(ctx context.Context, db *sqlx.DB, query string, args ...inte
 // sqlxInsertFunc : 主要该函数支持单个也支持批量插入，返回是最早插入记录的自增列ID
 // query: sql语句需要使用`name占位`方式，而非`?占位`
 // args可以是 map、struct、[]map、[]struct
-func sqlxInsertFunc(ctx context.Context, db *sqlx.DB, query string, args interface{}) (int64, error) {
+func sqlxInsertFunc(ctx context.Context, db *sqlx.DB, query string, args any) (int64, error) {
 	result, err := db.NamedExecContext(ctx, query, args)
 	if err != nil {
 		return 0, err
@@ -110,7 +110,7 @@ func sqlxInsertFunc(ctx context.Context, db *sqlx.DB, query string, args interfa
 	return result.LastInsertId()
 }
 
-func sqlxUpdateFunc(ctx context.Context, db *sqlx.DB, query string, args interface{}) (int64, error) {
+func sqlxUpdateFunc(ctx context.Context, db *sqlx.DB, query string, args any) (int64, error) {
 	result, err := db.NamedExecContext(ctx, query, args)
 	if err != nil {
 		return 0, err
@@ -125,20 +125,20 @@ func sqlxUpdateFunc(ctx context.Context, db *sqlx.DB, query string, args interfa
 }
 
 // ============== timer with tx ==============
-type insertWithTxFunc func(ctx context.Context, tx *sqlx.Tx, query string, args interface{}) (int64, error)
+type insertWithTxFunc func(ctx context.Context, tx *sqlx.Tx, query string, args any) (int64, error)
 
 func insertWithTxTimer(f insertWithTxFunc) insertWithTxFunc {
-	return func(ctx context.Context, tx *sqlx.Tx, query string, args interface{}) (int64, error) {
+	return func(ctx context.Context, tx *sqlx.Tx, query string, args any) (int64, error) {
 		start := time.Now()
 		defer logSlowSQL(start, query, args)
 		return f(ctx, tx, query, args)
 	}
 }
 
-type deleteWithTxFunc func(ctx context.Context, tx *sqlx.Tx, query string, args ...interface{}) (int64, error)
+type deleteWithTxFunc func(ctx context.Context, tx *sqlx.Tx, query string, args ...any) (int64, error)
 
 func deleteWithTxTimer(f deleteWithTxFunc) deleteWithTxFunc {
-	return func(ctx context.Context, tx *sqlx.Tx, query string, args ...interface{}) (int64, error) {
+	return func(ctx context.Context, tx *sqlx.Tx, query string, args ...any) (int64, error) {
 		start := time.Now()
 		defer logSlowSQL(start, query, args)
 		return f(ctx, tx, query, args...)
@@ -149,7 +149,7 @@ func deleteWithTxTimer(f deleteWithTxFunc) deleteWithTxFunc {
 // sqlxInsertWithTx : 主要该函数支持单个也支持批量插入，返回是最早插入记录的自增列ID
 // query: sql语句需要使用`name占位`方式，而非`?占位`
 // args: 可以是 map、struct、[]map、[]struct
-func sqlxInsertWithTx(ctx context.Context, tx *sqlx.Tx, query string, args interface{}) (int64, error) {
+func sqlxInsertWithTx(ctx context.Context, tx *sqlx.Tx, query string, args any) (int64, error) {
 	result, err := tx.NamedExecContext(ctx, query, args)
 	if err != nil {
 		return 0, err
@@ -158,7 +158,7 @@ func sqlxInsertWithTx(ctx context.Context, tx *sqlx.Tx, query string, args inter
 	return result.LastInsertId()
 }
 
-func sqlxDeleteWithTx(ctx context.Context, tx *sqlx.Tx, query string, args ...interface{}) (int64, error) {
+func sqlxDeleteWithTx(ctx context.Context, tx *sqlx.Tx, query string, args ...any) (int64, error) {
 	query, args, err := sqlx.In(query, args...)
 	if err != nil {
 		return 0, err
@@ -184,9 +184,9 @@ var (
 	SqlxDeleteWithTx = deleteWithTxTimer(sqlxDeleteWithTx)
 )
 
-// GetSetClause
+// GetSetClause builds a SQL SET clause from params map.
 // eg: params: {"name": "test","status": false} => name = :name , status: status
-func GetSetClause(params map[string]interface{}) string {
+func GetSetClause(params map[string]any) string {
 	var filedList []string
 	for param := range params {
 		filedList = append(filedList, param+` = :`+param)

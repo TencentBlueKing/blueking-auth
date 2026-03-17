@@ -51,7 +51,7 @@ func BenchmarkLoggingWithoutDesensitize(b *testing.B) {
 	logger := zap.New(core)
 	defer logger.Sync()
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"username":           "user1",
 		"password":           "password1",
 		"credit_card_number": "1234-5678-9012-3456",
@@ -85,7 +85,7 @@ func BenchmarkLoggingWithDesensitize(b *testing.B) {
 	}))
 	defer logger.Sync()
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"username":           "user1",
 		"password":           "passwor",
 		"credit_card_number": "1234-5678-9012-3456",
@@ -115,7 +115,7 @@ func BenchmarkLoggingJSONWithoutDesensitize(b *testing.B) {
 	logger := zap.New(core)
 	defer logger.Sync()
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"username":           "user1",
 		"password":           "password1",
 		"credit_card_number": "1234-5678-9012-3456",
@@ -151,7 +151,7 @@ func BenchmarkLoggingJSONWithDesensitize(b *testing.B) {
 	}))
 	defer logger.Sync()
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"username":           "user1",
 		"password":           "password1",
 		"credit_card_number": "1234-5678-9012-3456",
@@ -187,7 +187,7 @@ func TestDesensitize_JsonArray(t *testing.T) {
 	}))
 	defer logger.Sync()
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"data": []struct {
 			BkAppSecret string `json:"bk_app_secret"`
 			BkAppCode   string `json:"bk_app_code"`

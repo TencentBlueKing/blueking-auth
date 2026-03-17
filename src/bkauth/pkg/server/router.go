@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package server provides HTTP server setup and routing helpers.
 package server
 
 import (

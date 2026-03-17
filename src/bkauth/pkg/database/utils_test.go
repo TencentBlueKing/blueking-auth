@@ -71,12 +71,12 @@ var _ = Describe("Utils", func() {
 	})
 })
 
-func truncateInterface(v interface{}) string {
+func truncateInterface(v any) string {
 	s := fmt.Sprintf("%v", v)
 	return util.TruncateString(s, 10)
 }
 
-func truncateInterfaceViaJSON(v interface{}) string {
+func truncateInterfaceViaJSON(v any) string {
 	s, err := jsoniter.MarshalToString(v)
 	if err != nil {
 		s = fmt.Sprintf("%v", v)

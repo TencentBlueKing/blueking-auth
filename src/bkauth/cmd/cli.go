@@ -67,6 +67,7 @@ var deleteAccessKeyCmd = &cobra.Command{
 	},
 }
 
+//nolint:errcheck
 func init() {
 	cliCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
 	cliCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")

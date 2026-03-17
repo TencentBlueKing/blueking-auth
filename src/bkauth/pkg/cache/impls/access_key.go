@@ -16,10 +16,12 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package impls provides cache-backed implementations for application data.
 package impls
 
 import (
 	"context"
+	"fmt"
 
 	"go.uber.org/zap"
 
@@ -34,12 +36,16 @@ type AccessKeysKey struct {
 	AppCode string
 }
 
+// Key returns the cache key for the app access keys.
 func (k AccessKeysKey) Key() string {
 	return k.AppCode
 }
 
-func retrieveAccessKeys(ctx context.Context, key cache.Key) (interface{}, error) {
-	k := key.(AccessKeysKey)
+func retrieveAccessKeys(ctx context.Context, key cache.Key) (any, error) {
+	k, ok := key.(AccessKeysKey)
+	if !ok {
+		return nil, fmt.Errorf("unexpected cache key type: %T", key)
+	}
 
 	svc := service.NewAccessKeyService()
 
@@ -88,6 +94,7 @@ func VerifyAccessKey(ctx context.Context, appCode, appSecret string) (bool, erro
 	return false, nil
 }
 
+// DeleteAccessKey removes the cached access keys for the given app.
 func DeleteAccessKey(ctx context.Context, appCode string) (err error) {
 	key := AccessKeysKey{
 		AppCode: appCode,

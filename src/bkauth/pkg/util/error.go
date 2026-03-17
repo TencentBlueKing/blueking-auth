@@ -40,7 +40,7 @@ const (
 )
 
 // ReportToSentry is a shortcut to build and send an event to sentry
-func ReportToSentry(message string, extra map[string]interface{}) {
+func ReportToSentry(message string, extra map[string]any) {
 	// report to sentry
 	ev := sentry.NewEvent()
 	ev.Message = message
@@ -58,12 +58,14 @@ func (e *ValidationError) Error() string {
 	return e.err.Error()
 }
 
+// ValidationErrorWrap wraps an error as a validation error.
 func ValidationErrorWrap(err error) *ValidationError {
 	return &ValidationError{
 		err: err,
 	}
 }
 
+// IsValidationError reports whether the error is a validation error.
 func IsValidationError(err error) bool {
 	var validationError *ValidationError
 	return errors.As(err, &validationError)

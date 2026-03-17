@@ -30,14 +30,14 @@ import (
 var ErrNotArray = errors.New("validate array fail, only support array")
 
 // ToSlice ...
-func ToSlice(array interface{}) ([]interface{}, error) {
+func ToSlice(array any) ([]any, error) {
 	v := reflect.ValueOf(array)
 	if v.Kind() != reflect.Slice {
 		return nil, ErrNotArray
 	}
 	l := v.Len()
-	ret := make([]interface{}, l)
-	for i := 0; i < l; i++ {
+	ret := make([]any, l)
+	for i := range l {
 		ret[i] = v.Index(i).Interface()
 	}
 	return ret, nil

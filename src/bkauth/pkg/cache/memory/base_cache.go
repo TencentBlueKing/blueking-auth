@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package memory provides in-memory cache implementations.
 package memory
 
 import (
@@ -58,7 +59,7 @@ func (c *BaseCache) Exists(key cache.Key) bool {
 }
 
 // Get will get the key from cache, if missing, will call the retrieveFunc to get the data, add to cache, then return
-func (c *BaseCache) Get(ctx context.Context, key cache.Key) (interface{}, error) {
+func (c *BaseCache) Get(ctx context.Context, key cache.Key) (any, error) {
 	// 1. if cache is disabled, fetch and return
 	if c.disabled {
 		value, err := c.retrieveFunc(ctx, key)
@@ -84,14 +85,14 @@ func (c *BaseCache) Get(ctx context.Context, key cache.Key) (interface{}, error)
 	return c.doRetrieve(ctx, key)
 }
 
-func (c *BaseCache) doRetrieve(ctx context.Context, k cache.Key) (interface{}, error) {
+func (c *BaseCache) doRetrieve(ctx context.Context, k cache.Key) (any, error) {
 	key := k.Key()
 
 	// 防止首个请求取消导致后续请求失败
 	retrieveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), retrieveTimeout)
 	defer cancel()
 
-	value, err, _ := c.g.Do(key, func() (interface{}, error) {
+	value, err, _ := c.g.Do(key, func() (any, error) {
 		return c.retrieveFunc(retrieveCtx, k)
 	})
 
@@ -108,14 +109,14 @@ func (c *BaseCache) doRetrieve(ctx context.Context, k cache.Key) (interface{}, e
 }
 
 // Set ...
-func (c *BaseCache) Set(key cache.Key, data interface{}) {
+func (c *BaseCache) Set(key cache.Key, data any) {
 	k := key.Key()
 	c.backend.Set(k, data, 0)
 }
 
 // TODO: 这里需要实现所有类型的 GetXXXX
 
-// ! if retrieve fail, will return ("", err) for expire time
+// GetString returns the cached string value. If retrieve fails, will return ("", err) for expire time.
 func (c *BaseCache) GetString(ctx context.Context, k cache.Key) (string, error) {
 	value, err := c.Get(ctx, k)
 	if err != nil {
@@ -180,7 +181,7 @@ func (c *BaseCache) Delete(key cache.Key) error {
 }
 
 // DirectGet will get key from cache, without calling the retrieveFunc
-func (c *BaseCache) DirectGet(key cache.Key) (interface{}, bool) {
+func (c *BaseCache) DirectGet(key cache.Key) (any, bool) {
 	k := key.Key()
 	return c.backend.Get(k)
 }

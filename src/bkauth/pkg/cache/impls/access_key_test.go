@@ -64,16 +64,22 @@ var _ = Describe("AccessKeysCache", func() {
 
 		It("AccessKeysCache Get ok", func() {
 			mockService := mock.NewMockAccessKeyService(ctl)
-			mockService.EXPECT().ListEncryptedAccessKeyByAppCode(gomock.Any(), "test").Return([]types.AccessKey{
-				{
-					AppSecret: "secret1",
-					Enabled:   true,
+			mockService.EXPECT().ListEncryptedAccessKeyByAppCode(
+				gomock.Any(),
+				"test",
+			).Return(
+				[]types.AccessKey{
+					{
+						AppSecret: "secret1",
+						Enabled:   true,
+					},
+					{
+						AppSecret: "secret2",
+						Enabled:   true,
+					},
 				},
-				{
-					AppSecret: "secret2",
-					Enabled:   true,
-				},
-			}, nil).AnyTimes()
+				nil,
+			).AnyTimes()
 
 			patches = gomonkey.ApplyFunc(service.NewAccessKeyService,
 				func() service.AccessKeyService {
@@ -141,16 +147,22 @@ var _ = Describe("AccessKeysCache", func() {
 
 		It("AccessKeysCache Get disable secret", func() {
 			mockService := mock.NewMockAccessKeyService(ctl)
-			mockService.EXPECT().ListEncryptedAccessKeyByAppCode(gomock.Any(), "test").Return([]types.AccessKey{
-				{
-					AppSecret: "secret1",
-					Enabled:   false,
+			mockService.EXPECT().ListEncryptedAccessKeyByAppCode(
+				gomock.Any(),
+				"test",
+			).Return(
+				[]types.AccessKey{
+					{
+						AppSecret: "secret1",
+						Enabled:   false,
+					},
+					{
+						AppSecret: "secret2",
+						Enabled:   true,
+					},
 				},
-				{
-					AppSecret: "secret2",
-					Enabled:   true,
-				},
-			}, nil).AnyTimes()
+				nil,
+			).AnyTimes()
 
 			patches = gomonkey.ApplyFunc(service.NewAccessKeyService,
 				func() service.AccessKeyService {

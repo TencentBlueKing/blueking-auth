@@ -123,7 +123,7 @@ func (s *Server) Stop() {
 	defer httpShutdownCancel()
 	if err := s.server.Shutdown(httpShutdownCtx); err != nil {
 		zap.S().Error(err, "Wait is over due to error")
-		s.server.Close()
+		s.server.Close() //nolint:errcheck
 	}
 
 	// use an independent timeout budget for telemetry flush to avoid losing data

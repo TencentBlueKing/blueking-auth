@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package util provides shared helper functions used across the project.
 package util
 
 import (
@@ -27,11 +28,11 @@ import (
 // StringToBytes converts string to byte slice without a memory allocation.
 // For more details, see https://github.com/golang/go/issues/53003#issuecomment-1140276077.
 func StringToBytes(s string) []byte {
-	return unsafe.Slice(unsafe.StringData(s), len(s))
+	return unsafe.Slice(unsafe.StringData(s), len(s)) //nolint:gosec
 }
 
 // BytesToString converts byte slice to string without a memory allocation.
 // For more details, see https://github.com/golang/go/issues/53003#issuecomment-1140276077.
 func BytesToString(b []byte) string {
-	return unsafe.String(unsafe.SliceData(b), len(b))
+	return unsafe.String(unsafe.SliceData(b), len(b)) //nolint:gosec
 }

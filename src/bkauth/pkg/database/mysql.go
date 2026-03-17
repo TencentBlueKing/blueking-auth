@@ -63,11 +63,11 @@ type DBClient struct {
 func (db *DBClient) TestConnection() (err error) {
 	rawDB, err := db.openInstrumentedDB()
 	if err != nil {
-		return
+		return err
 	}
 	conn := sqlx.NewDb(rawDB, "mysql")
 
-	conn.Close()
+	conn.Close() //nolint:errcheck
 	return nil
 }
 
@@ -95,8 +95,8 @@ func (db *DBClient) openInstrumentedDB() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := rawDB.Ping(); err != nil {
-		rawDB.Close()
+	if err := rawDB.Ping(); err != nil { //nolint:noctx
+		rawDB.Close() //nolint:errcheck
 		return nil, err
 	}
 	return rawDB, nil
@@ -105,13 +105,14 @@ func (db *DBClient) openInstrumentedDB() (*sql.DB, error) {
 // Close close db connection
 func (db *DBClient) Close() {
 	if db.DB != nil {
-		db.DB.Close()
+		db.DB.Close() //nolint:errcheck
 	}
 }
 
 // NewDBClient :
 func NewDBClient(cfg *config.Database) *DBClient {
-	dataSource := fmt.Sprintf("%s:%s@(%s:%d)/%s?charset=%s&parseTime=True&interpolateParams=true&loc=%s&time_zone=%s",
+	dataSource := fmt.Sprintf(
+		"%s:%s@(%s:%d)/%s?charset=%s&parseTime=True&interpolateParams=true&loc=%s&time_zone=%s",
 		cfg.User,
 		cfg.Password,
 		cfg.Host,

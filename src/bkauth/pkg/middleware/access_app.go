@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package middleware provides shared Gin middleware for request processing.
 package middleware
 
 import (
@@ -31,6 +32,7 @@ type accessAppHeader struct {
 	AppSecret string `header:"X-Bk-App-Secret" binding:"required,min=3,max=128" example:"bk_paas"`
 }
 
+// AccessAppAuthMiddleware validates access app credentials from request headers.
 func AccessAppAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		zap.S().Debug("Middleware: AccessAppAuthMiddleware")

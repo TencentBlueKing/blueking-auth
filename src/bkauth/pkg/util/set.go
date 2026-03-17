@@ -103,7 +103,7 @@ func (s *StringSet) Diff(b *StringSet) *StringSet {
 }
 
 // SplitStringToSet ...
-func SplitStringToSet(s string, sep string) *StringSet {
+func SplitStringToSet(s, sep string) *StringSet {
 	if s == "" {
 		return &StringSet{Data: map[string]struct{}{}}
 	}

@@ -33,16 +33,17 @@ import (
 	"go.uber.org/zap"
 )
 
-func panicLog(rval interface{}) {
+func panicLog(rval any) {
 	debug.PrintStack()
 	rvalStr := fmt.Sprint(rval)
 	err := errors.New(rvalStr)
 	zap.S().Error(err, fmt.Sprintf("system error %s", debug.Stack()))
 }
 
-func isBrokenPipeError(err interface{}) bool {
+func isBrokenPipeError(err any) bool {
 	if netErr, ok := err.(*net.OpError); ok {
-		if sysErr, ok := netErr.Err.(*os.SyscallError); ok {
+		var sysErr *os.SyscallError
+		if errors.As(netErr.Err, &sysErr) {
 			if strings.Contains(strings.ToLower(sysErr.Error()), "broken pipe") ||
 				strings.Contains(strings.ToLower(sysErr.Error()), "connection reset by peer") {
 				return true
@@ -73,14 +74,23 @@ func Recovery(withSentry bool) gin.HandlerFunc {
 					c.Set(sentryValuesKey, hub)
 
 					hub.RecoverWithContext(
-						context.WithValue(c.Request.Context(), sentry.RequestContextKey, c.Request),
+						context.WithValue(
+							c.Request.Context(),
+							sentry.RequestContextKey,
+							c.Request,
+						),
 						err,
 					)
 				}
 
 				// If the connection is dead, we can't write a status to it.
 				if brokenPipe {
-					c.Error(err.(error)) // nolint: errcheck
+					//nolint:errcheck
+					if e, ok := err.(error); ok {
+						c.Error(e)
+					} else {
+						c.Error(fmt.Errorf("%v", err))
+					}
 					c.Abort()
 				} else {
 					c.AbortWithStatus(http.StatusInternalServerError)

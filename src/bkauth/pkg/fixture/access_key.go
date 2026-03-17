@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package fixture provides data initialization helpers for local setup.
 package fixture
 
 import (
@@ -46,9 +47,13 @@ func createAccessKey(appCode, appSecret, tenantMode, tenantID string) {
 	}
 	// 不存在则创建
 	if !exists {
+		app := types.App{
+			Code: appCode, Name: appCode, Description: appCode,
+			TenantMode: tenantMode, TenantID: tenantID,
+		}
 		err = appSvc.CreateWithSecret(
 			ctx,
-			types.App{Code: appCode, Name: appCode, Description: appCode, TenantMode: tenantMode, TenantID: tenantID},
+			app,
 			appSecret,
 			createdSource,
 		)
@@ -67,7 +72,13 @@ func createAccessKey(appCode, appSecret, tenantMode, tenantID string) {
 	}
 	// 不存在则创建
 	if !exists {
-		err = svc.CreateWithSecret(ctx, appCode, appSecret, createdSource, "initialized during shell deployment")
+		err = svc.CreateWithSecret(
+			ctx,
+			appCode,
+			appSecret,
+			createdSource,
+			"initialized during shell deployment",
+		)
 		if err != nil {
 			zap.S().Panic(err, fmt.Sprintf("svc.CreateWithSecret appCode=%s fail", appCode))
 		}

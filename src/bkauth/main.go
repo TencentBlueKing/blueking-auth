@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package main starts the bkauth application.
 package main
 
 import (

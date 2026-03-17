@@ -56,7 +56,7 @@ type listAppSerializer struct {
 	common.PageParamSerializer
 	TenantMode string `form:"tenant_mode" binding:"omitempty,oneof=global single" example:"single"`
 	TenantID   string `form:"tenant_id" binding:"omitempty,max=32" example:"default"`
-	// nolint:lll
+	//nolint:lll
 	OrderBy          string `form:"order_by" binding:"omitempty,oneof=code name created_at updated_at" example:"created_at"`
 	OrderByDirection string `form:"order_by_direction" binding:"omitempty,oneof=asc desc" example:"asc"`
 }

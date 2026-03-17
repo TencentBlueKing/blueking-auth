@@ -25,6 +25,7 @@ import (
 	"bkauth/pkg/util"
 )
 
+// InitFixture initializes fixture data based on the current configuration.
 func InitFixture(cfg *config.Config) {
 	var tenantMode, tenantID string
 	if cfg.EnableMultiTenantMode {

@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package common provides shared API serializers, middleware, and helpers.
 package common
 
 import (
@@ -35,6 +36,7 @@ const (
 
 var apiAllowLists = make(map[string]*util.StringSet)
 
+// InitAPIAllowList initializes the API allow-list lookup map from configuration.
 func InitAPIAllowList(cfgs []config.APIAllowList) {
 	apiAllowListMap := map[string]string{}
 	for _, cfg := range cfgs {
@@ -52,12 +54,12 @@ func InitAPIAllowList(cfgs []config.APIAllowList) {
 			if itemWithoutSpace != "" {
 				allowListWithoutEmpty = append(allowListWithoutEmpty, itemWithoutSpace)
 			}
-
 		}
 		apiAllowLists[api] = util.NewStringSetWithValues(allowListWithoutEmpty)
 	}
 }
 
+// IsAPIAllow reports whether the given app code is allowed to call the API.
 func IsAPIAllow(api, appCode string) bool {
 	allowList, ok := apiAllowLists[api]
 	if !ok {

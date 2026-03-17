@@ -43,11 +43,12 @@ func init() {
 	fixtureInitCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
 	fixtureInitCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
 
-	fixtureInitCmd.MarkFlagRequired("config")
+	fixtureInitCmd.MarkFlagRequired("config") //nolint:errcheck
 
 	rootCmd.AddCommand(fixtureInitCmd)
 }
 
+// FixtureInitStart initializes fixture data from the configured source.
 func FixtureInitStart() {
 	// 0. init config
 	if cfgFile != "" {

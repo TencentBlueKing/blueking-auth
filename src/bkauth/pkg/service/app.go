@@ -51,6 +51,7 @@ type appService struct {
 	accessKeyManager dao.AccessKeyManager
 }
 
+// NewAppService creates an app service.
 func NewAppService() AppService {
 	return &appService{
 		manager:          dao.NewAppManager(),
@@ -58,6 +59,7 @@ func NewAppService() AppService {
 	}
 }
 
+// Get gets app details by code.
 func (s *appService) Get(ctx context.Context, code string) (app types.App, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "Get")
 
@@ -75,6 +77,7 @@ func (s *appService) Get(ctx context.Context, code string) (app types.App, err e
 	}, nil
 }
 
+// Exists checks whether an app code exists.
 func (s *appService) Exists(ctx context.Context, code string) (bool, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "Exists")
 
@@ -85,6 +88,7 @@ func (s *appService) Exists(ctx context.Context, code string) (bool, error) {
 	return exists, nil
 }
 
+// NameExists checks whether an app name exists.
 func (s *appService) NameExists(ctx context.Context, name string) (bool, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AppSVC, "NameExists")
 
@@ -129,7 +133,7 @@ func (s *appService) Create(ctx context.Context, app types.App, createdSource st
 	}
 
 	err = tx.Commit()
-	return
+	return err
 }
 
 // CreateWithSecret :创建应用，但支持指定 appSecret 的值，createdSource 为创建的来源，即哪个系统创建了该 APP
@@ -171,9 +175,10 @@ func (s *appService) CreateWithSecret(ctx context.Context, app types.App, appSec
 
 	err = tx.Commit()
 
-	return
+	return err
 }
 
+// List lists apps with pagination and tenant filters.
 func (s *appService) List(
 	ctx context.Context,
 	tenantMode, tenantID string,
@@ -234,5 +239,5 @@ func (s *appService) Delete(ctx context.Context, code string) (err error) {
 	}
 
 	err = tx.Commit()
-	return
+	return err
 }

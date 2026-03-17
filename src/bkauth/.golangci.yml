@@ -6,35 +6,133 @@ run:
 linters:
   default: none
   enable:
+    # bug catchers
+    - staticcheck
+    - govet
+    - errcheck
+    - errchkjson
     - bodyclose
+    - sqlclosecheck
+    - rowserrcheck
+    - nilerr
+    - nilnesserr
+    - ineffassign
+    - unused
+    - durationcheck
+    - errorlint
+    - noctx
+    - forcetypeassert
+    - fatcontext
+    # modernization (respects go directive in go.mod)
+    - modernize
+    - exptostd
+    - intrange
+    - usestdlibvars
+    # code quality
     - gocritic
     - gocyclo
-    - govet
-    - ineffassign
+    - unconvert
+    - copyloopvar
+    - reassign
+    - mirror
+    - perfsprint
+    # style
+    - revive
     - lll
-    - staticcheck
-    - unused
+    - whitespace
+    - misspell
+    - nakedret
+    # security
+    - gosec
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - -QF1008
+        - -QF1001
+        - -ST1003
+        - -ST1011
+    revive:
+      severity: error
+      enable-all-rules: false
+      rules:
+        - name: package-comments
+          severity: error
+          disabled: false
+          exclude: []
+        - name: exported
+          severity: error
+          disabled: false
+          exclude: []
+          arguments:
+            - "check-private-receivers"
+            - "disable-stuttering-check"
+            - "disable-checks-on-constants"
+            - "disable-checks-on-types"
+            - "disable-checks-on-variables"
+    lll:
+      line-length: 120
+      tab-width: 1
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+    errorlint:
+      errorf: true
+      errorf-multi: true
+      asserts: true
+      comparison: true
+    modernize:
+      disable:
+        - omitzero
+        - stringsbuilder
+        - waitgroup
+    perfsprint:
+      err-error: false
+      errorf: false
+      int-conversion: false
+    gosec:
+      excludes:
+        - G104
+        - G115
+        - G304
+        - G307
+        - G401
+        - G501
+        - G505
+      confidence: medium
   exclusions:
     generated: lax
-    presets:
-      - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
-    paths:
-      - .*/mock/.*.go
-      - .*testing.go
-      - third_party$
-      - builtin$
-      - examples$
+
+issues:
+  uniq-by-line: false
+  new: false
+  fix: false
+
 formatters:
   enable:
     - gofmt
+    - goimports
+    - golines
+    - gofumpt
   exclusions:
     generated: lax
-    paths:
-      - .*/mock/.*.go
-      - .*testing.go
-      - third_party$
-      - builtin$
-      - examples$
+  settings:
+    gofmt:
+      simplify: false
+      rewrite-rules:
+        - pattern: 'interface{}'
+          replacement: 'any'
+        - pattern: 'a[b:len(a)]'
+          replacement: 'a[b:]'
+    goimports:
+      local-prefixes:
+        - "bkauth"
+    gofumpt:
+      module-path: "bkauth"
+      extra-rules: true
+    golines:
+      max-len: 120
+      tab-len: 8
+      shorten-comments: true
+      reformat-tags: false
+      chain-split-dots: false

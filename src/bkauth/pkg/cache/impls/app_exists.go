@@ -20,6 +20,7 @@ package impls
 
 import (
 	"context"
+	"fmt"
 
 	"bkauth/pkg/cache"
 	"bkauth/pkg/errorx"
@@ -30,12 +31,16 @@ type AppExistsKey struct {
 	AppCode string
 }
 
+// Key returns the cache key for the app existence flag.
 func (k AppExistsKey) Key() string {
 	return k.AppCode
 }
 
-func retrieveAppExists(ctx context.Context, key cache.Key) (interface{}, error) {
-	k := key.(AppExistsKey)
+func retrieveAppExists(ctx context.Context, key cache.Key) (any, error) {
+	k, ok := key.(AppExistsKey)
+	if !ok {
+		return nil, fmt.Errorf("unexpected cache key type: %T", key)
+	}
 
 	svc := service.NewAppService()
 	return svc.Exists(ctx, k.AppCode)
