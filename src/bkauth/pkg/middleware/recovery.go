@@ -85,7 +85,6 @@ func Recovery(withSentry bool) gin.HandlerFunc {
 
 				// If the connection is dead, we can't write a status to it.
 				if brokenPipe {
-					//nolint:errcheck
 					if e, ok := err.(error); ok {
 						c.Error(e)
 					} else {

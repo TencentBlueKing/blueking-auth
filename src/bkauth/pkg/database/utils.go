@@ -131,7 +131,7 @@ func ParseUpdateStruct(values any, allowBlankFields AllowBlankFields) (string, m
 		v = v.Elem()
 	}
 	if v.Kind() == reflect.Struct {
-		for i := range v.NumField() {
+		for i := 0; i < v.NumField(); i++ {
 			dbField := v.Type().Field(i).Tag.Get("db")
 			if dbField == "" {
 				continue

@@ -20,7 +20,6 @@ package impls
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/zap"
 
@@ -41,10 +40,7 @@ func (k AccessAppCacheKey) Key() string {
 }
 
 func retrieveAccessApp(ctx context.Context, key cache.Key) (any, error) {
-	k, ok := key.(AccessAppCacheKey)
-	if !ok {
-		return nil, fmt.Errorf("unexpected cache key type: %T", key)
-	}
+	k := key.(AccessAppCacheKey)
 
 	svc := service.NewAccessKeyService()
 	return svc.Verify(ctx, k.AppCode, k.AppSecret)

@@ -20,7 +20,6 @@ package impls
 
 import (
 	"context"
-	"fmt"
 
 	"bkauth/pkg/cache"
 	"bkauth/pkg/errorx"
@@ -37,10 +36,7 @@ func (k AppExistsKey) Key() string {
 }
 
 func retrieveAppExists(ctx context.Context, key cache.Key) (any, error) {
-	k, ok := key.(AppExistsKey)
-	if !ok {
-		return nil, fmt.Errorf("unexpected cache key type: %T", key)
-	}
+	k := key.(AppExistsKey)
 
 	svc := service.NewAppService()
 	return svc.Exists(ctx, k.AppCode)

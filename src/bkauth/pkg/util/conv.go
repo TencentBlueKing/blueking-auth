@@ -37,7 +37,7 @@ func ToSlice(array any) ([]any, error) {
 	}
 	l := v.Len()
 	ret := make([]any, l)
-	for i := range l {
+	for i := 0; i < l; i++ {
 		ret[i] = v.Index(i).Interface()
 	}
 	return ret, nil

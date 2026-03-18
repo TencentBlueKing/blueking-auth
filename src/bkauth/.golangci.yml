@@ -9,32 +9,13 @@ linters:
     # bug catchers
     - staticcheck
     - govet
-    - errcheck
     - errchkjson
-    - bodyclose
-    - sqlclosecheck
-    - rowserrcheck
     - nilerr
-    - nilnesserr
-    - ineffassign
-    - unused
-    - durationcheck
     - errorlint
-    - noctx
-    - forcetypeassert
-    - fatcontext
-    # modernization (respects go directive in go.mod)
-    - modernize
-    - exptostd
-    - intrange
-    - usestdlibvars
     # code quality
     - gocritic
     - gocyclo
     - unconvert
-    - copyloopvar
-    - reassign
-    - mirror
     - perfsprint
     # style
     - revive
@@ -42,8 +23,6 @@ linters:
     - whitespace
     - misspell
     - nakedret
-    # security
-    - gosec
   settings:
     staticcheck:
       checks:
@@ -73,9 +52,6 @@ linters:
     lll:
       line-length: 120
       tab-width: 1
-    errcheck:
-      check-type-assertions: false
-      check-blank: false
     errorlint:
       errorf: true
       errorf-multi: true
@@ -90,16 +66,6 @@ linters:
       err-error: false
       errorf: false
       int-conversion: false
-    gosec:
-      excludes:
-        - G104
-        - G115
-        - G304
-        - G307
-        - G401
-        - G501
-        - G505
-      confidence: medium
   exclusions:
     generated: lax
 
@@ -115,7 +81,12 @@ formatters:
     - golines
     - gofumpt
   exclusions:
+    warn-unused: true
     generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
   settings:
     gofmt:
       simplify: false

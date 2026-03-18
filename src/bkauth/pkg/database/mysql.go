@@ -67,7 +67,7 @@ func (db *DBClient) TestConnection() (err error) {
 	}
 	conn := sqlx.NewDb(rawDB, "mysql")
 
-	conn.Close() //nolint:errcheck
+	conn.Close()
 	return nil
 }
 
@@ -95,8 +95,8 @@ func (db *DBClient) openInstrumentedDB() (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := rawDB.Ping(); err != nil { //nolint:noctx
-		rawDB.Close() //nolint:errcheck
+	if err := rawDB.Ping(); err != nil {
+		rawDB.Close()
 		return nil, err
 	}
 	return rawDB, nil
@@ -105,7 +105,7 @@ func (db *DBClient) openInstrumentedDB() (*sql.DB, error) {
 // Close close db connection
 func (db *DBClient) Close() {
 	if db.DB != nil {
-		db.DB.Close() //nolint:errcheck
+		db.DB.Close()
 	}
 }
 

@@ -20,7 +20,6 @@ package impls
 
 import (
 	"context"
-	"fmt"
 
 	"go.uber.org/zap"
 
@@ -40,10 +39,7 @@ func (k AppKey) Key() string {
 }
 
 func retrieveApp(ctx context.Context, key cache.Key) (any, error) {
-	k, ok := key.(AppKey)
-	if !ok {
-		return nil, fmt.Errorf("unexpected cache key type: %T", key)
-	}
+	k := key.(AppKey)
 
 	svc := service.NewAppService()
 	return svc.Get(ctx, k.AppCode)

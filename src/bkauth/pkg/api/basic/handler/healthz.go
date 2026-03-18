@@ -70,7 +70,7 @@ func checkRedis(redisConfig *config.Redis) error {
 		return errors.New("invalid redis ID, should be `standalone` or `sentinel`")
 	}
 
-	defer rds.Close() //nolint:errcheck
+	defer rds.Close()
 	_, err := rds.Ping(context.TODO()).Result()
 	return err
 }
