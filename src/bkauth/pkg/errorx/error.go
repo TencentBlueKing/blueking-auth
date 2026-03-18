@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package errorx provides error wrapping and reporting helpers.
 package errorx
 
 import (
@@ -69,7 +70,7 @@ func makeMessage(err error, layer, function, msg string) string {
 }
 
 // Wrap will wrap the error with layer, function and message
-func Wrap(err error, layer string, function string, message string) error {
+func Wrap(err error, layer, function, message string) error {
 	if err == nil {
 		return nil
 	}
@@ -81,7 +82,7 @@ func Wrap(err error, layer string, function string, message string) error {
 }
 
 // Wrapf will wrap the error with layer, function, and format the message with args
-func Wrapf(err error, layer string, function string, format string, args ...interface{}) error {
+func Wrapf(err error, layer, function, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
@@ -98,18 +99,18 @@ func Wrapf(err error, layer string, function string, format string, args ...inte
 type WrapFuncWithLayerFunction func(err error, message string) error
 
 // WrapfFuncWithLayerFunction is a type alias for Wrapf func
-type WrapfFuncWithLayerFunction func(err error, format string, args ...interface{}) error
+type WrapfFuncWithLayerFunction func(err error, format string, args ...any) error
 
 // NewLayerFunctionErrorWrap will create a Wrap func with specific layer and function
-func NewLayerFunctionErrorWrap(layer string, function string) WrapFuncWithLayerFunction {
+func NewLayerFunctionErrorWrap(layer, function string) WrapFuncWithLayerFunction {
 	return func(err error, message string) error {
 		return Wrap(err, layer, function, message)
 	}
 }
 
 // NewLayerFunctionErrorWrapf will create a Wrapf func with specific layer and function
-func NewLayerFunctionErrorWrapf(layer string, function string) WrapfFuncWithLayerFunction {
-	return func(err error, format string, args ...interface{}) error {
+func NewLayerFunctionErrorWrapf(layer, function string) WrapfFuncWithLayerFunction {
+	return func(err error, format string, args ...any) error {
 		return Wrapf(err, layer, function, format, args...)
 	}
 }

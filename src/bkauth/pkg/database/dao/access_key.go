@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package dao provides database access objects for persistent models.
 package dao
 
 //go:generate mockgen -source=$GOFILE -destination=./mock/$GOFILE -package=mock
@@ -53,7 +54,7 @@ type AccessKeyManager interface {
 	Create(ctx context.Context, accessKey AccessKey) (int64, error)
 	DeleteByID(ctx context.Context, appCode string, id int64) (int64, error)
 	DeleteByAppCodeWithTx(ctx context.Context, tx *sqlx.Tx, appCode string) (int64, error)
-	UpdateByID(ctx context.Context, id int64, updateFieldMap map[string]interface{}) (int64, error)
+	UpdateByID(ctx context.Context, id int64, updateFieldMap map[string]any) (int64, error)
 	ListWithCreatedAtByAppCode(ctx context.Context, appCode string) ([]AccessKeyWithCreatedAt, error)
 	Exists(ctx context.Context, appCode, appSecret string) (bool, error)
 	Count(ctx context.Context, appCode string) (int64, error)
@@ -73,6 +74,7 @@ func NewAccessKeyManager() AccessKeyManager {
 	}
 }
 
+// CreateWithTx creates an access key record within the given transaction.
 func (m *accessKeyManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx, secret AccessKey) (int64, error) {
 	query := `INSERT INTO access_key (
 		app_code,
@@ -90,6 +92,7 @@ func (m *accessKeyManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx, secret
 	return database.SqlxInsertWithTx(ctx, tx, query, secret)
 }
 
+// Create creates an access key record.
 func (m *accessKeyManager) Create(ctx context.Context, secret AccessKey) (int64, error) {
 	query := `INSERT INTO access_key (
 		app_code,
@@ -107,20 +110,23 @@ func (m *accessKeyManager) Create(ctx context.Context, secret AccessKey) (int64,
 	return database.SqlxInsert(ctx, m.DB, query, secret)
 }
 
+// DeleteByID deletes an access key by app code and id.
 func (m *accessKeyManager) DeleteByID(ctx context.Context, appCode string, id int64) (int64, error) {
 	query := `DELETE FROM access_key WHERE app_code = ? AND id = ?`
 	return database.SqlxDelete(ctx, m.DB, query, appCode, id)
 }
 
+// DeleteByAppCodeWithTx deletes all access keys of an app within the given transaction.
 func (m *accessKeyManager) DeleteByAppCodeWithTx(ctx context.Context, tx *sqlx.Tx, appCode string) (int64, error) {
 	query := `DELETE FROM access_key WHERE app_code = ?`
 	return database.SqlxDeleteWithTx(ctx, tx, query, appCode)
 }
 
+// UpdateByID updates an access key by id with the provided fields.
 func (m *accessKeyManager) UpdateByID(
 	ctx context.Context,
 	id int64,
-	updateFieldMap map[string]interface{},
+	updateFieldMap map[string]any,
 ) (int64, error) {
 	// get setCause
 	setCause := database.GetSetClause(updateFieldMap)
@@ -133,6 +139,7 @@ func (m *accessKeyManager) UpdateByID(
 	return database.SqlxUpdate(ctx, m.DB, query, updateFieldMap)
 }
 
+// ListWithCreatedAtByAppCode lists access keys with creation time for the given app.
 func (m *accessKeyManager) ListWithCreatedAtByAppCode(
 	ctx context.Context,
 	appCode string,
@@ -141,7 +148,7 @@ func (m *accessKeyManager) ListWithCreatedAtByAppCode(
 	if errors.Is(err, sql.ErrNoRows) {
 		return accessKeys, nil
 	}
-	return
+	return accessKeys, err
 }
 
 func (m *accessKeyManager) selectAccessKeyWithCreatedAt(
@@ -163,6 +170,7 @@ func (m *accessKeyManager) selectAccessKeyWithCreatedAt(
 	return database.SqlxSelect(ctx, m.DB, accessKeys, query, appCode)
 }
 
+// Exists checks whether the given app code and encrypted secret pair exists.
 func (m *accessKeyManager) Exists(ctx context.Context, appCode, appSecret string) (bool, error) {
 	var id int64
 	err := m.selectExistence(ctx, &id, appCode, appSecret)
@@ -181,9 +189,10 @@ func (m *accessKeyManager) selectExistence(ctx context.Context, id *int64, appCo
 	return database.SqlxGet(ctx, m.DB, id, query, appCode, appSecret)
 }
 
+// Count returns the number of access keys of the given app.
 func (m *accessKeyManager) Count(ctx context.Context, appCode string) (count int64, err error) {
 	err = m.getCount(ctx, &count, appCode)
-	return
+	return count, err
 }
 
 func (m *accessKeyManager) getCount(ctx context.Context, count *int64, appCode string) error {
@@ -191,6 +200,7 @@ func (m *accessKeyManager) getCount(ctx context.Context, count *int64, appCode s
 	return database.SqlxGet(ctx, m.DB, count, query, appCode)
 }
 
+// ListAccessKeyByAppCode lists access keys of the given app.
 func (m *accessKeyManager) ListAccessKeyByAppCode(
 	ctx context.Context,
 	appCode string,
@@ -212,15 +222,17 @@ func (m *accessKeyManager) selectAccessKey(ctx context.Context, appCode string) 
 	return accessKeys, nil
 }
 
+// List lists all access keys.
 func (m *accessKeyManager) List(ctx context.Context) (accessKeys []AccessKey, err error) {
 	query := `SELECT id, app_code, app_secret, enabled, created_source, description FROM access_key`
 	err = database.SqlxSelect(ctx, m.DB, &accessKeys, query)
 	if errors.Is(err, sql.ErrNoRows) {
 		return accessKeys, nil
 	}
-	return
+	return accessKeys, err
 }
 
+// ExistsByAppCodeAndID checks whether the given app code and id pair exists.
 func (m *accessKeyManager) ExistsByAppCodeAndID(ctx context.Context, appCode string, id int64) (bool, error) {
 	var existingID int64
 	query := `SELECT id FROM access_key WHERE app_code = ? AND id = ? LIMIT 1`

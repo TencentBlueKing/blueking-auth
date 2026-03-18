@@ -6,35 +6,104 @@ run:
 linters:
   default: none
   enable:
-    - bodyclose
+    # bug catchers
+    - staticcheck
+    - govet
+    - errchkjson
+    - nilerr
+    - errorlint
+    # code quality
     - gocritic
     - gocyclo
-    - govet
-    - ineffassign
+    - unconvert
+    - perfsprint
+    # style
+    - revive
     - lll
-    - staticcheck
-    - unused
+    - whitespace
+    - misspell
+    - nakedret
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - -QF1008
+        - -QF1001
+        - -ST1003
+        - -ST1011
+    revive:
+      severity: error
+      enable-all-rules: false
+      rules:
+        - name: package-comments
+          severity: error
+          disabled: false
+          exclude: []
+        - name: exported
+          severity: error
+          disabled: false
+          exclude: []
+          arguments:
+            - "check-private-receivers"
+            - "disable-stuttering-check"
+            - "disable-checks-on-constants"
+            - "disable-checks-on-types"
+            - "disable-checks-on-variables"
+    lll:
+      line-length: 120
+      tab-width: 1
+    errorlint:
+      errorf: true
+      errorf-multi: true
+      asserts: true
+      comparison: true
+    modernize:
+      disable:
+        - omitzero
+        - stringsbuilder
+        - waitgroup
+    perfsprint:
+      err-error: false
+      errorf: false
+      int-conversion: false
   exclusions:
     generated: lax
-    presets:
-      - comments
-      - common-false-positives
-      - legacy
-      - std-error-handling
-    paths:
-      - .*/mock/.*.go
-      - .*testing.go
-      - third_party$
-      - builtin$
-      - examples$
+
+issues:
+  uniq-by-line: false
+  new: false
+  fix: false
+
 formatters:
   enable:
     - gofmt
+    - goimports
+    - golines
+    - gofumpt
   exclusions:
+    warn-unused: true
     generated: lax
     paths:
-      - .*/mock/.*.go
-      - .*testing.go
       - third_party$
       - builtin$
       - examples$
+  settings:
+    gofmt:
+      simplify: false
+      rewrite-rules:
+        - pattern: 'interface{}'
+          replacement: 'any'
+        - pattern: 'a[b:len(a)]'
+          replacement: 'a[b:]'
+    goimports:
+      local-prefixes:
+        - "bkauth"
+    gofumpt:
+      module-path: "bkauth"
+      extra-rules: true
+    golines:
+      max-len: 120
+      tab-len: 8
+      shorten-comments: true
+      reformat-tags: false
+      chain-split-dots: false

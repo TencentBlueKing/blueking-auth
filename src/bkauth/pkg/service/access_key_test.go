@@ -44,12 +44,12 @@ var _ = Describe("accessKeyService", func() {
 		It("ok", func() {
 			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
 			mockAppKeyManager.EXPECT().UpdateByID(gomock.Any(), int64(1),
-				map[string]interface{}{"enabled": true}).Return(int64(1), nil)
+				map[string]any{"enabled": true}).Return(int64(1), nil)
 
 			svc := accessKeyService{
 				manager: mockAppKeyManager,
 			}
-			err := svc.UpdateByID(context.Background(), 1, map[string]interface{}{"enabled": true})
+			err := svc.UpdateByID(context.Background(), 1, map[string]any{"enabled": true})
 			assert.NoError(GinkgoT(), err)
 		})
 	})
@@ -69,7 +69,14 @@ var _ = Describe("accessKeyService", func() {
 
 		It("exists", func() {
 			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAppKeyManager.EXPECT().ExistsByAppCodeAndID(gomock.Any(), "testApp", int64(1)).Return(true, nil)
+			mockAppKeyManager.EXPECT().ExistsByAppCodeAndID(
+				gomock.Any(),
+				"testApp",
+				int64(1),
+			).Return(
+				true,
+				nil,
+			)
 
 			svc := accessKeyService{
 				manager: mockAppKeyManager,
@@ -81,7 +88,14 @@ var _ = Describe("accessKeyService", func() {
 
 		It("does not exist", func() {
 			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAppKeyManager.EXPECT().ExistsByAppCodeAndID(gomock.Any(), "testApp", int64(1)).Return(false, nil)
+			mockAppKeyManager.EXPECT().ExistsByAppCodeAndID(
+				gomock.Any(),
+				"testApp",
+				int64(1),
+			).Return(
+				false,
+				nil,
+			)
 
 			svc := accessKeyService{
 				manager: mockAppKeyManager,

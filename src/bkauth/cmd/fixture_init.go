@@ -48,6 +48,7 @@ func init() {
 	rootCmd.AddCommand(fixtureInitCmd)
 }
 
+// FixtureInitStart initializes fixture data from the configured source.
 func FixtureInitStart() {
 	// 0. init config
 	if cfgFile != "" {

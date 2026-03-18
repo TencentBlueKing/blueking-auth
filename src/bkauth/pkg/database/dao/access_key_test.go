@@ -102,7 +102,7 @@ func Test_UpdateByID(t *testing.T) {
 		).WillReturnResult(sqlmock.NewResult(1, 1))
 
 		manager := &accessKeyManager{DB: db}
-		rowsAffected, err := manager.UpdateByID(context.Background(), 1, map[string]interface{}{"enabled": true})
+		rowsAffected, err := manager.UpdateByID(context.Background(), 1, map[string]any{"enabled": true})
 
 		assert.NoError(t, err)
 		assert.Equal(t, rowsAffected, int64(1))
@@ -122,9 +122,25 @@ func Test_ListWithCreatedAtByAppCode(t *testing.T) {
 			FROM access_key
 			WHERE app_code = (.*)
 			ORDER BY id DESC$`
-		mockRows := sqlmock.NewRows([]string{"id", "app_code", "app_secret", "created_source", "created_at", "description"}).
-			AddRow(int64(2), "bkauth", "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", "bk_paas", time.Now(), "secret of bkauth").
-			AddRow(int64(1), "bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041", "bk_paas", time.Now(), "")
+		mockRows := sqlmock.NewRows(
+			[]string{"id", "app_code", "app_secret", "created_source", "created_at", "description"},
+		).
+			AddRow(
+				int64(2),
+				"bkauth",
+				"4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
+				"bk_paas",
+				time.Now(),
+				"secret of bkauth",
+			).
+			AddRow(
+				int64(1),
+				"bkauth",
+				"a59ddb37-94ae-4d7a-b6b8-f3c255fff041",
+				"bk_paas",
+				time.Now(),
+				"",
+			)
 		mock.ExpectQuery(mockQuery).WithArgs("bkauth").WillReturnRows(mockRows)
 
 		manager := &accessKeyManager{DB: db}
@@ -142,7 +158,14 @@ func Test_Exists(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mockQuery := `^SELECT id FROM access_key WHERE app_code = (.*) AND app_secret = (.*) LIMIT 1$`
 		mockRows := sqlmock.NewRows([]string{"id"}).AddRow(int64(1))
-		mock.ExpectQuery(mockQuery).WithArgs("bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041").WillReturnRows(mockRows)
+		mock.ExpectQuery(
+			mockQuery,
+		).WithArgs(
+			"bkauth",
+			"a59ddb37-94ae-4d7a-b6b8-f3c255fff041",
+		).WillReturnRows(
+			mockRows,
+		)
 
 		manager := &accessKeyManager{DB: db}
 

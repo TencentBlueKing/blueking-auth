@@ -76,7 +76,14 @@ func newStandaloneClient(cfg *config.Redis) *redis.Client {
 
 	zap.S().Infof(
 		"connect to redis: %s[dialTimeout=%s, readTimeout=%s, writeTimeout=%s, poolSize=%d, minIdleConns=%d, idleTimeout=%s]",
-		opt.Addr, opt.DialTimeout, opt.ReadTimeout, opt.WriteTimeout, opt.PoolSize, opt.MinIdleConns, opt.IdleTimeout)
+		opt.Addr,
+		opt.DialTimeout,
+		opt.ReadTimeout,
+		opt.WriteTimeout,
+		opt.PoolSize,
+		opt.MinIdleConns,
+		opt.IdleTimeout,
+	)
 
 	return redis.NewClient(opt)
 }

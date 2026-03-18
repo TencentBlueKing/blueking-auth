@@ -75,7 +75,7 @@ func checkRedis(redisConfig *config.Redis) error {
 	return err
 }
 
-// Healthz godoc
+// NewHealthzHandleFunc creates a handler for server health check.
 // @Summary healthz for server health check
 // @Description /healthz to make sure the server is health
 // @ID healthz
@@ -92,7 +92,6 @@ func NewHealthzHandleFunc(cfg *config.Config) gin.HandlerFunc {
 		defaultDBConfig := cfg.DatabaseMap["bkauth"]
 
 		for _, dbConfig := range []config.Database{defaultDBConfig} {
-			dbConfig := dbConfig
 			// reset the options for check
 			dbConfig.MaxIdleConns = 1
 			dbConfig.MaxOpenConns = 1
@@ -123,7 +122,9 @@ func NewHealthzHandleFunc(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		if err != nil {
-			message := fmt.Sprintf("redis(mode=%s) connect fail: %s [addr=%s]", redisConfig.ID, err.Error(), addr)
+			message := fmt.Sprintf(
+				"redis(mode=%s) connect fail: %s [addr=%s]", redisConfig.ID, err.Error(), addr,
+			)
 			c.String(http.StatusInternalServerError, message)
 			return
 		}

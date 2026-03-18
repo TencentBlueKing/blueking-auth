@@ -24,6 +24,7 @@ import (
 	"bkauth/pkg/util"
 )
 
+// NewEnableMultiTenantModeMiddleware injects the multi-tenant mode flag into the request context.
 func NewEnableMultiTenantModeMiddleware(enableMultiTenantMode bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		util.SetEnableMultiTenantMode(c, enableMultiTenantMode)

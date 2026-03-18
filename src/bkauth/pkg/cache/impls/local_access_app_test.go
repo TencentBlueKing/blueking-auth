@@ -41,7 +41,7 @@ var _ = Describe("LocalAccessApp", func() {
 	})
 	Context("VerifyAccessApp", func() {
 		It("paas", func() {
-			retrieveFunc := func(ctx context.Context, key cache.Key) (interface{}, error) {
+			retrieveFunc := func(ctx context.Context, key cache.Key) (any, error) {
 				return true, nil
 			}
 			mockCache := memory.NewCache(
@@ -50,7 +50,7 @@ var _ = Describe("LocalAccessApp", func() {
 			assert.True(GinkgoT(), VerifyAccessApp(context.Background(), "test", "123"))
 		})
 		It("no paas", func() {
-			retrieveFunc := func(ctx context.Context, key cache.Key) (interface{}, error) {
+			retrieveFunc := func(ctx context.Context, key cache.Key) (any, error) {
 				return false, errors.New("error here")
 			}
 			mockCache := memory.NewCache(

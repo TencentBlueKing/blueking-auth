@@ -33,17 +33,19 @@ type AppKey struct {
 	AppCode string
 }
 
+// Key returns the cache key for the app details.
 func (k AppKey) Key() string {
 	return k.AppCode
 }
 
-func retrieveApp(ctx context.Context, key cache.Key) (interface{}, error) {
+func retrieveApp(ctx context.Context, key cache.Key) (any, error) {
 	k := key.(AppKey)
 
 	svc := service.NewAppService()
 	return svc.Get(ctx, k.AppCode)
 }
 
+// GetApp gets app details from cache and falls back to the service when needed.
 func GetApp(ctx context.Context, appCode string) (app types.App, err error) {
 	key := AppKey{
 		AppCode: appCode,
@@ -59,6 +61,7 @@ func GetApp(ctx context.Context, appCode string) (app types.App, err error) {
 	return app, nil
 }
 
+// DeleteAppCache removes the cached app existence and app detail entries.
 func DeleteAppCache(ctx context.Context, appCode string) (err error) {
 	// delete app exists cache
 	key := AppExistsKey{

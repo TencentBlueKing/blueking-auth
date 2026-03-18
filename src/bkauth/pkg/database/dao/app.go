@@ -64,6 +64,7 @@ func NewAppManager() AppManager {
 	}
 }
 
+// Get gets an app by code.
 func (m *appManager) Get(ctx context.Context, code string) (app App, err error) {
 	query := `SELECT code, name, description, tenant_mode, tenant_id FROM app where code = ? LIMIT 1`
 
@@ -74,6 +75,7 @@ func (m *appManager) Get(ctx context.Context, code string) (app App, err error) 
 	return app, err
 }
 
+// CreateWithTx creates an app within the given transaction.
 func (m *appManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx, app App) error {
 	query := `INSERT INTO app (code, name, description, tenant_mode, tenant_id)
 	VALUES (:code, :name, :description, :tenant_mode, :tenant_id)`
@@ -81,6 +83,7 @@ func (m *appManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx, app App) err
 	return err
 }
 
+// Exists checks whether an app code exists.
 func (m *appManager) Exists(ctx context.Context, code string) (bool, error) {
 	var existingCode string
 	err := m.selectExistence(ctx, &existingCode, code)
@@ -99,6 +102,7 @@ func (m *appManager) selectExistence(ctx context.Context, existCode *string, cod
 	return database.SqlxGet(ctx, m.DB, existCode, query, code)
 }
 
+// NameExists checks whether an app name exists.
 func (m *appManager) NameExists(ctx context.Context, name string) (bool, error) {
 	var existCode string
 	err := m.selectNameExistence(ctx, &existCode, name)
@@ -117,6 +121,7 @@ func (m *appManager) selectNameExistence(ctx context.Context, existCode *string,
 	return database.SqlxGet(ctx, m.DB, existCode, query, name)
 }
 
+// List lists apps filtered by tenant information and pagination options.
 func (m *appManager) List(
 	ctx context.Context,
 	tenantMode, tenantID string,
@@ -124,7 +129,7 @@ func (m *appManager) List(
 	orderBy, orderByDirection string,
 ) (apps []App, err error) {
 	query := `SELECT code, name, description, tenant_mode, tenant_id FROM app WHERE 1=1`
-	args := []interface{}{}
+	args := []any{}
 
 	if tenantMode != "" {
 		query += ` AND tenant_mode = ?`
@@ -155,9 +160,10 @@ func (m *appManager) List(
 	return apps, err
 }
 
+// Count returns the number of apps matching the tenant filters.
 func (m *appManager) Count(ctx context.Context, tenantMode, tenantID string) (total int, err error) {
 	query := `SELECT COUNT(*) FROM app WHERE 1=1`
-	args := []interface{}{}
+	args := []any{}
 
 	if tenantMode != "" {
 		query += ` AND tenant_mode = ?`
@@ -172,6 +178,7 @@ func (m *appManager) Count(ctx context.Context, tenantMode, tenantID string) (to
 	return total, err
 }
 
+// DeleteWithTx deletes an app within the given transaction.
 func (m *appManager) DeleteWithTx(ctx context.Context, tx *sqlx.Tx, code string) (int64, error) {
 	query := `DELETE FROM app WHERE code = ?`
 	return database.SqlxDeleteWithTx(ctx, tx, query, code)

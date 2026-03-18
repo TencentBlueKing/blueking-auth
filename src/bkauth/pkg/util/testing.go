@@ -112,7 +112,7 @@ func NewTestRouter(r *gin.Engine) {
 }
 
 // CreateTestingServer ...
-func CreateTestingServer(data interface{}) *httptest.Server {
+func CreateTestingServer(data any) *httptest.Server {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		respBody, _ := jsoniter.Marshal(data)
 		w.WriteHeader(http.StatusOK)
@@ -124,7 +124,7 @@ func CreateTestingServer(data interface{}) *httptest.Server {
 // CreateTesting500Server ...
 func CreateTesting500Server() *httptest.Server {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		respBody, _ := jsoniter.Marshal(map[string]interface{}{})
+		respBody, _ := jsoniter.Marshal(map[string]any{})
 		w.WriteHeader(http.StatusInternalServerError)
 		// w.Write([]byte("Internal Server Error"))
 		w.Write(respBody)
@@ -135,7 +135,7 @@ func CreateTesting500Server() *httptest.Server {
 // for apitest https://github.com/steinfletcher/apitest
 
 // JSONAssertFunc ...
-type JSONAssertFunc func(map[string]interface{}) error
+type JSONAssertFunc func(map[string]any) error
 
 // type JSONAssertFunc func(Response) error
 
@@ -147,7 +147,7 @@ func NewJSONAssertFunc(t assert.TestingT, assertFunc JSONAssertFunc) func(res *h
 
 		defer res.Body.Close()
 
-		var data map[string]interface{}
+		var data map[string]any
 		// var data Response
 
 		err = json.Unmarshal(body, &data)
@@ -232,15 +232,20 @@ func CreateNewAPIRequestFunc(
 			caser.String(method),
 		).Call([]reflect.Value{reflect.ValueOf(url)})
 
+		req, ok := reflectValues[0].Interface().(*apitest.Request)
+		if !ok {
+			t.Fatalf("unexpected type from apitest method: %T", reflectValues[0].Interface())
+		}
+
 		return &GinAPIRequest{
 			t:       t,
-			request: reflectValues[0].Interface().(*apitest.Request),
+			request: req,
 		}
 	}
 }
 
 // JSON ...
-func (g *GinAPIRequest) JSON(data interface{}) *GinAPIRequest {
+func (g *GinAPIRequest) JSON(data any) *GinAPIRequest {
 	g.request.JSON(data)
 
 	return g

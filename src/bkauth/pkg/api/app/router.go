@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package app wires routes for app management APIs.
 package app
 
 import (
@@ -59,7 +60,6 @@ func Register(r *gin.RouterGroup) {
 				accessKeyUD.DELETE("", handler.DeleteAccessKey)
 				accessKeyUD.PUT("", handler.UpdateAccessKey)
 			}
-
 		}
 
 		// List for PaaS/APIGateway

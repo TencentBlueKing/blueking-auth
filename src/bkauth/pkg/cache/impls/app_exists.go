@@ -30,11 +30,12 @@ type AppExistsKey struct {
 	AppCode string
 }
 
+// Key returns the cache key for the app existence flag.
 func (k AppExistsKey) Key() string {
 	return k.AppCode
 }
 
-func retrieveAppExists(ctx context.Context, key cache.Key) (interface{}, error) {
+func retrieveAppExists(ctx context.Context, key cache.Key) (any, error) {
 	k := key.(AppExistsKey)
 
 	svc := service.NewAppService()

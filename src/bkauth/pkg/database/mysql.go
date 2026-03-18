@@ -63,7 +63,7 @@ type DBClient struct {
 func (db *DBClient) TestConnection() (err error) {
 	rawDB, err := db.openInstrumentedDB()
 	if err != nil {
-		return
+		return err
 	}
 	conn := sqlx.NewDb(rawDB, "mysql")
 
@@ -111,7 +111,8 @@ func (db *DBClient) Close() {
 
 // NewDBClient :
 func NewDBClient(cfg *config.Database) *DBClient {
-	dataSource := fmt.Sprintf("%s:%s@(%s:%d)/%s?charset=%s&parseTime=True&interpolateParams=true&loc=%s&time_zone=%s",
+	dataSource := fmt.Sprintf(
+		"%s:%s@(%s:%d)/%s?charset=%s&parseTime=True&interpolateParams=true&loc=%s&time_zone=%s",
 		cfg.User,
 		cfg.Password,
 		cfg.Host,

@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package cryptography provides helpers for encrypting and decrypting secrets.
 package cryptography
 
 import (
@@ -45,7 +46,8 @@ type AESGcm struct {
 	aead cipher.AEAD
 }
 
-func NewAESGcm(key []byte, nonce []byte) (aesGcm *AESGcm, err error) {
+// NewAESGcm creates an AES-GCM helper with the provided key and nonce.
+func NewAESGcm(key, nonce []byte) (aesGcm *AESGcm, err error) {
 	// check key and nonce length
 	if len(key) != ValidAES128KeySize && len(key) != ValidAES256KeySize {
 		return nil, errors.New("invalid key, should be 16 or 32 bytes")
@@ -58,12 +60,12 @@ func NewAESGcm(key []byte, nonce []byte) (aesGcm *AESGcm, err error) {
 	// create AEAD
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return
+		return aesGcm, err
 	}
 
 	aead, err := cipher.NewGCM(block)
 	if err != nil {
-		return
+		return aesGcm, err
 	}
 
 	return &AESGcm{
@@ -73,34 +75,37 @@ func NewAESGcm(key []byte, nonce []byte) (aesGcm *AESGcm, err error) {
 	}, nil
 }
 
-// TODO: byte to string  & string to byte
+// Encrypt TODO: byte to string & string to byte
 func (a *AESGcm) Encrypt(plaintext []byte) []byte {
 	encryptedText := a.aead.Seal(plaintext[:0], a.nonce, plaintext, nil)
 	return encryptedText
 }
 
+// Decrypt decrypts the given ciphertext bytes.
 func (a *AESGcm) Decrypt(encryptedText []byte) ([]byte, error) {
 	plaintext, err := a.aead.Open(nil, a.nonce, encryptedText, nil)
 	return plaintext, err
 }
 
+// EncryptToBase64 encrypts plaintext and returns a base64-encoded result.
 func (a *AESGcm) EncryptToBase64(plaintext string) string {
 	plaintextBytes := util.StringToBytes(plaintext)
 	encryptedText := a.Encrypt(plaintextBytes)
 	return base64.StdEncoding.EncodeToString(encryptedText)
 }
 
+// DecryptFromBase64 decodes and decrypts a base64-encoded ciphertext.
 func (a *AESGcm) DecryptFromBase64(encryptedTextB64 string) (plaintext string, err error) {
 	var encryptedText []byte
 	encryptedText, err = base64.StdEncoding.DecodeString(encryptedTextB64)
 	if err != nil {
-		return
+		return plaintext, err
 	}
 
 	var plaintextBytes []byte
 	plaintextBytes, err = a.Decrypt(encryptedText)
 	if err != nil {
-		return
+		return plaintext, err
 	}
 
 	return util.BytesToString(plaintextBytes), err

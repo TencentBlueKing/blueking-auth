@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package redis provides Redis client initialization and shared helpers.
 package redis
 
 import (

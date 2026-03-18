@@ -65,7 +65,7 @@ var _ = Describe("RedisCache", func() {
 	})
 
 	It("GetInto", func() {
-		retrieveTest := func(ctx context.Context, key cache.Key) (interface{}, error) {
+		retrieveTest := func(ctx context.Context, key cache.Key) (any, error) {
 			return "ok", nil
 		}
 

@@ -27,7 +27,7 @@ import (
 // SecretLength TODO: 调整为从配置文件读取，TE版 50位，CE/EE版 36位
 const SecretLength = 36
 
-// LetterBytes
+// LetterBytes defines the character set for generating app secrets.
 // TODO: 调整为从配置文件读取
 // TE版：[V3]大小写字母、数字 [V2] 大小写字母、数字和特殊字符~!@#$%^&*()_+-=?,.<>
 // CE/EE版：由uuid4生成hex字符串，小写字母、数字、连接符
@@ -63,6 +63,7 @@ func convertToPlainAppSecret(encryptedAppSecret string) (string, error) {
 	return cryptography.AppSecretCrypto.DecryptFromBase64(encryptedAppSecret)
 }
 
+// ConvertToEncryptedAppSecret encrypts a plaintext app secret.
 func ConvertToEncryptedAppSecret(plainAppSecret string) string {
 	return cryptography.AppSecretCrypto.EncryptToBase64(plainAppSecret)
 }

@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package basic provides foundational API routes and middleware.
 package basic
 
 import (
@@ -41,8 +42,8 @@ func MonitoringAuth(authToken string) gin.HandlerFunc {
 // extractToken 按优先级提取 Token
 func extractToken(c *gin.Context) string {
 	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
-		if strings.HasPrefix(authHeader, "Bearer ") {
-			return strings.TrimPrefix(authHeader, "Bearer ")
+		if token, found := strings.CutPrefix(authHeader, "Bearer "); found {
+			return token
 		}
 	}
 	return c.Query("token")

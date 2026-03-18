@@ -62,7 +62,7 @@ func SetAccessAppCode(c *gin.Context, clientID string) {
 }
 
 // GetError ...
-func GetError(c *gin.Context) (interface{}, bool) {
+func GetError(c *gin.Context) (any, bool) {
 	return c.Get(ErrorIDKey)
 }
 
@@ -71,10 +71,12 @@ func SetError(c *gin.Context, err error) {
 	c.Set(ErrorIDKey, err)
 }
 
+// SetEnableMultiTenantMode stores the multi-tenant mode flag in the request context.
 func SetEnableMultiTenantMode(c *gin.Context, enableMultiTenantMode bool) {
 	c.Set(EnableMultiTenantModeKey, enableMultiTenantMode)
 }
 
+// GetEnableMultiTenantMode gets the multi-tenant mode flag from the request context.
 func GetEnableMultiTenantMode(c *gin.Context) bool {
 	return c.GetBool(EnableMultiTenantModeKey)
 }

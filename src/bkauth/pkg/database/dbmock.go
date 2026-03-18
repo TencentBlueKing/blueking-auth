@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package database provides database access helpers and test mocks.
 package database
 
 import (
@@ -54,7 +55,7 @@ func RunWithMock(t *testing.T, test func(db *sqlx.DB, mock sqlmock.Sqlmock, t *t
 }
 
 // NewMockRowsWithoutData ...
-func NewMockRowsWithoutData(mock sqlmock.Sqlmock, arg interface{}) *sqlmock.Rows {
+func NewMockRowsWithoutData(mock sqlmock.Sqlmock, arg any) *sqlmock.Rows {
 	var mockRows *sqlmock.Rows
 
 	// 根据 Struct 的 db 标签，获取 columns
@@ -76,7 +77,7 @@ func NewMockRowsWithoutData(mock sqlmock.Sqlmock, arg interface{}) *sqlmock.Rows
 }
 
 // NewMockRows ...
-func NewMockRows(mock sqlmock.Sqlmock, args ...interface{}) *sqlmock.Rows {
+func NewMockRows(mock sqlmock.Sqlmock, args ...any) *sqlmock.Rows {
 	mockRows := NewMockRowsWithoutData(mock, args[0])
 
 	objType := reflect.TypeOf(args[0])

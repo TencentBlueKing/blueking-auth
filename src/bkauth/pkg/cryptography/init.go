@@ -24,7 +24,8 @@ import (
 
 var AppSecretCrypto Crypto
 
-func Init(encryptKey string, nonce string) (err error) {
+// Init initializes the crypto used to handle app secrets.
+func Init(encryptKey, nonce string) (err error) {
 	AppSecretCrypto, err = NewAESGcm([]byte(encryptKey), []byte(nonce))
 	if err != nil {
 		return fmt.Errorf("cryptos[id=app_secret_key] key error: %w", err)

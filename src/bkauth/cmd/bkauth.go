@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package cmd defines the application command-line entrypoints and subcommands.
 package cmd
 
 import (

@@ -88,7 +88,7 @@ var _ = Describe("Response", func() {
 		})
 
 		It("debug is not nil", func() {
-			util.SuccessJSONResponseWithDebug(c, "ok", nil, map[string]interface{}{"hello": "world"})
+			util.SuccessJSONResponseWithDebug(c, "ok", nil, map[string]any{"hello": "world"})
 			assert.Equal(GinkgoT(), 200, c.Writer.Status())
 
 			got := readResponse(w)
@@ -124,7 +124,11 @@ var _ = Describe("Response", func() {
 		})
 
 		It("debug is not nil", func() {
-			util.SystemErrorJSONResponseWithDebug(c, errors.New("anError"), map[string]interface{}{"hello": "world"})
+			util.SystemErrorJSONResponseWithDebug(
+				c,
+				errors.New("anError"),
+				map[string]any{"hello": "world"},
+			)
 			assert.Equal(GinkgoT(), 500, c.Writer.Status())
 
 			got := readResponse(w)

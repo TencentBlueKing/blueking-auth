@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package backend provides the in-memory cache backend implementation.
 package backend
 
 import (
@@ -33,7 +34,7 @@ type RandomExpirationDurationFunc func() time.Duration
 
 // NewTTLCache create cache with expiration and cleanup interval,
 // if cleanupInterval is 0, will use DefaultCleanupInterval
-func newTTLCache(expiration time.Duration, cleanupInterval time.Duration) *gocache.Cache {
+func newTTLCache(expiration, cleanupInterval time.Duration) *gocache.Cache {
 	if cleanupInterval == 0 {
 		cleanupInterval = DefaultCleanupInterval
 	}
@@ -51,7 +52,7 @@ type MemoryBackend struct {
 }
 
 // Set ...
-func (c *MemoryBackend) Set(key string, value interface{}, duration time.Duration) {
+func (c *MemoryBackend) Set(key string, value any, duration time.Duration) {
 	if duration == time.Duration(0) {
 		duration = c.defaultExpiration
 	}
@@ -64,12 +65,12 @@ func (c *MemoryBackend) Set(key string, value interface{}, duration time.Duratio
 }
 
 // Get ...
-func (c *MemoryBackend) Get(key string) (interface{}, bool) {
+func (c *MemoryBackend) Get(key string) (any, bool) {
 	return c.cache.Get(key)
 }
 
 // GetInto ...
-func (c *MemoryBackend) GetInto(key string, value interface{}) (interface{}, bool) {
+func (c *MemoryBackend) GetInto(key string, value any) (any, bool) {
 	return c.cache.Get(key)
 }
 

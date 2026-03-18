@@ -32,7 +32,7 @@ jobs:
     - name: Lint
       uses: golangci/golangci-lint-action@v8
       with:
-        version: v2.3.0
+        version: v2.11.3
         working-directory: src/bkauth
 
     - name: Test

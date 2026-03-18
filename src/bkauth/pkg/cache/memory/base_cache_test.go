@@ -45,7 +45,7 @@ var _ = Describe("Base Cache", func() {
 		var retrieveTest RetrieveFunc
 		var c Cache
 		BeforeEach(func() {
-			retrieveTest = func(ctx context.Context, k cache.Key) (interface{}, error) {
+			retrieveTest = func(ctx context.Context, k cache.Key) (any, error) {
 				kStr := k.Key()
 				switch kStr {
 				case "a":
@@ -175,7 +175,7 @@ var _ = Describe("Base Cache", func() {
 	Context("retrieve Error", func() {
 		var c Cache
 		BeforeEach(func() {
-			retrieveError := func(ctx context.Context, k cache.Key) (interface{}, error) {
+			retrieveError := func(ctx context.Context, k cache.Key) (any, error) {
 				return nil, errors.New("test error")
 			}
 			c = NewBaseCache(true, retrieveError, be)
@@ -203,7 +203,7 @@ var _ = Describe("Base Cache", func() {
 	})
 })
 
-func retrieveBenchmark(ctx context.Context, k cache.Key) (interface{}, error) {
+func retrieveBenchmark(ctx context.Context, k cache.Key) (any, error) {
 	return "", nil
 }
 
@@ -247,7 +247,7 @@ func BenchmarkSingleFlightRetrieve(b *testing.B) {
 			index = 0
 		}
 
-		g.Do(key.Key(), func() (interface{}, error) {
+		g.Do(key.Key(), func() (any, error) {
 			return retrieveBenchmark(context.Background(), key)
 		})
 	}

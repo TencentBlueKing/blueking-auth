@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package service provides the business-layer services used by the application.
 package service
 
 //go:generate mockgen -source=$GOFILE -destination=./mock/$GOFILE -package=mock
@@ -43,7 +44,7 @@ type AccessKeyService interface {
 	// TODO：Create / CreateWithSecret 可以引入一个输入的 struct（比如 AccessKeyCreateInput），避免多个 string 参数的顺序错误和跨层“散弹式修改”
 	Create(ctx context.Context, appCode, createdSource, description string) (types.AccessKey, error)
 	CreateWithSecret(ctx context.Context, appCode, appSecret, createdSource, description string) error
-	UpdateByID(ctx context.Context, id int64, updateFieldMap map[string]interface{}) error
+	UpdateByID(ctx context.Context, id int64, updateFieldMap map[string]any) error
 	DeleteByID(ctx context.Context, appCode string, id int64) error
 	ListWithCreatedAtByAppCode(ctx context.Context, appCode string) ([]types.AccessKeyWithCreatedAt, error)
 	Verify(ctx context.Context, appCode, appSecret string) (bool, error)
@@ -56,6 +57,7 @@ type accessKeyService struct {
 	manager dao.AccessKeyManager
 }
 
+// NewAccessKeyService creates an access key service.
 func NewAccessKeyService() AccessKeyService {
 	return &accessKeyService{
 		manager: dao.NewAccessKeyManager(),
@@ -105,7 +107,7 @@ func (s *accessKeyService) Create(
 		Enabled:     daoAccessKey.Enabled,
 		Description: description,
 	}
-	return
+	return accessKey, err
 }
 
 // CreateWithSecret : 创建应用密钥，支持指定 appSecret 的值，createdSource 为创建来源，即哪个系统创建的
@@ -121,9 +123,10 @@ func (s *accessKeyService) CreateWithSecret(
 		return errorWrapf(err, "manager.Create accessKey=`%+v` fail", daoAccessKey)
 	}
 
-	return
+	return err
 }
 
+// DeleteByID deletes an access key by app code and id.
 func (s *accessKeyService) DeleteByID(ctx context.Context, appCode string, id int64) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "DeleteByID")
 
@@ -147,17 +150,17 @@ func (s *accessKeyService) DeleteByID(ctx context.Context, appCode string, id in
 		return errorWrapf(err, "manager.DeleteByID appCode=`%s` id=`%d` fail", appCode, id)
 	}
 
-	return
+	return err
 }
 
 // UpdateByID 更新 accessKey
 func (s *accessKeyService) UpdateByID(
 	ctx context.Context,
 	id int64,
-	updateFieldMap map[string]interface{},
+	updateFieldMap map[string]any,
 ) (err error) {
 	if len(updateFieldMap) == 0 {
-		return
+		return err
 	}
 
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "UpdateByID")
@@ -166,9 +169,10 @@ func (s *accessKeyService) UpdateByID(
 		return errorWrapf(err, "manager.UpdateByID updateFieldMap=`%+v` id=`%d` fail", updateFieldMap, id)
 	}
 
-	return
+	return err
 }
 
+// ListWithCreatedAtByAppCode lists access keys with creation time for the given app.
 func (s *accessKeyService) ListWithCreatedAtByAppCode(ctx context.Context, appCode string) (
 	accessKeys []types.AccessKeyWithCreatedAt, err error,
 ) {
@@ -203,9 +207,10 @@ func (s *accessKeyService) ListWithCreatedAtByAppCode(ctx context.Context, appCo
 		})
 	}
 
-	return
+	return accessKeys, err
 }
 
+// Verify checks whether the given app code and app secret are valid.
 func (s *accessKeyService) Verify(ctx context.Context, appCode, appSecret string) (exists bool, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "Verify")
 
@@ -217,9 +222,10 @@ func (s *accessKeyService) Verify(ctx context.Context, appCode, appSecret string
 		return false, errorWrapf(err, "manager.Exists appCode=`%s` appSecret=`%s` fail", appCode, appSecret)
 	}
 
-	return
+	return exists, err
 }
 
+// ListEncryptedAccessKeyByAppCode lists encrypted access keys for the given app.
 func (s *accessKeyService) ListEncryptedAccessKeyByAppCode(
 	ctx context.Context,
 	appCode string,
@@ -237,9 +243,10 @@ func (s *accessKeyService) ListEncryptedAccessKeyByAppCode(
 		})
 	}
 
-	return
+	return appSecrets, err
 }
 
+// List lists all access keys with decrypted secrets.
 func (s *accessKeyService) List(ctx context.Context) (accessKeys []types.AccessKey, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "List")
 
@@ -265,9 +272,10 @@ func (s *accessKeyService) List(ctx context.Context) (accessKeys []types.AccessK
 		})
 	}
 
-	return
+	return accessKeys, err
 }
 
+// ExistsByAppCodeAndID checks whether the given app code and id pair exists.
 func (s *accessKeyService) ExistsByAppCodeAndID(ctx context.Context, appCode string, id int64) (bool, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "ExistsByAppCodeAndID")
 

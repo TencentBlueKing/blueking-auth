@@ -16,10 +16,12 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package redis provides Redis-backed cache implementations.
 package redis
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -48,7 +50,7 @@ const (
 )
 
 // RetrieveFunc ...
-type RetrieveFunc func(ctx context.Context, key bkauthCache.Key) (interface{}, error)
+type RetrieveFunc func(ctx context.Context, key bkauthCache.Key) (any, error)
 
 // Cache is a cache implements
 type Cache struct {
@@ -81,7 +83,7 @@ func NewCache(cli *redis.Client, name string, expiration time.Duration) *Cache {
 // NewMockCache will create a cache for mock
 func NewMockCache(cli *redis.Client, name string, expiration time.Duration) *Cache {
 	// key format = bkauth:{cache_name}:{real_key}
-	keyPrefix := fmt.Sprintf("bkauth:%s", name)
+	keyPrefix := "bkauth:" + name
 
 	codec := cache.New(&cache.Options{
 		Redis: cli,
@@ -100,7 +102,7 @@ func (c *Cache) genKey(key string) string {
 	return c.keyPrefix + ":" + key
 }
 
-func (c *Cache) copyTo(source interface{}, dest interface{}) error {
+func (c *Cache) copyTo(source, dest any) error {
 	b, err := msgpack.Marshal(source)
 	if err != nil {
 		return err
@@ -111,7 +113,7 @@ func (c *Cache) copyTo(source interface{}, dest interface{}) error {
 }
 
 // Set execute `set`
-func (c *Cache) Set(ctx context.Context, key bkauthCache.Key, value interface{}, duration time.Duration) error {
+func (c *Cache) Set(ctx context.Context, key bkauthCache.Key, value any, duration time.Duration) error {
 	if duration == time.Duration(0) {
 		duration = c.defaultExpiration
 	}
@@ -126,7 +128,7 @@ func (c *Cache) Set(ctx context.Context, key bkauthCache.Key, value interface{},
 }
 
 // Get execute `get`
-func (c *Cache) Get(ctx context.Context, key bkauthCache.Key, value interface{}) error {
+func (c *Cache) Get(ctx context.Context, key bkauthCache.Key, value any) error {
 	k := c.genKey(key.Key())
 	return c.codec.Get(ctx, k, value)
 }
@@ -144,13 +146,13 @@ func (c *Cache) Exists(ctx context.Context, key bkauthCache.Key) bool {
 func (c *Cache) GetInto(
 	ctx context.Context,
 	key bkauthCache.Key,
-	obj interface{},
+	obj any,
 	retrieveFunc RetrieveFunc,
 ) (err error) {
 	// 1. get from cache, hit, return
 	err = c.Get(ctx, key, obj)
 	if err == nil {
-		return
+		return err
 	}
 
 	// 2. if missing
@@ -160,14 +162,14 @@ func (c *Cache) GetInto(
 	retrieveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), retrieveTimeout)
 	defer cancel()
 
-	data, err, _ := c.g.Do(key.Key(), func() (interface{}, error) {
+	data, err, _ := c.g.Do(key.Key(), func() (any, error) {
 		return retrieveFunc(retrieveCtx, key)
 	})
 	// 2.3 do retrieve fail, make guard and return
 	if err != nil {
 		// if retrieve fail, should wait for few seconds for the missing-retrieve
 		// c.makeGuard(key)
-		return
+		return err
 	}
 
 	// 3. set to cache
@@ -245,7 +247,7 @@ func (c *Cache) BatchGet(ctx context.Context, keys []bkauthCache.Key) (map[bkaut
 	_, err := pipe.Exec(ctx)
 	// 当批量操作, 里面有个key不存在, err = redis.Nil; 但是不应该影响其他存在的key的获取
 	// Nil reply returned by Redis when key does not exist.
-	if err != nil && err != redis.Nil {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		return nil, err
 	}
 
@@ -320,7 +322,7 @@ func (c *Cache) ZRevRangeByScore(
 }
 
 // BatchZRemove execute `zremrangebyscore` with pipeline
-func (c *Cache) BatchZRemove(ctx context.Context, keys []string, min int64, max int64) error {
+func (c *Cache) BatchZRemove(ctx context.Context, keys []string, min, max int64) error {
 	pipe := c.cli.TxPipeline()
 
 	minStr := strconv.FormatInt(min, 10)
@@ -376,7 +378,7 @@ func (c *Cache) BatchHGet(ctx context.Context, hashKeyFields []HashKeyField) (ma
 	_, err := pipe.Exec(ctx)
 	// 当批量操作, 里面有个key不存在, err = redis.Nil; 但是不应该影响其他存在的key的获取
 	// Nil reply returned by Redis when key does not exist.
-	if err != nil && err != redis.Nil {
+	if err != nil && !errors.Is(err, redis.Nil) {
 		return nil, err
 	}
 
@@ -402,12 +404,12 @@ func (c *Cache) HKeys(ctx context.Context, hashKey string) ([]string, error) {
 
 // Unmarshal with compress, via go-redis/cache, use s2 compression
 // Note: YOU SHOULD NOT USE THE RAW msgpack.Unmarshal directly! will panic with decode fail
-func (c *Cache) Unmarshal(b []byte, value interface{}) error {
+func (c *Cache) Unmarshal(b []byte, value any) error {
 	return c.codec.Unmarshal(b, value)
 }
 
 // Marshal with compress, via go-redis/cache, use s2 compression
 // Note: YOU SHOULD NOT USE THE RAW msgpack.Marshal directly!
-func (c *Cache) Marshal(value interface{}) ([]byte, error) {
+func (c *Cache) Marshal(value any) ([]byte, error) {
 	return c.codec.Marshal(value)
 }

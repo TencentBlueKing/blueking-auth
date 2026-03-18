@@ -34,7 +34,7 @@ var _ = Describe("Conv", func() {
 		intSlice := []int{1}
 		strSlice := []string{"abc"}
 
-		DescribeTable("ToSlice cases", func(expected int, willError bool, input interface{}) {
+		DescribeTable("ToSlice cases", func(expected int, willError bool, input any) {
 			data, err := util.ToSlice(input)
 
 			if willError {
@@ -61,7 +61,7 @@ var _ = Describe("Conv", func() {
 	})
 
 	Describe("StringToInt64Slice", func() {
-		DescribeTable("StringToInt64Slice cases", func(expected []int64, willError bool, input string, sep string) {
+		DescribeTable("StringToInt64Slice cases", func(expected []int64, willError bool, input, sep string) {
 			data, err := util.StringToInt64Slice(input, sep)
 			if willError {
 				assert.Error(GinkgoT(), err)

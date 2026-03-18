@@ -24,7 +24,7 @@ import (
 
 // Backend ...
 type Backend interface {
-	Set(key string, value interface{}, duration time.Duration)
-	Get(key string) (interface{}, bool)
+	Set(key string, value any, duration time.Duration)
+	Get(key string) (any, bool)
 	Delete(key string) error
 }

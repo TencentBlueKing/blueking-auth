@@ -28,7 +28,7 @@ import (
 	"bkauth/pkg/cache"
 )
 
-func retrieveOK(ctx context.Context, k cache.Key) (interface{}, error) {
+func retrieveOK(ctx context.Context, k cache.Key) (any, error) {
 	return "ok", nil
 }
 

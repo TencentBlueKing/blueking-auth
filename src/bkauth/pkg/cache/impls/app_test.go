@@ -59,7 +59,13 @@ var _ = Describe("AppCache", func() {
 		})
 		It("AppCache Get fail", func() {
 			mockService := mock.NewMockAppService(ctl)
-			mockService.EXPECT().Get(gomock.Any(), "test").Return(types.App{}, errors.New("error")).AnyTimes()
+			mockService.EXPECT().Get(
+				gomock.Any(),
+				"test",
+			).Return(
+				types.App{},
+				errors.New("error"),
+			).AnyTimes()
 
 			patches = gomonkey.ApplyFunc(service.NewAppService,
 				func() service.AppService {

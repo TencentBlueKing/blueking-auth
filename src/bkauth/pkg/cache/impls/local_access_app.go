@@ -39,7 +39,7 @@ func (k AccessAppCacheKey) Key() string {
 	return k.AppCode + ":" + k.AppSecret
 }
 
-func retrieveAccessApp(ctx context.Context, key cache.Key) (interface{}, error) {
+func retrieveAccessApp(ctx context.Context, key cache.Key) (any, error) {
 	k := key.(AccessAppCacheKey)
 
 	svc := service.NewAccessKeyService()

@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+// Package observability provides OpenTelemetry setup and lifecycle helpers.
 package observability
 
 import (
@@ -107,6 +108,7 @@ func (s *OTLPService) Start(ctx context.Context) error {
 	return nil
 }
 
+// Shutdown stops the global OTLP service if it has been initialized.
 func Shutdown(ctx context.Context) error {
 	if globalOTLPService == nil {
 		return nil
@@ -114,6 +116,7 @@ func Shutdown(ctx context.Context) error {
 	return globalOTLPService.Stop(ctx)
 }
 
+// Stop releases resources held by the OTLP service.
 func (s *OTLPService) Stop(ctx context.Context) error {
 	var err error
 

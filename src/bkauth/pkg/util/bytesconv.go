@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package util provides shared helper functions used across the project.
 package util
 
 import (

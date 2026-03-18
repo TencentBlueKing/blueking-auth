@@ -28,19 +28,19 @@ import (
 
 // Response ...
 type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data"`
 }
 
 // DebugResponse ...
 type DebugResponse struct {
 	Response
-	Debug interface{} `json:"debug"`
+	Debug any `json:"debug"`
 }
 
 // BaseJSONResponse make the response more Explicit
-func BaseJSONResponse(c *gin.Context, status int, code int, message string, data interface{}) {
+func BaseJSONResponse(c *gin.Context, status, code int, message string, data any) {
 	// 通过 code = 0 或 非0, 确认是否成功, 不增加result字段
 	body := Response{
 		Code:    code,
@@ -51,17 +51,17 @@ func BaseJSONResponse(c *gin.Context, status int, code int, message string, data
 }
 
 // BaseErrorJSONResponse ...
-func BaseErrorJSONResponse(c *gin.Context, status int, code int, message string) {
+func BaseErrorJSONResponse(c *gin.Context, status, code int, message string) {
 	BaseJSONResponse(c, status, code, message, gin.H{})
 }
 
 // SuccessJSONResponse ...
-func SuccessJSONResponse(c *gin.Context, message string, data interface{}) {
+func SuccessJSONResponse(c *gin.Context, message string, data any) {
 	BaseJSONResponse(c, http.StatusOK, NoError, message, data)
 }
 
 // SuccessJSONResponseWithDebug ...
-func SuccessJSONResponseWithDebug(c *gin.Context, message string, data interface{}, debug interface{}) {
+func SuccessJSONResponseWithDebug(c *gin.Context, message string, data, debug any) {
 	if debug == nil || reflect.ValueOf(debug).IsNil() {
 		SuccessJSONResponse(c, message, data)
 		return
@@ -81,7 +81,7 @@ func SuccessJSONResponseWithDebug(c *gin.Context, message string, data interface
 // =============== impls of some common error response ===============
 
 // NewErrorJSONResponse ...
-func NewErrorJSONResponse(status int, errorCode int, defaultMessage string) func(c *gin.Context, message string) {
+func NewErrorJSONResponse(status, errorCode int, defaultMessage string) func(c *gin.Context, message string) {
 	return func(c *gin.Context, message string) {
 		msg := defaultMessage
 		if message != "" {
@@ -98,7 +98,11 @@ var (
 	UnauthorizedJSONResponse    = NewErrorJSONResponse(http.StatusUnauthorized, UnauthorizedError, "unauthorized")
 	NotFoundJSONResponse        = NewErrorJSONResponse(http.StatusNotFound, NotFoundError, "not found")
 	ConflictJSONResponse        = NewErrorJSONResponse(http.StatusConflict, ConflictError, "conflict")
-	TooManyRequestsJSONResponse = NewErrorJSONResponse(http.StatusTooManyRequests, TooManyRequests, "too many requests")
+	TooManyRequestsJSONResponse = NewErrorJSONResponse(
+		http.StatusTooManyRequests,
+		TooManyRequests,
+		"too many requests",
+	)
 )
 
 // SystemErrorJSONResponse ...
@@ -109,7 +113,7 @@ func SystemErrorJSONResponse(c *gin.Context, err error) {
 }
 
 // SystemErrorJSONResponseWithDebug ...
-func SystemErrorJSONResponseWithDebug(c *gin.Context, err error, debug interface{}) {
+func SystemErrorJSONResponseWithDebug(c *gin.Context, err error, debug any) {
 	if debug == nil || reflect.ValueOf(debug).IsNil() {
 		SystemErrorJSONResponse(c, err)
 		return

@@ -16,6 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
+// Package config defines application configuration structures and loaders.
 package config
 
 import (
