@@ -35,6 +35,14 @@ var (
 	ErrInvalidAppCode = errors.New("invalid app_code: app_code should begin with a lowercase letter or numbers, " +
 		"contains lowercase letters(a-z), numbers(0-9), underline(_) or hyphen(-), length should be 1 to 32 letters")
 
+	// ReservedAppCodePrefixRegex 预留部分前缀用于 OAuth/DCR/CIMD 等
+	ReservedAppCodePrefixRegex = regexp.MustCompile(`^(public|private|dcr|cimd)([_-]|$)`)
+	ErrReservedAppCodePrefix   = errors.New(
+		"invalid app_code: reserved patterns are not allowed — " +
+			"'public', 'private', 'dcr', 'cimd', and their forms with '_' or '-' prefixes " +
+			"(e.g. 'public_xxx', 'dcr-xxx'); these are reserved for internal use",
+	)
+
 	// 租户相关验证
 	ValidTenantIDRegex = regexp.MustCompile("^[a-z][a-z0-9-]{1,30}[a-z0-9]$")
 	ErrInvalidTenantID = errors.New("invalid bk_tenant.id: bk_tenant_id should begin with a letter, " +
@@ -50,11 +58,18 @@ type AccessKeyAndAppCodeSerializer struct {
 	AccessKeyID int64 `uri:"access_key_id" binding:"required" example:"1"`
 }
 
-func (s *AppCodeSerializer) ValidateAppCode() error {
+func (s *AppCodeSerializer) ValidateAppCodeFormat() error {
 	// app_code 的规则是：
 	// 由小写英文字母、连接符 (-)、下划线 (_) 或数字组成，长度为 [1~32] 个字符，并且以字母或数字开头 (^[a-z0-9][a-z0-9_-]{0,31}$)
 	if !ValidAppCodeRegex.MatchString(s.AppCode) {
 		return ErrInvalidAppCode
+	}
+	return nil
+}
+
+func (s *AppCodeSerializer) ValidateAppCodePrefix() error {
+	if ReservedAppCodePrefixRegex.MatchString(s.AppCode) {
+		return ErrReservedAppCodePrefix
 	}
 	return nil
 }

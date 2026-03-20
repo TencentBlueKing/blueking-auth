@@ -49,7 +49,14 @@ func (s *createAppSerializer) validate() error {
 		}
 	}
 
-	return s.ValidateAppCode()
+	if err := s.ValidateAppCodeFormat(); err != nil {
+		return err
+	}
+	if err := s.ValidateAppCodePrefix(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type listAppSerializer struct {
