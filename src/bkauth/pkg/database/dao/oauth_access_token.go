@@ -70,7 +70,9 @@ func NewOAuthAccessTokenManager() OAuthAccessTokenManager {
 	}
 }
 
-func (m *oauthAccessTokenManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx, token OAuthAccessToken) (int64, error) {
+func (m *oauthAccessTokenManager) CreateWithTx(
+	ctx context.Context, tx *sqlx.Tx, token OAuthAccessToken,
+) (int64, error) {
 	query := `INSERT INTO oauth_access_token (
 		jti,
 		token_hash,
@@ -101,7 +103,9 @@ func (m *oauthAccessTokenManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx,
 	return database.SqlxInsertWithTx(ctx, tx, query, token)
 }
 
-func (m *oauthAccessTokenManager) GetByTokenHash(ctx context.Context, tokenHash string) (token OAuthAccessToken, err error) {
+func (m *oauthAccessTokenManager) GetByTokenHash(
+	ctx context.Context, tokenHash string,
+) (token OAuthAccessToken, err error) {
 	query := `SELECT 
 		id,
 		jti,
@@ -147,7 +151,9 @@ func (m *oauthAccessTokenManager) RevokeWithTx(ctx context.Context, tx *sqlx.Tx,
 	return result.RowsAffected()
 }
 
-func (m *oauthAccessTokenManager) RevokeByGrantIDWithTx(ctx context.Context, tx *sqlx.Tx, grantID string) (int64, error) {
+func (m *oauthAccessTokenManager) RevokeByGrantIDWithTx(
+	ctx context.Context, tx *sqlx.Tx, grantID string,
+) (int64, error) {
 	query := `UPDATE oauth_access_token SET revoked = 1 WHERE grant_id = ? AND revoked = 0`
 	result, err := tx.ExecContext(ctx, query, grantID)
 	if err != nil {

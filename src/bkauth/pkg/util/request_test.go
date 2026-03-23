@@ -19,8 +19,10 @@
 package util_test
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo/v2"
@@ -28,6 +30,32 @@ import (
 
 	"bkauth/pkg/util"
 )
+
+var testingContent = []byte("Hello, World!")
+
+type errReader int
+
+func (errReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("test error")
+}
+
+func newRequestResponse() (*http.Request, *httptest.ResponseRecorder) {
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(testingContent))
+	w := httptest.NewRecorder()
+	return r, w
+}
+
+func newRequestEmptyResponse() (*http.Request, *httptest.ResponseRecorder) {
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("")))
+	w := httptest.NewRecorder()
+	return r, w
+}
+
+func newRequestErrorResponse() (*http.Request, *httptest.ResponseRecorder) {
+	r := httptest.NewRequest(http.MethodPost, "/", errReader(0))
+	w := httptest.NewRecorder()
+	return r, w
+}
 
 var _ = Describe("Request", func() {
 	Describe("ReadRequestBody", func() {
@@ -39,38 +67,34 @@ var _ = Describe("Request", func() {
 		})
 
 		It("Empty response", func() {
-			// read empty body
-			r, _ := util.NewRequestEmptyResponse()
+			r, _ := newRequestEmptyResponse()
 			body, err := util.ReadRequestBody(r)
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []byte(""), body)
 		})
 
 		It("Error response", func() {
-			// read error body, will error
-			r, _ := util.NewRequestErrorResponse()
+			r, _ := newRequestErrorResponse()
 			_, err := util.ReadRequestBody(r)
 			assert.Error(GinkgoT(), err)
 		})
 
 		It("read test content from body", func() {
-			// read test content from body
-			r, _ := util.NewRequestResponse()
+			r, _ := newRequestResponse()
 			body, err := util.ReadRequestBody(r)
 			assert.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), util.TestingContent, body)
+			assert.Equal(GinkgoT(), testingContent, body)
 		})
 
 		It("read twice", func() {
-			// test read twice
-			r, _ := util.NewRequestResponse()
+			r, _ := newRequestResponse()
 			body, err := util.ReadRequestBody(r)
 			assert.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), util.TestingContent, body)
+			assert.Equal(GinkgoT(), testingContent, body)
 
 			body, err = util.ReadRequestBody(r)
 			assert.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), util.TestingContent, body)
+			assert.Equal(GinkgoT(), testingContent, body)
 		})
 	})
 

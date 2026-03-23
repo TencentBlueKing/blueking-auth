@@ -77,7 +77,9 @@ func NewOAuthRefreshTokenManager() OAuthRefreshTokenManager {
 	}
 }
 
-func (m *oauthRefreshTokenManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx, token OAuthRefreshToken) (int64, error) {
+func (m *oauthRefreshTokenManager) CreateWithTx(
+	ctx context.Context, tx *sqlx.Tx, token OAuthRefreshToken,
+) (int64, error) {
 	query := `INSERT INTO oauth_refresh_token (
 		token_hash,
 		token_mask,
@@ -110,7 +112,9 @@ func (m *oauthRefreshTokenManager) CreateWithTx(ctx context.Context, tx *sqlx.Tx
 	return database.SqlxInsertWithTx(ctx, tx, query, token)
 }
 
-func (m *oauthRefreshTokenManager) GetByTokenHash(ctx context.Context, tokenHash string) (token OAuthRefreshToken, err error) {
+func (m *oauthRefreshTokenManager) GetByTokenHash(
+	ctx context.Context, tokenHash string,
+) (token OAuthRefreshToken, err error) {
 	query := `SELECT 
 		id,
 		token_hash,
@@ -162,7 +166,9 @@ func (m *oauthRefreshTokenManager) RevokeIfNotRevokedWithTx(
 	return result.RowsAffected()
 }
 
-func (m *oauthRefreshTokenManager) RevokeByGrantIDWithTx(ctx context.Context, tx *sqlx.Tx, grantID string) (int64, error) {
+func (m *oauthRefreshTokenManager) RevokeByGrantIDWithTx(
+	ctx context.Context, tx *sqlx.Tx, grantID string,
+) (int64, error) {
 	query := `UPDATE oauth_refresh_token SET revoked = 1 WHERE grant_id = ? AND revoked = 0`
 	result, err := tx.ExecContext(ctx, query, grantID)
 	if err != nil {

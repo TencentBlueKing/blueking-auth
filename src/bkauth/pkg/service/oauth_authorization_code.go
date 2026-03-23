@@ -36,7 +36,9 @@ const OAuthAuthorizationCodeSVC = "OAuthAuthorizationCodeSVC"
 // OAuthAuthorizationCodeService defines the interface for authorization code lifecycle operations.
 type OAuthAuthorizationCodeService interface {
 	CreateAuthorizationCode(ctx context.Context, input types.CreateAuthorizationCodeInput) error
-	ValidateAndConsume(ctx context.Context, realmName, code, clientID, redirectURI, codeVerifier string) (types.ConsumedAuthorizationCode, error)
+	ValidateAndConsume(
+		ctx context.Context, realmName, code, clientID, redirectURI, codeVerifier string,
+	) (types.ConsumedAuthorizationCode, error)
 }
 
 type oauthAuthorizationCodeService struct {

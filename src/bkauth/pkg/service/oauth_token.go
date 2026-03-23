@@ -38,9 +38,18 @@ const OAuthTokenSVC = "OAuthTokenSVC"
 
 // OAuthTokenService defines the interface for OAuth token operations.
 type OAuthTokenService interface {
-	IssueTokensForAuthorizationCode(ctx context.Context, realmName, clientID, sub, username string, audience []string, policy types.TokenIssuancePolicy) (types.TokenPair, error)
-	IssueTokensForDeviceCode(ctx context.Context, realmName, clientID, sub, username string, audience []string, policy types.TokenIssuancePolicy) (types.TokenPair, error)
-	RefreshAccessToken(ctx context.Context, realmName, refreshToken, clientID string, policy types.TokenIssuancePolicy) (types.TokenPair, error)
+	IssueTokensForAuthorizationCode(
+		ctx context.Context, realmName, clientID, sub, username string,
+		audience []string, policy types.TokenIssuancePolicy,
+	) (types.TokenPair, error)
+	IssueTokensForDeviceCode(
+		ctx context.Context, realmName, clientID, sub, username string,
+		audience []string, policy types.TokenIssuancePolicy,
+	) (types.TokenPair, error)
+	RefreshAccessToken(
+		ctx context.Context, realmName, refreshToken, clientID string,
+		policy types.TokenIssuancePolicy,
+	) (types.TokenPair, error)
 	GetAccessTokenByTokenHash(ctx context.Context, tokenHash string) (types.ResolvedAccessToken, error)
 	RevokeToken(ctx context.Context, tokenHash, clientID string) error
 	RevokeByGrantID(ctx context.Context, grantID string) error
@@ -191,7 +200,9 @@ func (s *oauthTokenService) generateTokenPair(
 ) (types.TokenPair, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(OAuthTokenSVC, "generateTokenPair")
 
-	prepared, err := s.prepareTokenPair(realmName, grantID, clientID, sub, username, audience, oauth.InitialRotationCount, policy)
+	prepared, err := s.prepareTokenPair(
+		realmName, grantID, clientID, sub, username, audience, oauth.InitialRotationCount, policy,
+	)
 	if err != nil {
 		return types.TokenPair{}, errorWrapf(err, "prepareTokenPair fail")
 	}
@@ -222,7 +233,9 @@ func (s *oauthTokenService) generateTokenPair(
 // Returns a zero-value ResolvedAccessToken (ClientID == "") when the token does not exist;
 // callers should check this to distinguish "not found" from a valid record.
 // Revoked/expired checks are NOT performed here — callers decide how to interpret the token state.
-func (s *oauthTokenService) GetAccessTokenByTokenHash(ctx context.Context, tokenHash string) (types.ResolvedAccessToken, error) {
+func (s *oauthTokenService) GetAccessTokenByTokenHash(
+	ctx context.Context, tokenHash string,
+) (types.ResolvedAccessToken, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(OAuthTokenSVC, "GetAccessTokenByTokenHash")
 
 	daoToken, err := s.accessTokenManager.GetByTokenHash(ctx, tokenHash)

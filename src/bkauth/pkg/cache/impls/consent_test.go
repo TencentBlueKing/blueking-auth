@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"bkauth/pkg/cache/redis"
-	"bkauth/pkg/util"
 )
 
 var _ = Describe("Consent", func() {
@@ -34,7 +33,7 @@ var _ = Describe("Consent", func() {
 
 	BeforeEach(func() {
 		ctx = context.Background()
-		ConsentCache = redis.NewMockCache(util.NewTestRedisClient(), "oauth_consent", 10*time.Minute)
+		ConsentCache = redis.NewMockCache(newTestRedisClient(), "oauth_consent", 10*time.Minute)
 	})
 
 	newTestConsent := func() Consent {

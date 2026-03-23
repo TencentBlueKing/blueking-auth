@@ -34,7 +34,6 @@ import (
 	"bkauth/pkg/cryptography"
 	"bkauth/pkg/service/mock"
 	"bkauth/pkg/service/types"
-	"bkauth/pkg/util"
 )
 
 type deterministicCrypto struct{}
@@ -70,7 +69,7 @@ func useDeterministicCrypto() func() {
 var _ = Describe("AccessKeysCache", func() {
 	BeforeEach(func() {
 		expiration := 5 * time.Minute
-		cli := util.NewTestRedisClient()
+		cli := newTestRedisClient()
 		mockCache := redis.NewMockCache(cli, "mockCache", expiration)
 
 		AccessKeysCache = mockCache

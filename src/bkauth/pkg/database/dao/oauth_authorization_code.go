@@ -99,7 +99,9 @@ func (m *oauthAuthorizationCodeManager) Create(ctx context.Context, code OAuthAu
 	return err
 }
 
-func (m *oauthAuthorizationCodeManager) Get(ctx context.Context, code string) (authCode OAuthAuthorizationCode, err error) {
+func (m *oauthAuthorizationCodeManager) Get(
+	ctx context.Context, code string,
+) (authCode OAuthAuthorizationCode, err error) {
 	query := `SELECT 
 		code,
 		client_id,

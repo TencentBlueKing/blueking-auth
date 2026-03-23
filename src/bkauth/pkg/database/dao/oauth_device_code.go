@@ -110,7 +110,9 @@ func (m *oauthDeviceCodeManager) Create(ctx context.Context, dc OAuthDeviceCode)
 	return database.SqlxInsert(ctx, m.DB, query, dc)
 }
 
-func (m *oauthDeviceCodeManager) GetByDeviceCode(ctx context.Context, deviceCode string) (dc OAuthDeviceCode, err error) {
+func (m *oauthDeviceCodeManager) GetByDeviceCode(
+	ctx context.Context, deviceCode string,
+) (dc OAuthDeviceCode, err error) {
 	query := `SELECT
 		id,
 		device_code,
@@ -178,7 +180,8 @@ func (m *oauthDeviceCodeManager) UpdateStatus(ctx context.Context, id int64, sta
 }
 
 func (m *oauthDeviceCodeManager) Approve(ctx context.Context, id int64, sub, username, audience string) (int64, error) {
-	query := `UPDATE oauth_device_code SET status = 'approved', sub = ?, username = ?, audience = ? WHERE id = ? AND status = 'pending'`
+	query := `UPDATE oauth_device_code SET status = 'approved', sub = ?, username = ?, audience = ?` +
+		` WHERE id = ? AND status = 'pending'`
 	result, err := m.DB.ExecContext(ctx, query, sub, username, audience, id)
 	if err != nil {
 		return 0, err

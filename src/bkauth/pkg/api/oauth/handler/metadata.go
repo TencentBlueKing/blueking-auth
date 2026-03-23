@@ -79,7 +79,9 @@ func renderMetadata(c *gin.Context, cfg *config.Config, realm string) {
 			// oauth.GrantTypeDeviceCode,
 		},
 		CodeChallengeMethodsSupported:     []string{oauth.CodeChallengeMethodS256},
-		TokenEndpointAuthMethodsSupported: []string{oauth.AuthMethodNone, oauth.AuthMethodClientSecretBasic, oauth.AuthMethodClientSecretPost},
+		TokenEndpointAuthMethodsSupported: []string{
+			oauth.AuthMethodNone, oauth.AuthMethodClientSecretBasic, oauth.AuthMethodClientSecretPost,
+		},
 	}
 
 	if cfg.OAuth.DCREnabled {

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alicebob/miniredis"
 	redis "github.com/go-redis/redis/v8"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,11 @@ var _ = Describe("RedisCache", func() {
 		c   *Cache
 	)
 	BeforeEach(func() {
-		cli = util.NewTestRedisClient()
+		mr, err := miniredis.Run()
+		if err != nil {
+			panic(err)
+		}
+		cli = redis.NewClient(&redis.Options{Addr: mr.Addr()})
 		c = NewMockCache(cli, "test", 5*time.Minute)
 	})
 

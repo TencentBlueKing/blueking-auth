@@ -226,14 +226,14 @@ func (s *oauthDeviceCodeService) PollAndConsumeDeviceCode(
 			// polling too fast, so it must receive slow_down regardless of DB errors.
 			// If the interval fails to increase, the next poll will trigger slow_down again.
 			// TODO: log the error once the logging convention is established
-			s.deviceCodeManager.SlowDown(ctx, dc.ID, oauth.SlowDownIncrement)
+			_, _ = s.deviceCodeManager.SlowDown(ctx, dc.ID, oauth.SlowDownIncrement)
 			return types.ApprovedDeviceCode{}, oauth.ErrSlowDown
 		}
 	}
 
 	// Best-effort update; failure does not affect the correctness of the current response.
 	// TODO: log the error once the logging convention is established
-	s.deviceCodeManager.UpdateLastPolledAt(ctx, dc.ID)
+	_, _ = s.deviceCodeManager.UpdateLastPolledAt(ctx, dc.ID)
 
 	switch dc.Status {
 	case oauth.DeviceCodeStatusPending:

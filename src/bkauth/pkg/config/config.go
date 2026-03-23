@@ -408,7 +408,7 @@ func Load(v *viper.Viper) (*Config, error) {
 	// 6. Build secret exemption map for O(1) lookups
 	cfg.OAuth.secretExemptMap = make(map[secretExemptKey]struct{}, len(cfg.OAuth.ConfidentialClientSecretExemptions))
 	for _, ex := range cfg.OAuth.ConfidentialClientSecretExemptions {
-		cfg.OAuth.secretExemptMap[secretExemptKey{RealmName: ex.RealmName, ClientID: ex.ClientID}] = struct{}{}
+		cfg.OAuth.secretExemptMap[secretExemptKey(ex)] = struct{}{}
 	}
 
 	// 7. Build introspect allowed map for O(1) lookups
@@ -416,9 +416,7 @@ func Load(v *viper.Viper) (*Config, error) {
 		map[introspectAllowedKey]struct{}, len(cfg.OAuth.IntrospectAllowedAppCodes),
 	)
 	for _, entry := range cfg.OAuth.IntrospectAllowedAppCodes {
-		cfg.OAuth.introspectAllowedMap[introspectAllowedKey{
-			RealmName: entry.RealmName, AppCode: entry.AppCode,
-		}] = struct{}{}
+		cfg.OAuth.introspectAllowedMap[introspectAllowedKey(entry)] = struct{}{}
 	}
 
 	return &cfg, nil

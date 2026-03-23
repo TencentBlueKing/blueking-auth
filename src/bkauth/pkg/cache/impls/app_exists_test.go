@@ -30,13 +30,12 @@ import (
 	"bkauth/pkg/cache"
 	"bkauth/pkg/cache/redis"
 	"bkauth/pkg/service/mock"
-	"bkauth/pkg/util"
 )
 
 var _ = Describe("AppCodeCache", func() {
 	BeforeEach(func() {
 		expiration := 5 * time.Minute
-		cli := util.NewTestRedisClient()
+		cli := newTestRedisClient()
 		mockCache := redis.NewMockCache(cli, "mockCache", expiration)
 
 		AppExistsCache = mockCache
