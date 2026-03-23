@@ -79,4 +79,3 @@ func webJSONErrorWithDetails(c *gin.Context, httpStatus int, code string, messag
 		},
 	})
 }
-

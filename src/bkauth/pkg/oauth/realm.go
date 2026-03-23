@@ -51,4 +51,3 @@ func IsValidRealm(name string) bool {
 	_, ok := realms[name]
 	return ok
 }
-

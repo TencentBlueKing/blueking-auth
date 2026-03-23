@@ -35,9 +35,9 @@ import (
 // type=public: created via DCR, client_id is dcr_xxx.
 // type=confidential: sourced from App, client_id is app_code.
 type OAuthClient struct {
-	ID           string    `db:"id"`
-	Name         string    `db:"name"`
-	Type         string    `db:"type"`
+	ID   string `db:"id"`
+	Name string `db:"name"`
+	Type string `db:"type"`
 	// JSON string
 	RedirectURIs string    `db:"redirect_uris"`
 	GrantTypes   string    `db:"grant_types"`
@@ -151,4 +151,3 @@ func (m *oauthClientManager) GetDisplay(ctx context.Context, clientID string) (d
 	}
 	return display, err
 }
-

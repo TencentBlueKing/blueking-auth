@@ -171,7 +171,7 @@ func (s *appService) CreateWithSecret(ctx context.Context, app types.App, appSec
 	if err != nil {
 		return errorWrapf(err, "accessKeyManager.CreateWithTx secret=`%+v` fail", daoAccessKey)
 	}
-	
+
 	err = tx.Commit()
 
 	return

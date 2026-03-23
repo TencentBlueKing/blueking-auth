@@ -50,7 +50,7 @@ func New() oauth.Realm {
 }
 
 func (r *devopsRealm) Name() string        { return Name }
-func (r *devopsRealm) TokenPrefix() string  { return "bkci_" }
+func (r *devopsRealm) TokenPrefix() string { return "bkci_" }
 
 func parseServiceItem(item string) (string, error) {
 	if !strings.HasPrefix(item, "service:") {

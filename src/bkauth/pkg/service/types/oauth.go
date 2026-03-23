@@ -110,8 +110,8 @@ type ResolvedAccessToken struct {
 	ClientID  string
 	RealmName string
 	Sub       string
-	Username string
-	Audience []string
+	Username  string
+	Audience  []string
 	// Scope    string
 
 	// Token lifecycle

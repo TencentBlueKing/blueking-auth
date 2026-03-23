@@ -45,10 +45,10 @@ func InitAuthenticator(cfg *config.Config) {
 					"bk_app_code":   cfg.AppCode,
 					"bk_app_secret": cfg.AppSecret,
 				})
-			gw = &gatewayTransport{
-				baseURL:  util.URLJoin(cfg.BKApiURL("bk-login"), "prod"),
-				authJSON: string(authData),
-			}
+				gw = &gatewayTransport{
+					baseURL:  util.URLJoin(cfg.BKApiURL("bk-login"), "prod"),
+					authJSON: string(authData),
+				}
 			}
 
 			switch tokenName {

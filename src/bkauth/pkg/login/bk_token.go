@@ -39,7 +39,7 @@ func newBKTokenAuthenticator(loginURL, tokenName string, gw *gatewayTransport) *
 }
 
 func (a *bkTokenAuthenticator) CookieName() string  { return a.tokenName }
-func (a *bkTokenAuthenticator) GetLoginURL() string  { return a.loginURL }
+func (a *bkTokenAuthenticator) GetLoginURL() string { return a.loginURL }
 
 func (a *bkTokenAuthenticator) CheckLogin(ctx context.Context, token string) (AuthResult, error) {
 	var result bklogin.VerifyResult

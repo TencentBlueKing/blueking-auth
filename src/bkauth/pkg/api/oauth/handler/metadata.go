@@ -78,7 +78,7 @@ func renderMetadata(c *gin.Context, cfg *config.Config, realm string) {
 			// NOTE: device_code grant type is not exposed in well-known metadata for now
 			// oauth.GrantTypeDeviceCode,
 		},
-		CodeChallengeMethodsSupported:     []string{oauth.CodeChallengeMethodS256},
+		CodeChallengeMethodsSupported: []string{oauth.CodeChallengeMethodS256},
 		TokenEndpointAuthMethodsSupported: []string{
 			oauth.AuthMethodNone, oauth.AuthMethodClientSecretBasic, oauth.AuthMethodClientSecretPost,
 		},

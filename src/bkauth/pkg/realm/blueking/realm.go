@@ -60,7 +60,7 @@ func New() oauth.Realm {
 }
 
 func (r *bluekingRealm) Name() string        { return Name }
-func (r *bluekingRealm) TokenPrefix() string  { return "bk_" }
+func (r *bluekingRealm) TokenPrefix() string { return "bk_" }
 
 var mcpServerNameRegex = regexp.MustCompile(`/mcp-servers/([^/]+)`)
 

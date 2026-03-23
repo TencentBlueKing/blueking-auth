@@ -26,10 +26,10 @@ const (
 	AccessAppCodeKey         = "access_app_code"
 	EnableMultiTenantModeKey = "enable_multi_tenant_mode"
 
-	ErrorIDKey       = "err"
-	UsernameKey      = "username"
-	RealmNameKey     = "realm_name"
-	ClientIDKey = "client_id"
+	ErrorIDKey   = "err"
+	UsernameKey  = "username"
+	RealmNameKey = "realm_name"
+	ClientIDKey  = "client_id"
 
 	// TenantModeGlobal 应用在租户层的可用模式：全租户
 	TenantModeGlobal = "global"

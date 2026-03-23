@@ -31,11 +31,11 @@ const CacheLayer = "Cache"
 var (
 	LocalAccessAppCache memory.Cache
 
-	AppExistsCache    *redis.Cache
-	AppCache          *redis.Cache
-	AccessKeysCache   *redis.Cache
-	ConsentCache      *redis.Cache
-	AccessTokenCache  *redis.Cache
+	AppExistsCache   *redis.Cache
+	AppCache         *redis.Cache
+	AccessKeysCache  *redis.Cache
+	ConsentCache     *redis.Cache
+	AccessTokenCache *redis.Cache
 )
 
 // InitCaches : Cache should only know about get/retrieve data
@@ -67,14 +67,13 @@ func InitCaches(disabled bool) {
 		5*time.Minute,
 	)
 
-	
 	ConsentCache = redis.NewCache(
 		bkauthredis.GetDefaultRedisClient(),
 		// oc = oauth consent
 		"oc",
 		10*time.Minute,
 	)
-	
+
 	AccessTokenCache = redis.NewCache(
 		bkauthredis.GetDefaultRedisClient(),
 		// oct = oauth access token
