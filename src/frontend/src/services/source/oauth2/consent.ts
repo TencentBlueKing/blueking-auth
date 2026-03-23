@@ -11,7 +11,7 @@ export interface ConsentResponseData {
   /** 应用 Logo 地址 */
   client_logo_uri?: string
   /** 所属 Realm */
-  realm: string
+  realm_name: string
   /** 请求的资源/权限列表 */
   resources?: ResourceGroup[]
   /** 错误码（status = error 时存在） */

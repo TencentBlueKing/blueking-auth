@@ -54,13 +54,13 @@
           <div class="subject-info">
             <div class="logo-circle">
               <img
-                :src="logoImageMap[consentInfo?.realm as keyof typeof logoImageMap]"
-                :alt="consentInfo?.realm || '--'"
+                :src="logoImageMap[consentInfo?.realm_name as keyof typeof logoImageMap]"
+                :alt="consentInfo?.realm_name || '--'"
                 class="logo-img"
               >
             </div>
             <div class="subject-name">
-              {{ realmNameMap[consentInfo?.realm as keyof typeof realmNameMap] || '--' }}
+              {{ realmNameMap[consentInfo?.realm_name as keyof typeof realmNameMap] || '--' }}
             </div>
           </div>
         </div>
@@ -74,7 +74,7 @@
       <!-- 描述 -->
       <p class="auth-desc">
         授权 <span class="highlight">{{ consentInfo?.client_name || '--' }}</span> 访问或操作您在
-        <span class="highlight">{{ realmNameMap[consentInfo?.realm as keyof typeof realmNameMap] || '--' }}</span> 上的资源
+        <span class="highlight">{{ realmNameMap[consentInfo?.realm_name as keyof typeof realmNameMap] || '--' }}</span> 上的资源
       </p>
 
       <!-- 警告 -->

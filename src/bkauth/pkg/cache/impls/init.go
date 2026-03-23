@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -31,9 +31,11 @@ const CacheLayer = "Cache"
 var (
 	LocalAccessAppCache memory.Cache
 
-	AppExistsCache  *redis.Cache
-	AppCache        *redis.Cache
-	AccessKeysCache *redis.Cache
+	AppExistsCache    *redis.Cache
+	AppCache          *redis.Cache
+	AccessKeysCache   *redis.Cache
+	ConsentCache      *redis.Cache
+	AccessTokenCache  *redis.Cache
 )
 
 // InitCaches : Cache should only know about get/retrieve data
@@ -62,6 +64,21 @@ func InitCaches(disabled bool) {
 	AccessKeysCache = redis.NewCache(
 		bkauthredis.GetDefaultRedisClient(),
 		"access_keys_map",
+		5*time.Minute,
+	)
+
+	
+	ConsentCache = redis.NewCache(
+		bkauthredis.GetDefaultRedisClient(),
+		// oc = oauth consent
+		"oc",
+		10*time.Minute,
+	)
+	
+	AccessTokenCache = redis.NewCache(
+		bkauthredis.GetDefaultRedisClient(),
+		// oct = oauth access token
+		"oct",
 		5*time.Minute,
 	)
 }

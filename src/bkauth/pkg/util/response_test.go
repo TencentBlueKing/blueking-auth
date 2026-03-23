@@ -96,6 +96,28 @@ var _ = Describe("Response", func() {
 		})
 	})
 
+	Describe("NewErrorJSONResponse", func() {
+		It("should use default message when message is empty", func() {
+			handler := util.NewErrorJSONResponse(418, 999, "teapot")
+			handler(c, "")
+			assert.Equal(GinkgoT(), 418, c.Writer.Status())
+
+			got := readResponse(w)
+			assert.Equal(GinkgoT(), 999, got.Code)
+			assert.Equal(GinkgoT(), "teapot", got.Message)
+		})
+
+		It("should append custom message after default message", func() {
+			handler := util.NewErrorJSONResponse(418, 999, "teapot")
+			handler(c, "extra detail")
+			assert.Equal(GinkgoT(), 418, c.Writer.Status())
+
+			got := readResponse(w)
+			assert.Equal(GinkgoT(), 999, got.Code)
+			assert.Equal(GinkgoT(), "teapot:extra detail", got.Message)
+		})
+	})
+
 	It("BadRequestErrorJSONResponse", func() {
 		util.BadRequestErrorJSONResponse(c, "error")
 		assert.Equal(GinkgoT(), 400, c.Writer.Status())
@@ -103,6 +125,51 @@ var _ = Describe("Response", func() {
 		got := readResponse(w)
 		assert.Equal(GinkgoT(), util.BadRequestError, got.Code)
 		assert.Equal(GinkgoT(), "bad request:error", got.Message)
+	})
+
+	It("ForbiddenJSONResponse", func() {
+		util.ForbiddenJSONResponse(c, "denied")
+		assert.Equal(GinkgoT(), 403, c.Writer.Status())
+
+		got := readResponse(w)
+		assert.Equal(GinkgoT(), util.ForbiddenError, got.Code)
+		assert.Equal(GinkgoT(), "no permission:denied", got.Message)
+	})
+
+	It("UnauthorizedJSONResponse", func() {
+		util.UnauthorizedJSONResponse(c, "invalid token")
+		assert.Equal(GinkgoT(), 401, c.Writer.Status())
+
+		got := readResponse(w)
+		assert.Equal(GinkgoT(), util.UnauthorizedError, got.Code)
+		assert.Equal(GinkgoT(), "unauthorized:invalid token", got.Message)
+	})
+
+	It("NotFoundJSONResponse", func() {
+		util.NotFoundJSONResponse(c, "resource missing")
+		assert.Equal(GinkgoT(), 404, c.Writer.Status())
+
+		got := readResponse(w)
+		assert.Equal(GinkgoT(), util.NotFoundError, got.Code)
+		assert.Equal(GinkgoT(), "not found:resource missing", got.Message)
+	})
+
+	It("ConflictJSONResponse", func() {
+		util.ConflictJSONResponse(c, "duplicate")
+		assert.Equal(GinkgoT(), 409, c.Writer.Status())
+
+		got := readResponse(w)
+		assert.Equal(GinkgoT(), util.ConflictError, got.Code)
+		assert.Equal(GinkgoT(), "conflict:duplicate", got.Message)
+	})
+
+	It("TooManyRequestsJSONResponse", func() {
+		util.TooManyRequestsJSONResponse(c, "rate limited")
+		assert.Equal(GinkgoT(), 429, c.Writer.Status())
+
+		got := readResponse(w)
+		assert.Equal(GinkgoT(), util.TooManyRequests, got.Code)
+		assert.Equal(GinkgoT(), "too many requests:rate limited", got.Message)
 	})
 
 	It("SystemErrorJSONResponse", func() {

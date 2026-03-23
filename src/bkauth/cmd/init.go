@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"regexp"
 
-	sentry "github.com/getsentry/sentry-go"
+	"github.com/getsentry/sentry-go"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
@@ -32,9 +32,14 @@ import (
 	"bkauth/pkg/cryptography"
 	"bkauth/pkg/database"
 	"bkauth/pkg/errorx"
+	"bkauth/pkg/external/bkapigateway"
 	"bkauth/pkg/logging"
+	"bkauth/pkg/login"
 	"bkauth/pkg/metric"
+	"bkauth/pkg/oauth"
 	"bkauth/pkg/observability"
+	"bkauth/pkg/realm/blueking"
+	"bkauth/pkg/realm/devops"
 	"bkauth/pkg/redis"
 )
 
@@ -149,6 +154,17 @@ func initCryptos() {
 	if err != nil {
 		panic(err.Error())
 	}
+}
+
+func initLogin() {
+	login.InitAuthenticator(globalConfig)
+}
+
+func initRealms() {
+	bkapigateway.Init(globalConfig.BKApiURL("bk-apigateway"), globalConfig.AppCode, globalConfig.AppSecret)
+
+	oauth.RegisterRealm(blueking.New())
+	oauth.RegisterRealm(devops.New())
 }
 
 func initAPIAllowList() {

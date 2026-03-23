@@ -131,4 +131,73 @@ var _ = Describe("Request", func() {
 			assert.Equal(GinkgoT(), expected, err)
 		})
 	})
+
+	Describe("EnableMultiTenantMode", func() {
+		var c *gin.Context
+		BeforeEach(func() {
+			c = &gin.Context{}
+		})
+
+		It("GetEnableMultiTenantMode default", func() {
+			assert.False(GinkgoT(), util.GetEnableMultiTenantMode(c))
+		})
+
+		It("SetEnableMultiTenantMode true", func() {
+			util.SetEnableMultiTenantMode(c, true)
+			assert.True(GinkgoT(), util.GetEnableMultiTenantMode(c))
+		})
+
+		It("SetEnableMultiTenantMode false", func() {
+			util.SetEnableMultiTenantMode(c, false)
+			assert.False(GinkgoT(), util.GetEnableMultiTenantMode(c))
+		})
+	})
+
+	Describe("Username", func() {
+		var c *gin.Context
+		BeforeEach(func() {
+			c = &gin.Context{}
+		})
+
+		It("GetUsername default", func() {
+			assert.Equal(GinkgoT(), "", util.GetUsername(c))
+		})
+
+		It("SetUsername", func() {
+			util.SetUsername(c, "admin")
+			assert.Equal(GinkgoT(), "admin", util.GetUsername(c))
+		})
+	})
+
+	Describe("RealmName", func() {
+		var c *gin.Context
+		BeforeEach(func() {
+			c = &gin.Context{}
+		})
+
+		It("GetRealmName default", func() {
+			assert.Equal(GinkgoT(), "", util.GetRealmName(c))
+		})
+
+		It("SetRealmName", func() {
+			util.SetRealmName(c, "bk")
+			assert.Equal(GinkgoT(), "bk", util.GetRealmName(c))
+		})
+	})
+
+	Describe("ClientID", func() {
+		var c *gin.Context
+		BeforeEach(func() {
+			c = &gin.Context{}
+		})
+
+		It("GetClientID default", func() {
+			assert.Equal(GinkgoT(), "", util.GetClientID(c))
+		})
+
+		It("SetClientID", func() {
+			util.SetClientID(c, "my-client")
+			assert.Equal(GinkgoT(), "my-client", util.GetClientID(c))
+		})
+	})
 })

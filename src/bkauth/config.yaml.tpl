@@ -28,6 +28,42 @@ accessKeys:
   bkauth: "G3dsdftR9nGQM8WnF1qwjGSVE0ScXrz1hKWM"
   bk_paas3: "G3dsdftR9nGQM8WnF1qwjGSVE0ScXrz1hKWM"
 
+appCode: "bkauth"
+appSecret: "WnF1qwjGSVE0ScXrz1hKWMG3dsdftR9nGQ"
+bkAuthURL: "https://bkauth.example.com"
+bkApiURLTmpl: "http://bkapi.example.com/api/{api_name}"
+bkLoginURL: "https://bk.example.com/login/"
+# "direct" (default) or "gateway"
+bkLoginAPICallMethod: "direct"
+# "bk_token" (default) or "bk_ticket"
+bkLoginTokenName: "bk_token"
+
+oauth:
+  defaultRealmName: "blueking"
+  dcrEnabled: false
+  accessTokenTTL: 7200
+  refreshTokenTTL: 2592000
+  introspectAllowedAppCodes:
+    - realmName: "blueking"
+      appCode: "bk_apigateway"
+    # - realmName: "bk-devops"
+    #   appCode: "bk_devops_gateway"
+    # - realmName: "*"
+    #   appCode: "bk_super_app"
+  # confidentialClientSecretExemptions:
+  #   - realmName: "*"
+  #     clientID: "bk_my_desktop_app"
+  #   - realmName: "blueking"
+  #     clientID: "bk_another_app"
+  # tokenTTLOverrides:
+  #   - realmName: "blueking"
+  #     clientID: "*"
+  #     accessTokenTTL: 3600
+  #     refreshTokenTTL: 604800
+  #   - realmName: "blueking"
+  #     clientID: "my_special_app"
+  #     accessTokenTTL: 900
+
 apiAllowLists:
   - api: "manage_app"
     allowList: "bk_paas,bk_paas3"

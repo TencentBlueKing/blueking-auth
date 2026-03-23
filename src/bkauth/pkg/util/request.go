@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -57,8 +57,8 @@ func GetAccessAppCode(c *gin.Context) string {
 }
 
 // SetAccessAppCode ...
-func SetAccessAppCode(c *gin.Context, clientID string) {
-	c.Set(AccessAppCodeKey, clientID)
+func SetAccessAppCode(c *gin.Context, appCode string) {
+	c.Set(AccessAppCodeKey, appCode)
 }
 
 // GetError ...
@@ -77,4 +77,28 @@ func SetEnableMultiTenantMode(c *gin.Context, enableMultiTenantMode bool) {
 
 func GetEnableMultiTenantMode(c *gin.Context) bool {
 	return c.GetBool(EnableMultiTenantModeKey)
+}
+
+func SetUsername(c *gin.Context, username string) {
+	c.Set(UsernameKey, username)
+}
+
+func GetUsername(c *gin.Context) string {
+	return c.GetString(UsernameKey)
+}
+
+func SetRealmName(c *gin.Context, realmName string) {
+	c.Set(RealmNameKey, realmName)
+}
+
+func GetRealmName(c *gin.Context) string {
+	return c.GetString(RealmNameKey)
+}
+
+func SetClientID(c *gin.Context, clientID string) {
+	c.Set(ClientIDKey, clientID)
+}
+
+func GetClientID(c *gin.Context) string {
+	return c.GetString(ClientIDKey)
 }
