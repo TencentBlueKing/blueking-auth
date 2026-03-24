@@ -33,9 +33,10 @@ import (
 
 // OAuthAuthorizationCode represents an OAuth authorization code
 type OAuthAuthorizationCode struct {
-	Code        string `db:"code"`
-	ClientID    string `db:"client_id"`
-	RealmName   string `db:"realm_name"`
+	Code      string `db:"code"`
+	ClientID  string `db:"client_id"`
+	TenantID  string `db:"tenant_id"`
+	RealmName string `db:"realm_name"`
 	Sub         string `db:"sub"`
 	Username    string `db:"username"`
 	RedirectURI string `db:"redirect_uri"`
@@ -71,6 +72,7 @@ func (m *oauthAuthorizationCodeManager) Create(ctx context.Context, code OAuthAu
 	query := `INSERT INTO oauth_authorization_code (
 		code,
 		client_id,
+		tenant_id,
 		realm_name,
 		sub,
 		username,
@@ -84,6 +86,7 @@ func (m *oauthAuthorizationCodeManager) Create(ctx context.Context, code OAuthAu
 	) VALUES (
 		:code,
 		:client_id,
+		:tenant_id,
 		:realm_name,
 		:sub,
 		:username,
@@ -105,6 +108,7 @@ func (m *oauthAuthorizationCodeManager) Get(
 	query := `SELECT 
 		code,
 		client_id,
+		tenant_id,
 		realm_name,
 		sub,
 		username,

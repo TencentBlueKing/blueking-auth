@@ -29,7 +29,10 @@ const (
 
 	webErrCodeInvalidArgument = "INVALID_ARGUMENT"
 	webErrCodeUnauthenticated = "UNAUTHENTICATED"
+	webErrCodeForbidden       = "FORBIDDEN"
 	webErrCodeNotFound        = "NOT_FOUND"
+	webErrCodeExpired         = "EXPIRED"
+	webErrCodeConflict        = "CONFLICT"
 	webErrCodeInternal        = "INTERNAL"
 )
 

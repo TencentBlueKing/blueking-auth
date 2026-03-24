@@ -39,6 +39,7 @@ type OAuthAccessToken struct {
 	TokenMask string    `db:"token_mask"`
 	GrantID   string    `db:"grant_id"`
 	ClientID  string    `db:"client_id"`
+	TenantID  string    `db:"tenant_id"`
 	RealmName string    `db:"realm_name"`
 	Sub       string    `db:"sub"`
 	Username  string    `db:"username"`
@@ -79,6 +80,7 @@ func (m *oauthAccessTokenManager) CreateWithTx(
 		token_mask,
 		grant_id,
 		client_id,
+		tenant_id,
 		realm_name,
 		sub,
 		username,
@@ -92,6 +94,7 @@ func (m *oauthAccessTokenManager) CreateWithTx(
 		:token_mask,
 		:grant_id,
 		:client_id,
+		:tenant_id,
 		:realm_name,
 		:sub,
 		:username,
@@ -113,6 +116,7 @@ func (m *oauthAccessTokenManager) GetByTokenHash(
 		token_mask,
 		grant_id,
 		client_id,
+		tenant_id,
 		realm_name,
 		sub,
 		username,

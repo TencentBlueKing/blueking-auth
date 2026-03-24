@@ -58,6 +58,7 @@ type IntrospectionResponse struct {
 	// Scope     string             `json:"scope"`
 	ClientID  string             `json:"client_id"`
 	BkAppCode string             `json:"bk_app_code"`
+	TenantID  string             `json:"tenant_id"`
 	Error     IntrospectionError `json:"error"`
 }
 
@@ -112,6 +113,7 @@ func newActiveIntrospectionResponse(token types.ResolvedAccessToken) Introspecti
 		Aud:       aud,
 		ClientID:  token.ClientID,
 		BkAppCode: oauth.ResolveAppCode(token.ClientID),
+		TenantID:  token.TenantID,
 	}
 }
 

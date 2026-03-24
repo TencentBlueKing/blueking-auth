@@ -37,6 +37,7 @@ type OAuthDeviceCode struct {
 	DeviceCode string `db:"device_code"`
 	UserCode   string `db:"user_code"`
 	ClientID   string `db:"client_id"`
+	TenantID   string `db:"tenant_id"`
 	Scope      string `db:"scope"`
 	Resource   string `db:"resource"`
 	RealmName  string `db:"realm_name"`
@@ -59,7 +60,7 @@ type OAuthDeviceCodeManager interface {
 	GetByDeviceCode(ctx context.Context, deviceCode string) (OAuthDeviceCode, error)
 	GetByUserCode(ctx context.Context, userCode string) (OAuthDeviceCode, error)
 	UpdateStatus(ctx context.Context, id int64, status string) (int64, error)
-	Approve(ctx context.Context, id int64, sub, username, audience string) (int64, error)
+	Approve(ctx context.Context, id int64, tenantID, sub, username, audience string) (int64, error)
 	ConsumeApproved(ctx context.Context, deviceCode, clientID string) (int64, error)
 	UpdateLastPolledAt(ctx context.Context, id int64) (int64, error)
 	// SlowDown atomically increases poll_interval and refreshes last_polled_at (RFC 8628 §3.5).
@@ -82,6 +83,7 @@ func (m *oauthDeviceCodeManager) Create(ctx context.Context, dc OAuthDeviceCode)
 		device_code,
 		user_code,
 		client_id,
+		tenant_id,
 		scope,
 		resource,
 		realm_name,
@@ -96,6 +98,7 @@ func (m *oauthDeviceCodeManager) Create(ctx context.Context, dc OAuthDeviceCode)
 		:device_code,
 		:user_code,
 		:client_id,
+		:tenant_id,
 		:scope,
 		:resource,
 		:realm_name,
@@ -118,6 +121,7 @@ func (m *oauthDeviceCodeManager) GetByDeviceCode(
 		device_code,
 		user_code,
 		client_id,
+		tenant_id,
 		scope,
 		resource,
 		realm_name,
@@ -147,6 +151,7 @@ func (m *oauthDeviceCodeManager) GetByUserCode(ctx context.Context, userCode str
 		device_code,
 		user_code,
 		client_id,
+		tenant_id,
 		scope,
 		resource,
 		realm_name,
@@ -179,10 +184,10 @@ func (m *oauthDeviceCodeManager) UpdateStatus(ctx context.Context, id int64, sta
 	return result.RowsAffected()
 }
 
-func (m *oauthDeviceCodeManager) Approve(ctx context.Context, id int64, sub, username, audience string) (int64, error) {
-	query := `UPDATE oauth_device_code SET status = 'approved', sub = ?, username = ?, audience = ?` +
+func (m *oauthDeviceCodeManager) Approve(ctx context.Context, id int64, tenantID, sub, username, audience string) (int64, error) {
+	query := `UPDATE oauth_device_code SET status = 'approved', tenant_id = ?, sub = ?, username = ?, audience = ?` +
 		` WHERE id = ? AND status = 'pending'`
-	result, err := m.DB.ExecContext(ctx, query, sub, username, audience, id)
+	result, err := m.DB.ExecContext(ctx, query, tenantID, sub, username, audience, id)
 	if err != nil {
 		return 0, err
 	}

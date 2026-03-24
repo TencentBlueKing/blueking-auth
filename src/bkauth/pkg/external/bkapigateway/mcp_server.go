@@ -68,14 +68,14 @@ type mcpServerResult struct {
 }
 
 func (c *mcpServerClient) BatchQueryTitles(ctx context.Context, names []string) (map[string]string, error) {
-	if gatewayBaseURL == "" || len(names) == 0 {
+	if baseURL == "" || len(names) == 0 {
 		return nil, nil
 	}
 
 	logger := logging.GetWebLogger()
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(mcpServerSVC, "BatchQueryTitles")
 
-	api := util.URLJoin(gatewayBaseURL, "api/v2/open/mcp-servers/batch-query/")
+	api := util.URLJoin(baseURL, "api/v2/open/mcp-servers/batch-query/")
 
 	reqBody := batchQueryMCPRequest{
 		Names:  names,
@@ -96,7 +96,7 @@ func (c *mcpServerClient) BatchQueryTitles(ctx context.Context, names []string) 
 		return nil, errorWrapf(err, "http.NewRequest url=`%s` fail", api)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Bkapi-Authorization", authJSON)
+	req.Header.Set("X-Bkapi-Authorization", authCredentials)
 
 	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {

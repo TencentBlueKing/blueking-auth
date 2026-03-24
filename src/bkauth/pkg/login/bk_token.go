@@ -22,40 +22,33 @@ import (
 	"context"
 
 	"bkauth/pkg/external/bklogin"
+	"bkauth/pkg/util"
 )
 
 type bkTokenAuthenticator struct {
-	loginURL  string
-	tokenName string
-	gateway   *gatewayTransport
+	loginURL string
+	verifier *bklogin.BKTokenVerifier
 }
 
-func newBKTokenAuthenticator(loginURL, tokenName string, gw *gatewayTransport) *bkTokenAuthenticator {
+func newBKTokenAuthenticator(loginURL string) *bkTokenAuthenticator {
 	return &bkTokenAuthenticator{
-		loginURL:  loginURL,
-		tokenName: tokenName,
-		gateway:   gw,
+		loginURL: loginURL,
+		verifier: bklogin.NewBKTokenVerifier(loginURL),
 	}
 }
 
-func (a *bkTokenAuthenticator) CookieName() string  { return a.tokenName }
+func (a *bkTokenAuthenticator) CookieName() string  { return "bk_token" }
 func (a *bkTokenAuthenticator) GetLoginURL() string { return a.loginURL }
 
 func (a *bkTokenAuthenticator) CheckLogin(ctx context.Context, token string) (AuthResult, error) {
-	var result bklogin.VerifyResult
-	var err error
-
-	if a.gateway != nil {
-		result, err = bklogin.VerifyViaGateway(ctx, a.gateway.baseURL, a.tokenName, token, a.gateway.authJSON)
-	} else {
-		result, err = bklogin.VerifyBKToken(ctx, a.loginURL, a.tokenName, token)
-	}
-
+	result, err := a.verifier.Verify(ctx, token)
 	if err != nil {
+		// TODO: stop relying on result.Message when err != nil; error info should flow through error only
 		return AuthResult{Success: false, Message: result.Message}, err
 	}
 	return AuthResult{
 		Username: result.Username,
+		TenantID: util.TenantIDDefault,
 		Success:  result.Success,
 		Message:  result.Message,
 	}, nil

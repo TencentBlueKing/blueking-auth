@@ -77,6 +77,7 @@ var _ = Describe("oauthTokenService", func() {
 			start := time.Now()
 			prepared, err := svc.prepareTokenPair(
 				"blueking",
+				"default",
 				"grant-1",
 				"client-1",
 				"sub-1",
@@ -544,7 +545,7 @@ var _ = Describe("oauthTokenService.IssueTokensForAuthorizationCode", func() {
 		defer restore()
 
 		pair, err := svc.IssueTokensForAuthorizationCode(
-			context.Background(), "blueking", "client-1", "sub-1", "user-1",
+			context.Background(), "blueking", "client-1", "default", "sub-1", "user-1",
 			[]string{"aud-1", "aud-2"}, policy,
 		)
 
@@ -562,7 +563,7 @@ var _ = Describe("oauthTokenService.IssueTokensForAuthorizationCode", func() {
 		defer restore()
 
 		_, err := svc.IssueTokensForAuthorizationCode(
-			context.Background(), "blueking", "client-1", "sub-1", "user-1",
+			context.Background(), "blueking", "client-1", "default", "sub-1", "user-1",
 			[]string{"aud-1"}, policy,
 		)
 
@@ -629,7 +630,7 @@ var _ = Describe("oauthTokenService.IssueTokensForDeviceCode", func() {
 		defer restore()
 
 		pair, err := svc.IssueTokensForDeviceCode(
-			context.Background(), "blueking", "client-1", "sub-1", "user-1",
+			context.Background(), "blueking", "client-1", "default", "sub-1", "user-1",
 			[]string{"aud-1"}, policy,
 		)
 
@@ -647,7 +648,7 @@ var _ = Describe("oauthTokenService.IssueTokensForDeviceCode", func() {
 		defer restore()
 
 		_, err := svc.IssueTokensForDeviceCode(
-			context.Background(), "blueking", "client-1", "sub-1", "user-1",
+			context.Background(), "blueking", "client-1", "default", "sub-1", "user-1",
 			[]string{"aud-1"}, policy,
 		)
 

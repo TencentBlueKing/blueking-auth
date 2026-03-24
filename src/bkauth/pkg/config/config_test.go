@@ -121,23 +121,23 @@ var _ = Describe("OAuth Config", func() {
 		buildOAuthWithIntrospectAllowed := func(entries []IntrospectAllowedAppCode) *OAuth {
 			o := &OAuth{
 				IntrospectAllowedAppCodes: entries,
-				introspectAllowedMap:      make(map[introspectAllowedKey]struct{}, len(entries)),
+				introspectAllowedMap:      make(map[IntrospectAllowedAppCode]struct{}, len(entries)),
 			}
 			for _, e := range entries {
-				o.introspectAllowedMap[introspectAllowedKey{RealmName: e.RealmName, AppCode: e.AppCode}] = struct{}{}
+				o.introspectAllowedMap[IntrospectAllowedAppCode{RealmName: e.RealmName, AppCode: e.AppCode}] = struct{}{}
 			}
 			return o
 		}
 
-		It("should allow all when no entries configured", func() {
+		It("should deny all when no entries configured", func() {
 			o := buildOAuthWithIntrospectAllowed(nil)
-			assert.True(GinkgoT(), o.IsIntrospectAllowed("blueking", "any_app"))
-			assert.True(GinkgoT(), o.IsIntrospectAllowed("bk-devops", "any_app"))
+			assert.False(GinkgoT(), o.IsIntrospectAllowed("blueking", "any_app"))
+			assert.False(GinkgoT(), o.IsIntrospectAllowed("bk-devops", "any_app"))
 		})
 
-		It("should allow all when introspectAllowedMap is nil", func() {
+		It("should deny all when introspectAllowedMap is nil", func() {
 			o := &OAuth{}
-			assert.True(GinkgoT(), o.IsIntrospectAllowed("blueking", "any_app"))
+			assert.False(GinkgoT(), o.IsIntrospectAllowed("blueking", "any_app"))
 		})
 
 		It("should match exact (realm, appCode)", func() {
@@ -147,27 +147,6 @@ var _ = Describe("OAuth Config", func() {
 			assert.True(GinkgoT(), o.IsIntrospectAllowed("blueking", "bk_apigateway"))
 			assert.False(GinkgoT(), o.IsIntrospectAllowed("bk-devops", "bk_apigateway"))
 			assert.False(GinkgoT(), o.IsIntrospectAllowed("blueking", "other_app"))
-		})
-
-		It("should match wildcard realm", func() {
-			o := buildOAuthWithIntrospectAllowed([]IntrospectAllowedAppCode{
-				{RealmName: "*", AppCode: "bk_super_app"},
-			})
-			assert.True(GinkgoT(), o.IsIntrospectAllowed("blueking", "bk_super_app"))
-			assert.True(GinkgoT(), o.IsIntrospectAllowed("bk-devops", "bk_super_app"))
-			assert.False(GinkgoT(), o.IsIntrospectAllowed("blueking", "other_app"))
-		})
-
-		It("should match when either exact or wildcard hits", func() {
-			o := buildOAuthWithIntrospectAllowed([]IntrospectAllowedAppCode{
-				{RealmName: "blueking", AppCode: "bk_apigateway"},
-				{RealmName: "*", AppCode: "bk_global"},
-			})
-			assert.True(GinkgoT(), o.IsIntrospectAllowed("blueking", "bk_apigateway"))
-			assert.False(GinkgoT(), o.IsIntrospectAllowed("bk-devops", "bk_apigateway"))
-			assert.True(GinkgoT(), o.IsIntrospectAllowed("blueking", "bk_global"))
-			assert.True(GinkgoT(), o.IsIntrospectAllowed("bk-devops", "bk_global"))
-			assert.False(GinkgoT(), o.IsIntrospectAllowed("blueking", "unknown"))
 		})
 
 		It("should support multiple app codes per realm", func() {
@@ -188,10 +167,10 @@ var _ = Describe("OAuth Config", func() {
 		buildOAuthWithExemptions := func(exemptions []ConfidentialClientSecretExemption) *OAuth {
 			o := &OAuth{
 				ConfidentialClientSecretExemptions: exemptions,
-				secretExemptMap:                    make(map[secretExemptKey]struct{}, len(exemptions)),
+				secretExemptMap:                    make(map[ConfidentialClientSecretExemption]struct{}, len(exemptions)),
 			}
 			for _, ex := range exemptions {
-				o.secretExemptMap[secretExemptKey{RealmName: ex.RealmName, ClientID: ex.ClientID}] = struct{}{}
+				o.secretExemptMap[ConfidentialClientSecretExemption{RealmName: ex.RealmName, ClientID: ex.ClientID}] = struct{}{}
 			}
 			return o
 		}
@@ -213,26 +192,6 @@ var _ = Describe("OAuth Config", func() {
 			assert.True(GinkgoT(), o.IsClientSecretExempt("blueking", "my_app"))
 			assert.False(GinkgoT(), o.IsClientSecretExempt("bk-devops", "my_app"))
 			assert.False(GinkgoT(), o.IsClientSecretExempt("blueking", "other_app"))
-		})
-
-		It("should match wildcard realm", func() {
-			o := buildOAuthWithExemptions([]ConfidentialClientSecretExemption{
-				{RealmName: "*", ClientID: "cli_tool"},
-			})
-			assert.True(GinkgoT(), o.IsClientSecretExempt("blueking", "cli_tool"))
-			assert.True(GinkgoT(), o.IsClientSecretExempt("bk-devops", "cli_tool"))
-			assert.False(GinkgoT(), o.IsClientSecretExempt("blueking", "other_app"))
-		})
-
-		It("should match when either exact or wildcard hits", func() {
-			o := buildOAuthWithExemptions([]ConfidentialClientSecretExemption{
-				{RealmName: "blueking", ClientID: "exact_app"},
-				{RealmName: "*", ClientID: "global_app"},
-			})
-			assert.True(GinkgoT(), o.IsClientSecretExempt("blueking", "exact_app"))
-			assert.False(GinkgoT(), o.IsClientSecretExempt("bk-devops", "exact_app"))
-			assert.True(GinkgoT(), o.IsClientSecretExempt("blueking", "global_app"))
-			assert.True(GinkgoT(), o.IsClientSecretExempt("bk-devops", "global_app"))
 		})
 	})
 })

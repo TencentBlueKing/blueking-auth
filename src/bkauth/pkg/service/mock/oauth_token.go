@@ -57,33 +57,33 @@ func (mr *MockOAuthTokenServiceMockRecorder) GetAccessTokenByTokenHash(ctx, toke
 }
 
 // IssueTokensForAuthorizationCode mocks base method.
-func (m *MockOAuthTokenService) IssueTokensForAuthorizationCode(ctx context.Context, realmName, clientID, sub, username string, audience []string, policy types.TokenIssuancePolicy) (types.TokenPair, error) {
+func (m *MockOAuthTokenService) IssueTokensForAuthorizationCode(ctx context.Context, realmName, clientID, tenantID, sub, username string, audience []string, policy types.TokenIssuancePolicy) (types.TokenPair, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IssueTokensForAuthorizationCode", ctx, realmName, clientID, sub, username, audience, policy)
+	ret := m.ctrl.Call(m, "IssueTokensForAuthorizationCode", ctx, realmName, clientID, tenantID, sub, username, audience, policy)
 	ret0, _ := ret[0].(types.TokenPair)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // IssueTokensForAuthorizationCode indicates an expected call of IssueTokensForAuthorizationCode.
-func (mr *MockOAuthTokenServiceMockRecorder) IssueTokensForAuthorizationCode(ctx, realmName, clientID, sub, username, audience, policy any) *gomock.Call {
+func (mr *MockOAuthTokenServiceMockRecorder) IssueTokensForAuthorizationCode(ctx, realmName, clientID, tenantID, sub, username, audience, policy any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IssueTokensForAuthorizationCode", reflect.TypeOf((*MockOAuthTokenService)(nil).IssueTokensForAuthorizationCode), ctx, realmName, clientID, sub, username, audience, policy)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IssueTokensForAuthorizationCode", reflect.TypeOf((*MockOAuthTokenService)(nil).IssueTokensForAuthorizationCode), ctx, realmName, clientID, tenantID, sub, username, audience, policy)
 }
 
 // IssueTokensForDeviceCode mocks base method.
-func (m *MockOAuthTokenService) IssueTokensForDeviceCode(ctx context.Context, realmName, clientID, sub, username string, audience []string, policy types.TokenIssuancePolicy) (types.TokenPair, error) {
+func (m *MockOAuthTokenService) IssueTokensForDeviceCode(ctx context.Context, realmName, clientID, tenantID, sub, username string, audience []string, policy types.TokenIssuancePolicy) (types.TokenPair, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IssueTokensForDeviceCode", ctx, realmName, clientID, sub, username, audience, policy)
+	ret := m.ctrl.Call(m, "IssueTokensForDeviceCode", ctx, realmName, clientID, tenantID, sub, username, audience, policy)
 	ret0, _ := ret[0].(types.TokenPair)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // IssueTokensForDeviceCode indicates an expected call of IssueTokensForDeviceCode.
-func (mr *MockOAuthTokenServiceMockRecorder) IssueTokensForDeviceCode(ctx, realmName, clientID, sub, username, audience, policy any) *gomock.Call {
+func (mr *MockOAuthTokenServiceMockRecorder) IssueTokensForDeviceCode(ctx, realmName, clientID, tenantID, sub, username, audience, policy any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IssueTokensForDeviceCode", reflect.TypeOf((*MockOAuthTokenService)(nil).IssueTokensForDeviceCode), ctx, realmName, clientID, sub, username, audience, policy)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IssueTokensForDeviceCode", reflect.TypeOf((*MockOAuthTokenService)(nil).IssueTokensForDeviceCode), ctx, realmName, clientID, tenantID, sub, username, audience, policy)
 }
 
 // RefreshAccessToken mocks base method.

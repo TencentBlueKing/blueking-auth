@@ -30,6 +30,7 @@ import (
 // VerifyResult is the unified response from all BK Login verify APIs.
 type VerifyResult struct {
 	Username string
+	TenantID string
 	Success  bool
 	Message  string
 }

@@ -85,6 +85,7 @@ type OAuthClientProfile struct {
 type CreateAuthorizationCodeInput struct {
 	Code                string
 	ClientID            string
+	TenantID            string
 	RealmName           string
 	Sub                 string
 	Username            string
@@ -97,6 +98,7 @@ type CreateAuthorizationCodeInput struct {
 // ConsumedAuthorizationCode is the minimal data set returned after an
 // authorization code has been validated and consumed, used to issue tokens.
 type ConsumedAuthorizationCode struct {
+	TenantID string
 	Sub      string
 	Username string
 	Audience []string
@@ -108,6 +110,7 @@ type ResolvedAccessToken struct {
 	// Standard OAuth 2.0 / RFC 7662 claims
 	// JTI      string
 	ClientID  string
+	TenantID  string
 	RealmName string
 	Sub       string
 	Username  string
@@ -162,6 +165,7 @@ type PendingDeviceCode struct {
 // ApprovedDeviceCode is returned by PollAndConsumeDeviceCode when the device
 // code has been approved and consumed, carrying the identity claims needed to issue tokens.
 type ApprovedDeviceCode struct {
+	TenantID string
 	Sub      string
 	Username string
 	Audience []string

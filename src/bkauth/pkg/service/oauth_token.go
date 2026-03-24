@@ -39,11 +39,11 @@ const OAuthTokenSVC = "OAuthTokenSVC"
 // OAuthTokenService defines the interface for OAuth token operations.
 type OAuthTokenService interface {
 	IssueTokensForAuthorizationCode(
-		ctx context.Context, realmName, clientID, sub, username string,
+		ctx context.Context, realmName, clientID, tenantID, sub, username string,
 		audience []string, policy types.TokenIssuancePolicy,
 	) (types.TokenPair, error)
 	IssueTokensForDeviceCode(
-		ctx context.Context, realmName, clientID, sub, username string,
+		ctx context.Context, realmName, clientID, tenantID, sub, username string,
 		audience []string, policy types.TokenIssuancePolicy,
 	) (types.TokenPair, error)
 	RefreshAccessToken(
@@ -94,7 +94,7 @@ type preparedTokenPair struct {
 // rotationCount should be oauth.InitialRotationCount for initial issuance
 // and old.RotationCount+1 for rotation.
 func (s *oauthTokenService) prepareTokenPair(
-	realmName, grantID, clientID, sub, username string,
+	realmName, grantID, clientID, tenantID, sub, username string,
 	audience []string, rotationCount int64,
 	policy types.TokenIssuancePolicy,
 ) (preparedTokenPair, error) {
@@ -128,6 +128,7 @@ func (s *oauthTokenService) prepareTokenPair(
 			GrantID:   grantID,
 			ClientID:  clientID,
 			RealmName: realmName,
+			TenantID:  tenantID,
 			Sub:       sub,
 			Username:  username,
 			Audience:  string(audienceJSON),
@@ -140,6 +141,7 @@ func (s *oauthTokenService) prepareTokenPair(
 			GrantID:       grantID,
 			ClientID:      clientID,
 			RealmName:     realmName,
+			TenantID:  tenantID,
 			Sub:           sub,
 			Username:      username,
 			Audience:      string(audienceJSON),
@@ -172,21 +174,21 @@ func (s *oauthTokenService) persistTokenPairTx(
 // IssueTokensForAuthorizationCode issues tokens for a validated and consumed authorization code.
 func (s *oauthTokenService) IssueTokensForAuthorizationCode(
 	ctx context.Context,
-	realmName, clientID, sub, username string,
+	realmName, clientID, tenantID, sub, username string,
 	audience []string, policy types.TokenIssuancePolicy,
 ) (types.TokenPair, error) {
 	grantID := oauth.GenerateGrantID()
-	return s.generateTokenPair(ctx, realmName, grantID, clientID, sub, username, audience, policy)
+	return s.generateTokenPair(ctx, realmName, tenantID, grantID, clientID, sub, username, audience, policy)
 }
 
 // IssueTokensForDeviceCode issues tokens after a device code has been approved (RFC 8628).
 func (s *oauthTokenService) IssueTokensForDeviceCode(
 	ctx context.Context,
-	realmName, clientID, sub, username string,
+	realmName, clientID, tenantID, sub, username string,
 	audience []string, policy types.TokenIssuancePolicy,
 ) (types.TokenPair, error) {
 	grantID := oauth.GenerateGrantID()
-	return s.generateTokenPair(ctx, realmName, grantID, clientID, sub, username, audience, policy)
+	return s.generateTokenPair(ctx, realmName, tenantID, grantID, clientID, sub, username, audience, policy)
 }
 
 // generateTokenPair generates an access token and refresh token pair atomically.
@@ -195,13 +197,13 @@ func (s *oauthTokenService) IssueTokensForDeviceCode(
 // forward a rotation count, use prepareTokenPair + persistTokenPairTx directly.
 func (s *oauthTokenService) generateTokenPair(
 	ctx context.Context,
-	realmName, grantID, clientID, sub, username string,
+	realmName, tenantID, grantID, clientID, sub, username string,
 	audience []string, policy types.TokenIssuancePolicy,
 ) (types.TokenPair, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(OAuthTokenSVC, "generateTokenPair")
 
 	prepared, err := s.prepareTokenPair(
-		realmName, grantID, clientID, sub, username, audience, oauth.InitialRotationCount, policy,
+		realmName, grantID, clientID, tenantID, sub, username, audience, oauth.InitialRotationCount, policy,
 	)
 	if err != nil {
 		return types.TokenPair{}, errorWrapf(err, "prepareTokenPair fail")
@@ -256,6 +258,7 @@ func (s *oauthTokenService) GetAccessTokenByTokenHash(
 	return types.ResolvedAccessToken{
 		ClientID:  daoToken.ClientID,
 		RealmName: daoToken.RealmName,
+		TenantID:  tenantID,
 		Sub:       daoToken.Sub,
 		Username:  daoToken.Username,
 		Audience:  audience,
@@ -395,7 +398,7 @@ func (s *oauthTokenService) RefreshAccessToken(
 	// Pre-generate all random material outside the transaction to minimize
 	// the time the transaction holds locks.
 	prepared, err := s.prepareTokenPair(
-		realmName, daoRefreshToken.GrantID, clientID,
+		realmName, daoRefreshToken.GrantID, clientID, daoRefreshToken.TenantID,
 		daoRefreshToken.Sub, daoRefreshToken.Username,
 		audience, daoRefreshToken.RotationCount+1,
 		policy,

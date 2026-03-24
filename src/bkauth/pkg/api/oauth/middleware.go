@@ -98,6 +98,10 @@ func ClientAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		// FIXME(nan): security decision is bound to a naming convention (IsPublicClient);
+		//  should be determined by a persistent client_type attribute from the database instead.
+		//  Mitigation: AppCode registration will reject IDs that match the dynamic client ID
+		//  prefix (e.g. "dcr_"), preventing confidential clients from being misclassified as public.
 		if !pkgoauth.IsPublicClient(clientID) {
 			if authErr := authenticateConfidentialClient(
 				ctx, clientID, clientSecret, &cfg.OAuth, realmName,
@@ -126,8 +130,14 @@ type accessAppHeader struct {
 //
 // Chain:
 //  1. Bind and verify app credentials
-//  2. Check per-realm introspect access via config
-//  3. Store authenticated AppCode in gin context
+//  2. Authenticate: verify app secret
+//  3. Authorize: check per-realm introspect access via config
+//
+// SECURITY: authenticate before authorize — do NOT reorder for performance.
+// Checking the allowlist before verifying credentials exposes an oracle
+// (CWE-203 Observable Discrepancy): unauthenticated callers could distinguish
+// "app not in allowlist" (403) from "app in allowlist, wrong secret" (401),
+// leaking the per-realm access control topology.
 //
 // Must be placed after RealmMiddleware so that util.GetRealmName(c) is available.
 func RealmAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
@@ -140,19 +150,19 @@ func RealmAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		realmName := util.GetRealmName(c)
-		if !cfg.OAuth.IsIntrospectAllowed(realmName, header.AppCode) {
-			c.AbortWithStatusJSON(http.StatusForbidden, pkgoauth.NewAccessDeniedError(
-				"App code is not allowed to call this endpoint for realm: "+realmName,
-			))
-			return
-		}
-
 		ctx := c.Request.Context()
 
 		if !impls.VerifyAccessApp(ctx, header.AppCode, header.AppSecret) {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, pkgoauth.NewInvalidClientError(
 				"Invalid app code or app secret",
+			))
+			return
+		}
+
+		realmName := util.GetRealmName(c)
+		if !cfg.OAuth.IsIntrospectAllowed(realmName, header.AppCode) {
+			c.AbortWithStatusJSON(http.StatusForbidden, pkgoauth.NewAccessDeniedError(
+				"App code is not allowed to call this endpoint for realm: "+realmName,
 			))
 			return
 		}
@@ -174,6 +184,11 @@ func authenticateConfidentialClient(
 	realmName string,
 ) error {
 	if clientSecret != "" {
+		// TODO: decide between impls.VerifyAccessKey (redis-backed, access_key table)
+		//  vs impls.VerifyAccessApp (in-memory, app cache). VerifyAccessKey checks the
+		//  dedicated access_key secret; VerifyAccessApp checks the app-level secret from
+		//  the in-memory app cache. Need to clarify which credential the OAuth client
+		//  should present here.
 		if !impls.VerifyAccessApp(ctx, clientID, clientSecret) {
 			return pkgoauth.ErrInvalidClientSecret
 		}

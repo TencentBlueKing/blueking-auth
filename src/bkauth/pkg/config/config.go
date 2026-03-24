@@ -20,9 +20,13 @@ package config
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/spf13/viper"
+)
+
+const (
+	defaultAccessTokenTTL  int64 = 7200    // 2 hours
+	defaultRefreshTokenTTL int64 = 2592000 // 30 days
 )
 
 // Server ...
@@ -183,29 +187,15 @@ type tokenTTLKey struct {
 }
 
 // ConfidentialClientSecretExemption exempts a confidential client from
-// client_secret verification on the specified realm.
-// Realm can be "*" to match all realms.
+// client_secret verification on the specified realm (exact match only).
 type ConfidentialClientSecretExemption struct {
 	RealmName string
 	ClientID  string
 }
 
-// secretExemptKey is the lookup key for pre-computed exemption map.
-type secretExemptKey struct {
-	RealmName string
-	ClientID  string
-}
-
 // IntrospectAllowedAppCode grants an AppCode access to the introspect
-// endpoint for a specific realm.
-// Realm can be "*" to match all realms.
+// endpoint for a specific realm (exact match only).
 type IntrospectAllowedAppCode struct {
-	RealmName string
-	AppCode   string
-}
-
-// introspectAllowedKey is the lookup key for the pre-computed introspect map.
-type introspectAllowedKey struct {
 	RealmName string
 	AppCode   string
 }
@@ -221,13 +211,11 @@ type OAuth struct {
 	// DefaultRealmName is used for backward-compatible endpoints that don't specify a realm.
 	DefaultRealmName string
 	// IntrospectAllowedAppCodes controls which AppCodes may call the introspect
-	// endpoint, on a per-realm basis. Each AppCode serves as a realm identity.
-	// If empty, all authenticated apps are allowed (not recommended for production).
-	// Realm can be "*" to apply across all realms.
+	// endpoint, on a per-realm basis (exact match only).
+	// If empty, all requests are denied.
 	IntrospectAllowedAppCodes []IntrospectAllowedAppCode
 	// ConfidentialClientSecretExemptions exempts specific confidential clients
-	// from client_secret verification on a per-(Realm, ClientID) basis.
-	// Realm can be "*" to apply across all realms.
+	// from client_secret verification on a per-(Realm, ClientID) basis (exact match only).
 	// Default: empty (all confidential clients must provide client_secret).
 	ConfidentialClientSecretExemptions []ConfidentialClientSecretExemption
 	// TokenTTLOverrides allows per-(realm, clientID) TTL configuration.
@@ -237,9 +225,9 @@ type OAuth struct {
 	// tokenTTLMap is pre-computed in Load() for O(1) lookups.
 	tokenTTLMap map[tokenTTLKey]*TokenTTLOverride
 	// secretExemptMap is pre-computed in Load() for O(1) lookups.
-	secretExemptMap map[secretExemptKey]struct{}
+	secretExemptMap map[ConfidentialClientSecretExemption]struct{}
 	// introspectAllowedMap is pre-computed in Load() for O(1) lookups.
-	introspectAllowedMap map[introspectAllowedKey]struct{}
+	introspectAllowedMap map[IntrospectAllowedAppCode]struct{}
 }
 
 // ResolveTokenTTL returns the effective (accessTokenTTL, refreshTokenTTL) for the
@@ -280,37 +268,17 @@ func (o *OAuth) ResolveTokenTTL(realmName, clientID string) (accessTTL, refreshT
 
 // IsIntrospectAllowed reports whether the given appCode is allowed to call
 // the introspect endpoint for the specified realm.
-// Returns true when no entries are configured (open access).
-// Lookup: exact (realmName, appCode) > wildcard ("*", appCode).
+// Returns false when no entries are configured (deny by default).
 func (o *OAuth) IsIntrospectAllowed(realmName, appCode string) bool {
-	if len(o.introspectAllowedMap) == 0 {
-		return true
-	}
-
-	if _, ok := o.introspectAllowedMap[introspectAllowedKey{RealmName: realmName, AppCode: appCode}]; ok {
-		return true
-	}
-	if _, ok := o.introspectAllowedMap[introspectAllowedKey{RealmName: "*", AppCode: appCode}]; ok {
-		return true
-	}
-	return false
+	_, ok := o.introspectAllowedMap[IntrospectAllowedAppCode{RealmName: realmName, AppCode: appCode}]
+	return ok
 }
 
 // IsClientSecretExempt reports whether the given (realmName, clientID) is exempt
-// from client_secret verification.
-// Lookup: exact (realmName, clientID) > wildcard ("*", clientID).
+// from client_secret verification (exact match only).
 func (o *OAuth) IsClientSecretExempt(realmName, clientID string) bool {
-	if o.secretExemptMap == nil {
-		return false
-	}
-
-	if _, ok := o.secretExemptMap[secretExemptKey{RealmName: realmName, ClientID: clientID}]; ok {
-		return true
-	}
-	if _, ok := o.secretExemptMap[secretExemptKey{RealmName: "*", ClientID: clientID}]; ok {
-		return true
-	}
-	return false
+	_, ok := o.secretExemptMap[ConfidentialClientSecretExemption{RealmName: realmName, ClientID: clientID}]
+	return ok
 }
 
 type Config struct {
@@ -346,12 +314,12 @@ type Config struct {
 	// well-known endpoints, and frontend redirect URLs.
 	BKAuthURL string
 
-	AppCode              string
-	AppSecret            string
-	BKApiURLTmpl         string
-	BKLoginURL           string
-	BKLoginAPICallMethod string
-	BKLoginTokenName     string
+	AppCode            string
+	AppSecret          string
+	BKApiURLTmpl       string
+	BKLoginURL         string
+	BKLoginTokenName   string
+	BKLoginAPIViaGateway bool
 
 	OAuth OAuth
 }
@@ -381,22 +349,12 @@ func Load(v *viper.Viper) (*Config, error) {
 		cfg.RedisMap[rds.ID] = rds
 	}
 
-	// 3. BKLogin defaults
-	if cfg.BKLoginAPICallMethod == "" {
-		cfg.BKLoginAPICallMethod = "direct"
-	}
-	if cfg.BKLoginTokenName == "" {
-		cfg.BKLoginTokenName = "bk_token"
-	}
-
-	// 4. OAuth defaults
+	// 3. OAuth defaults
 	if cfg.OAuth.AccessTokenTTL == 0 {
-		// 2 hours
-		cfg.OAuth.AccessTokenTTL = 7200
+		cfg.OAuth.AccessTokenTTL = defaultAccessTokenTTL
 	}
 	if cfg.OAuth.RefreshTokenTTL == 0 {
-		// 30 days
-		cfg.OAuth.RefreshTokenTTL = 2592000
+		cfg.OAuth.RefreshTokenTTL = defaultRefreshTokenTTL
 	}
 	// 5. Build token TTL override map for O(1) lookups
 	cfg.OAuth.tokenTTLMap = make(map[tokenTTLKey]*TokenTTLOverride, len(cfg.OAuth.TokenTTLOverrides))
@@ -406,25 +364,19 @@ func Load(v *viper.Viper) (*Config, error) {
 	}
 
 	// 6. Build secret exemption map for O(1) lookups
-	cfg.OAuth.secretExemptMap = make(map[secretExemptKey]struct{}, len(cfg.OAuth.ConfidentialClientSecretExemptions))
+	cfg.OAuth.secretExemptMap = make(map[ConfidentialClientSecretExemption]struct{}, len(cfg.OAuth.ConfidentialClientSecretExemptions))
 	for _, ex := range cfg.OAuth.ConfidentialClientSecretExemptions {
-		cfg.OAuth.secretExemptMap[secretExemptKey(ex)] = struct{}{}
+		cfg.OAuth.secretExemptMap[ex] = struct{}{}
 	}
 
 	// 7. Build introspect allowed map for O(1) lookups
 	cfg.OAuth.introspectAllowedMap = make(
-		map[introspectAllowedKey]struct{}, len(cfg.OAuth.IntrospectAllowedAppCodes),
+		map[IntrospectAllowedAppCode]struct{}, len(cfg.OAuth.IntrospectAllowedAppCodes),
 	)
 	for _, entry := range cfg.OAuth.IntrospectAllowedAppCodes {
-		cfg.OAuth.introspectAllowedMap[introspectAllowedKey(entry)] = struct{}{}
+		cfg.OAuth.introspectAllowedMap[entry] = struct{}{}
 	}
 
 	return &cfg, nil
 }
 
-// BKApiURL resolves BKApiURLTmpl by substituting {api_name}.
-// Supports both path style ("http://bkapi.example.com/api/{api_name}")
-// and subdomain style ("http://{api_name}.bkapi.example.com").
-func (c Config) BKApiURL(apiName string) string {
-	return strings.Replace(c.BKApiURLTmpl, "{api_name}", apiName, 1)
-}

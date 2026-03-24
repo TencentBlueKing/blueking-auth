@@ -19,6 +19,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -27,6 +28,11 @@ import (
 	"bkauth/pkg/oauth"
 	"bkauth/pkg/service"
 	"bkauth/pkg/util"
+)
+
+const (
+	deviceActionApprove = "approve"
+	deviceActionDeny    = "deny"
 )
 
 type deviceVerifyRequest struct {
@@ -42,11 +48,29 @@ type deviceVerifyResponse struct {
 
 type deviceConfirmRequest struct {
 	UserCode string `json:"user_code" binding:"required"`
-	Action   string `json:"action" binding:"required"`
+	Action   string `json:"action" binding:"required,oneof=approve deny"`
 }
 
 type deviceConfirmResponse struct {
 	Result string `json:"result"`
+}
+
+// handleUserCodeError maps service-layer user code errors to differentiated HTTP responses,
+// so the frontend can show context-specific messages (expired vs already-used vs not-found).
+func handleUserCodeError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, oauth.ErrUserCodeExpired):
+		webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeExpired,
+			"device code has expired",
+			[]webErrorDetail{{Field: "user_code", Message: "code has expired, please request a new one on your device"}})
+	case errors.Is(err, oauth.ErrUserCodeAlreadyUsed):
+		webJSONError(c, http.StatusConflict, webErrCodeConflict,
+			"device code has already been used")
+	default:
+		webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeInvalidArgument,
+			"invalid user code",
+			[]webErrorDetail{{Field: "user_code", Message: "code not found, please check and re-enter"}})
+	}
 }
 
 // NewDeviceVerifyHandler creates a handler for POST /oauth/device/verify
@@ -65,9 +89,7 @@ func NewDeviceVerifyHandler(cfg *config.Config) gin.HandlerFunc {
 		deviceCodeSvc := service.NewOAuthDeviceCodeService()
 		dc, err := deviceCodeSvc.GetByUserCode(ctx, req.UserCode)
 		if err != nil {
-			webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeInvalidArgument,
-				"invalid or expired device code",
-				[]webErrorDetail{{Field: "user_code", Message: "code not found or expired"}})
+			handleUserCodeError(c, err)
 			return
 		}
 
@@ -108,22 +130,15 @@ func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 				"invalid request body",
 				[]webErrorDetail{
 					{Field: "user_code", Message: "user_code is required"},
-					{Field: "action", Message: "action is required"},
+					{Field: "action", Message: "action is required, must be 'approve' or 'deny'"},
 				})
-			return
-		}
-
-		if req.Action != "approve" && req.Action != "deny" {
-			webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeInvalidArgument,
-				"invalid action",
-				[]webErrorDetail{{Field: "action", Message: "must be 'approve' or 'deny'"}})
 			return
 		}
 
 		ctx := c.Request.Context()
 		deviceCodeSvc := service.NewOAuthDeviceCodeService()
 
-		if req.Action == "deny" {
+		if req.Action == deviceActionDeny {
 			_ = deviceCodeSvc.DenyByUserCode(ctx, req.UserCode)
 			webJSONSuccess(c, deviceConfirmResponse{Result: "denied"})
 			return
@@ -131,9 +146,19 @@ func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 
 		dc, err := deviceCodeSvc.GetByUserCode(ctx, req.UserCode)
 		if err != nil {
-			webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeInvalidArgument,
-				"device code expired or invalid",
-				[]webErrorDetail{{Field: "user_code", Message: "code not found or expired"}})
+			handleUserCodeError(c, err)
+			return
+		}
+
+		userTenantID := util.GetTenantID(c)
+		if err := checkUserClientTenant(ctx, dc.ClientID, userTenantID); err != nil {
+			if errors.Is(err, errTenantMismatch) {
+				webJSONError(c, http.StatusForbidden, webErrCodeForbidden,
+					"user tenant does not match client tenant")
+				return
+			}
+			webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
+				"failed to resolve client tenant info")
 			return
 		}
 
@@ -147,12 +172,19 @@ func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 			audience = []string{}
 		}
 
-		if err := deviceCodeSvc.ApproveByUserCode(ctx, req.UserCode, username, username, audience); err != nil {
-			webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
-				"failed to approve device authorization")
+		if err := deviceCodeSvc.ApproveByUserCode(ctx, userTenantID, req.UserCode, username, username, audience); err != nil {
+			if errors.Is(err, oauth.ErrUserCodeExpired) ||
+				errors.Is(err, oauth.ErrUserCodeAlreadyUsed) ||
+				errors.Is(err, oauth.ErrInvalidUserCode) {
+				handleUserCodeError(c, err)
+			} else {
+				webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
+					"failed to approve device authorization")
+			}
 			return
 		}
 
 		webJSONSuccess(c, deviceConfirmResponse{Result: "approved"})
 	}
 }
+

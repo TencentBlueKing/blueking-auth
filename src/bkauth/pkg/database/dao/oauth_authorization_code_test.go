@@ -15,7 +15,7 @@ import (
 func Test_oauthAuthorizationCodeManager_Create(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mock.ExpectExec(`^INSERT INTO oauth_authorization_code`).WithArgs(
-			"authcode123", "client1", "devops", "user1", "admin",
+			"authcode123", "client1", "", "devops", "user1", "admin",
 			"https://example.com/cb", "openid profile", `["aud1"]`,
 			"challenge_value", "S256",
 			sqlmock.AnyArg(), // expires_at
@@ -49,12 +49,12 @@ func Test_oauthAuthorizationCodeManager_Get(t *testing.T) {
 		now := time.Now()
 		expiresAt := now.Add(10 * time.Minute)
 		mockRows := sqlmock.NewRows([]string{
-			"code", "client_id", "realm_name", "sub", "username",
+			"code", "client_id", "tenant_id", "realm_name", "sub", "username",
 			"redirect_uri", "scope", "audience",
 			"code_challenge", "code_challenge_method",
 			"expires_at", "used", "created_at",
 		}).AddRow(
-			"authcode123", "client1", "devops", "user1", "admin",
+			"authcode123", "client1", "", "devops", "user1", "admin",
 			"https://example.com/cb", "openid profile", `["aud1"]`,
 			"challenge_value", "S256",
 			expiresAt, false, now,
@@ -82,7 +82,7 @@ func Test_oauthAuthorizationCodeManager_Get(t *testing.T) {
 func Test_oauthAuthorizationCodeManager_Get_NotFound(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mockRows := sqlmock.NewRows([]string{
-			"code", "client_id", "realm_name", "sub", "username",
+			"code", "client_id", "tenant_id", "realm_name", "sub", "username",
 			"redirect_uri", "scope", "audience",
 			"code_challenge", "code_challenge_method",
 			"expires_at", "used", "created_at",

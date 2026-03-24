@@ -37,7 +37,7 @@ const OAuthDeviceCodeSVC = "OAuthDeviceCodeSVC"
 type OAuthDeviceCodeService interface {
 	CreateDeviceCode(ctx context.Context, realmName, clientID, resource string) (types.CreatedDeviceCode, error)
 	GetByUserCode(ctx context.Context, userCode string) (types.PendingDeviceCode, error)
-	ApproveByUserCode(ctx context.Context, userCode, sub, username string, audience []string) error
+	ApproveByUserCode(ctx context.Context, tenantID, userCode, sub, username string, audience []string) error
 	DenyByUserCode(ctx context.Context, userCode string) error
 	PollAndConsumeDeviceCode(ctx context.Context, realmName, deviceCode, clientID string) (types.ApprovedDeviceCode, error)
 }
@@ -124,7 +124,7 @@ func (s *oauthDeviceCodeService) GetByUserCode(ctx context.Context, userCode str
 
 func (s *oauthDeviceCodeService) ApproveByUserCode(
 	ctx context.Context,
-	userCode, sub, username string, audience []string,
+	tenantID, userCode, sub, username string, audience []string,
 ) error {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(OAuthDeviceCodeSVC, "ApproveByUserCode")
 
@@ -152,7 +152,7 @@ func (s *oauthDeviceCodeService) ApproveByUserCode(
 		return errorWrapf(err, "json.Marshal audience fail")
 	}
 
-	if _, err := s.deviceCodeManager.Approve(ctx, dc.ID, sub, username, string(audienceJSON)); err != nil {
+	if _, err := s.deviceCodeManager.Approve(ctx, dc.ID, tenantID, sub, username, string(audienceJSON)); err != nil {
 		return errorWrapf(err, "deviceCodeManager.Approve fail")
 	}
 
@@ -264,6 +264,7 @@ func (s *oauthDeviceCodeService) PollAndConsumeDeviceCode(
 	}
 
 	approved := types.ApprovedDeviceCode{
+		TenantID: dc.TenantID,
 		Sub:      dc.Sub,
 		Username: dc.Username,
 	}

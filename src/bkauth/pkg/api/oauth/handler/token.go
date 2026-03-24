@@ -158,8 +158,8 @@ func handleAuthorizationCodeGrant(c *gin.Context, cfg *config.Config, req TokenR
 	policy := resolveTokenIssuancePolicy(c, cfg)
 	tokenSvc := service.NewOAuthTokenService()
 	tokenPair, err := tokenSvc.IssueTokensForAuthorizationCode(
-		ctx, realmName,
-		clientID, authCode.Sub, authCode.Username,
+		ctx, realmName, clientID,
+		authCode.TenantID, authCode.Sub, authCode.Username,
 		authCode.Audience, policy,
 	)
 	if err != nil {
@@ -215,8 +215,8 @@ func handleDeviceCodeGrant(c *gin.Context, cfg *config.Config, req TokenRequest)
 	policy := resolveTokenIssuancePolicy(c, cfg)
 	tokenSvc := service.NewOAuthTokenService()
 	tokenPair, err := tokenSvc.IssueTokensForDeviceCode(
-		ctx, realmName,
-		clientID, dc.Sub, dc.Username,
+		ctx, realmName, clientID,
+		dc.TenantID, dc.Sub, dc.Username,
 		dc.Audience, policy,
 	)
 	if err != nil {

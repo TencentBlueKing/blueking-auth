@@ -39,6 +39,7 @@ type OAuthRefreshToken struct {
 	GrantID       string    `db:"grant_id"`
 	AccessTokenID int64     `db:"access_token_id"`
 	ClientID      string    `db:"client_id"`
+	TenantID      string    `db:"tenant_id"`
 	RealmName     string    `db:"realm_name"`
 	Sub           string    `db:"sub"`
 	Username      string    `db:"username"`
@@ -86,6 +87,7 @@ func (m *oauthRefreshTokenManager) CreateWithTx(
 		grant_id,
 		access_token_id,
 		client_id,
+		tenant_id,
 		realm_name,
 		sub,
 		username,
@@ -100,6 +102,7 @@ func (m *oauthRefreshTokenManager) CreateWithTx(
 		:grant_id,
 		:access_token_id,
 		:client_id,
+		:tenant_id,
 		:realm_name,
 		:sub,
 		:username,
@@ -122,6 +125,7 @@ func (m *oauthRefreshTokenManager) GetByTokenHash(
 		grant_id,
 		access_token_id,
 		client_id,
+		tenant_id,
 		realm_name,
 		sub,
 		username,

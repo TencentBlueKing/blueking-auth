@@ -21,9 +21,10 @@ package bklogin
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"go.uber.org/zap"
 
@@ -32,12 +33,12 @@ import (
 	"bkauth/pkg/util"
 )
 
-const bkGatewaySVC = "bklogin.VerifyViaGateway"
-
-var gatewayVerifyPaths = map[string]string{
-	"bk_token":  "login/api/v3/open/bk-tokens/verify/",
-	"bk_ticket": "login/api/v3/open/bk-tickets/verify/",
-}
+const (
+	bkTokenGatewaySVC        = "bklogin.BKTokenGatewayVerifier"
+	bkTokenGatewayName       = "bk-login"
+	bkTokenGatewayStage      = "prod"
+	bkTokenGatewayVerifyPath = "login/api/v3/open/bk-tokens/verify/"
+)
 
 type bkGatewayResponse struct {
 	Data *struct {
@@ -50,21 +51,32 @@ type bkGatewayResponse struct {
 	} `json:"error"`
 }
 
-// VerifyViaGateway calls the BK Login API through the BK API Gateway to verify a token.
-// authJSON is the pre-serialized X-Bkapi-Authorization header value.
-func VerifyViaGateway(
-	ctx context.Context, gatewayBaseURL, tokenName, token, authJSON string,
-) (VerifyResult, error) {
-	logger := logging.GetWebLogger()
-	errorWrapf := errorx.NewLayerFunctionErrorWrapf(bkGatewaySVC, "")
+// BKTokenGatewayVerifier verifies a bk_token by calling the BK Login API through the BK API Gateway.
+type BKTokenGatewayVerifier struct {
+	baseURL         string
+	authCredentials string
+}
 
-	path, ok := gatewayVerifyPaths[tokenName]
-	if !ok {
-		path = gatewayVerifyPaths["bk_token"]
+// NewBKTokenGatewayVerifier creates a BKTokenGatewayVerifier.
+// bkApiURLTmpl is the gateway URL template containing {api_name} placeholder.
+func NewBKTokenGatewayVerifier(bkApiURLTmpl, appCode, appSecret string) *BKTokenGatewayVerifier {
+	bkApiURL := strings.Replace(bkApiURLTmpl, "{api_name}", bkTokenGatewayName, 1)
+	authData, _ := json.Marshal(map[string]string{
+		"bk_app_code":   appCode,
+		"bk_app_secret": appSecret,
+	})
+	return &BKTokenGatewayVerifier{
+		baseURL:         util.URLJoin(bkApiURL, bkTokenGatewayStage),
+		authCredentials: string(authData),
 	}
+}
 
-	api := util.URLJoin(gatewayBaseURL, path)
-	checkURL := fmt.Sprintf("%s?%s=%s", api, tokenName, token)
+func (v *BKTokenGatewayVerifier) Verify(ctx context.Context, token string) (VerifyResult, error) {
+	logger := logging.GetWebLogger()
+	errorWrapf := errorx.NewLayerFunctionErrorWrapf(bkTokenGatewaySVC, "")
+
+	api := util.URLJoin(v.baseURL, bkTokenGatewayVerifyPath)
+	checkURL := util.URLSetQuery(api, url.Values{"bk_token": {token}})
 
 	tokenPreview := token
 	if len(tokenPreview) > 12 {
@@ -73,7 +85,6 @@ func VerifyViaGateway(
 
 	logger.Info("gateway verify: sending request",
 		zap.String("api", api),
-		zap.String("token_name", tokenName),
 		zap.String("token_preview", tokenPreview),
 		zap.Int("token_len", len(token)),
 	)
@@ -84,7 +95,7 @@ func VerifyViaGateway(
 			Message: "failed to build request",
 		}, errorWrapf(err, "http.NewRequest url=`%s` fail", checkURL)
 	}
-	req.Header.Set("X-Bkapi-Authorization", authJSON)
+	req.Header.Set("X-Bkapi-Authorization", v.authCredentials)
 
 	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
@@ -152,5 +163,6 @@ func VerifyViaGateway(
 	return VerifyResult{
 		Success:  true,
 		Username: gatewayResp.Data.BKUsername,
+		TenantID: gatewayResp.Data.TenantID,
 	}, nil
 }

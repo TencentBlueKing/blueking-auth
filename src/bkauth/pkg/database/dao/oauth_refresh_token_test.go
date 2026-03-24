@@ -14,10 +14,10 @@ import (
 
 func Test_oauthRefreshTokenManager_CreateWithTx(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		// VALUES clause has 13 named params
+		// VALUES clause has 14 named params
 		mock.ExpectBegin()
 		mock.ExpectExec(`^INSERT INTO oauth_refresh_token`).WithArgs(
-			"rt_hash123", "rt_mask123", "grant-001", int64(10), "client1", "",
+			"rt_hash123", "rt_mask123", "grant-001", int64(10), "client1", "", "",
 			"user1", "admin", `["aud1"]`, "openid profile",
 			sqlmock.AnyArg(), // expires_at
 			false,            // revoked
@@ -58,12 +58,12 @@ func Test_oauthRefreshTokenManager_GetByTokenHash(t *testing.T) {
 		now := time.Now()
 		mockRows := sqlmock.NewRows([]string{
 			"id", "token_hash", "token_mask", "grant_id", "access_token_id",
-			"client_id", "realm_name", "sub", "username",
+			"client_id", "tenant_id", "realm_name", "sub", "username",
 			"audience", "scope", "expires_at", "revoked", "rotation_count",
 			"created_at", "updated_at",
 		}).AddRow(
 			int64(1), "rt_hash123", "rt_mask123", "grant-001", int64(10),
-			"client1", "devops", "user1", "admin",
+			"client1", "", "devops", "user1", "admin",
 			`["aud1"]`, "openid profile", now.Add(24*time.Hour), false, int64(0),
 			now, now,
 		)
@@ -93,7 +93,7 @@ func Test_oauthRefreshTokenManager_GetByTokenHash_NotFound(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mockRows := sqlmock.NewRows([]string{
 			"id", "token_hash", "token_mask", "grant_id", "access_token_id",
-			"client_id", "realm_name", "sub", "username",
+			"client_id", "tenant_id", "realm_name", "sub", "username",
 			"audience", "scope", "expires_at", "revoked", "rotation_count",
 			"created_at", "updated_at",
 		})

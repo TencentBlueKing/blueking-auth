@@ -21,9 +21,9 @@ package bklogin
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"go.uber.org/zap"
 
@@ -32,7 +32,7 @@ import (
 	"bkauth/pkg/util"
 )
 
-const bkTokenSVC = "bklogin.VerifyBKToken"
+const bkTokenSVC = "bklogin.BKTokenVerifier"
 
 type bkTokenResponse struct {
 	Message string `json:"message"`
@@ -43,13 +43,22 @@ type bkTokenResponse struct {
 	Result bool `json:"result"`
 }
 
-// VerifyBKToken calls the BK Login direct API (accounts/is_login/) to verify a bk_token.
-func VerifyBKToken(ctx context.Context, baseURL, tokenName, token string) (VerifyResult, error) {
+// BKTokenVerifier verifies a bk_token by calling the BK Login direct API (accounts/is_login/).
+type BKTokenVerifier struct {
+	baseURL string
+}
+
+// NewBKTokenVerifier creates a BKTokenVerifier bound to the given BK Login base URL.
+func NewBKTokenVerifier(baseURL string) *BKTokenVerifier {
+	return &BKTokenVerifier{baseURL: baseURL}
+}
+
+func (v *BKTokenVerifier) Verify(ctx context.Context, token string) (VerifyResult, error) {
 	logger := logging.GetWebLogger()
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(bkTokenSVC, "")
 
-	api := util.URLJoin(baseURL, "accounts/is_login/")
-	checkURL := fmt.Sprintf("%s?%s=%s", api, tokenName, token)
+	api := util.URLJoin(v.baseURL, "accounts/is_login/")
+	checkURL := util.URLSetQuery(api, url.Values{"bk_token": {token}})
 
 	tokenPreview := token
 	if len(tokenPreview) > 12 {

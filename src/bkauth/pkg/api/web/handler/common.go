@@ -16,21 +16,40 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package login
+package handler
 
-import "context"
+import (
+	"context"
+	"errors"
 
-// AuthResult represents the result of a login verification.
-type AuthResult struct {
-	Username string
-	TenantID string
-	Success  bool
-	Message  string
-}
+	"bkauth/pkg/cache/impls"
+	"bkauth/pkg/oauth"
+	"bkauth/pkg/util"
+)
 
-// Authenticator defines the interface for user login verification.
-type Authenticator interface {
-	CookieName() string
-	CheckLogin(ctx context.Context, token string) (AuthResult, error)
-	GetLoginURL() string
+var errTenantMismatch = errors.New("user tenant does not match client tenant")
+
+// checkUserClientTenant resolves the client's tenant constraint and validates
+// it against the user's tenant.
+//
+// Public clients (DCR) are global and accept any user tenant.
+// Confidential clients inherit tenant_mode / tenant_id from the App record;
+// when tenant_mode is "single", the user's tenant_id must match exactly.
+func checkUserClientTenant(ctx context.Context, clientID, userTenantID string) error {
+	if oauth.IsPublicClient(clientID) {
+		return nil
+	}
+
+	app, err := impls.GetApp(ctx, clientID)
+	if err != nil {
+		return err
+	}
+
+	if app.TenantMode == util.TenantModeGlobal {
+		return nil
+	}
+	if app.TenantID != userTenantID {
+		return errTenantMismatch
+	}
+	return nil
 }

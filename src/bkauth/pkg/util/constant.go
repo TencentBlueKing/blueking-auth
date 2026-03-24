@@ -28,6 +28,7 @@ const (
 
 	ErrorIDKey   = "err"
 	UsernameKey  = "username"
+	TenantIDKey  = "tenant_id"
 	RealmNameKey = "realm_name"
 	ClientIDKey  = "client_id"
 

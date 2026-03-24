@@ -39,7 +39,7 @@ func Register(cfg *config.Config, r *gin.RouterGroup) {
 
 	oauthGroup := r.Group("/oauth2")
 	{
-		oauthGroup.GET("/consent", handler.NewConsentInfoHandler(cfg))
+		oauthGroup.GET("/consent", handler.NewConsentInfoHandler())
 		oauthGroup.POST("/consent", handler.NewConsentConfirmHandler(cfg))
 		oauthGroup.POST("/device/verify", handler.NewDeviceVerifyHandler(cfg))
 		oauthGroup.POST("/device/confirm", handler.NewDeviceConfirmHandler(cfg))

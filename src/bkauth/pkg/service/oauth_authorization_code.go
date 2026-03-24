@@ -66,6 +66,7 @@ func (s *oauthAuthorizationCodeService) CreateAuthorizationCode(
 		Code:                input.Code,
 		ClientID:            input.ClientID,
 		RealmName:           input.RealmName,
+		TenantID:            input.TenantID,
 		Sub:                 input.Sub,
 		Username:            input.Username,
 		RedirectURI:         input.RedirectURI,
@@ -151,6 +152,7 @@ func (s *oauthAuthorizationCodeService) ValidateAndConsume(
 	}
 
 	return types.ConsumedAuthorizationCode{
+		TenantID: authCode.TenantID,
 		Sub:      authCode.Sub,
 		Username: authCode.Username,
 		Audience: audience,

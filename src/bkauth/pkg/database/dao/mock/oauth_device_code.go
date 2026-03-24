@@ -42,18 +42,18 @@ func (m *MockOAuthDeviceCodeManager) EXPECT() *MockOAuthDeviceCodeManagerMockRec
 }
 
 // Approve mocks base method.
-func (m *MockOAuthDeviceCodeManager) Approve(ctx context.Context, id int64, sub, username, audience string) (int64, error) {
+func (m *MockOAuthDeviceCodeManager) Approve(ctx context.Context, id int64, tenantID, sub, username, audience string) (int64, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Approve", ctx, id, sub, username, audience)
+	ret := m.ctrl.Call(m, "Approve", ctx, id, tenantID, sub, username, audience)
 	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Approve indicates an expected call of Approve.
-func (mr *MockOAuthDeviceCodeManagerMockRecorder) Approve(ctx, id, sub, username, audience any) *gomock.Call {
+func (mr *MockOAuthDeviceCodeManagerMockRecorder) Approve(ctx, id, tenantID, sub, username, audience any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Approve", reflect.TypeOf((*MockOAuthDeviceCodeManager)(nil).Approve), ctx, id, sub, username, audience)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Approve", reflect.TypeOf((*MockOAuthDeviceCodeManager)(nil).Approve), ctx, id, tenantID, sub, username, audience)
 }
 
 // ConsumeApproved mocks base method.

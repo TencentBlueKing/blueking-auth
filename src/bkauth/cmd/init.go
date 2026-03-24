@@ -157,11 +157,15 @@ func initCryptos() {
 }
 
 func initLogin() {
+	if globalConfig.EnableMultiTenantMode && !globalConfig.BKLoginAPIViaGateway {
+		panic("multi-tenant mode requires BKLoginAPIViaGateway=true")
+	}
+
 	login.InitAuthenticator(globalConfig)
 }
 
 func initRealms() {
-	bkapigateway.Init(globalConfig.BKApiURL("bk-apigateway"), globalConfig.AppCode, globalConfig.AppSecret)
+	bkapigateway.Init(globalConfig.BKApiURLTmpl, globalConfig.AppCode, globalConfig.AppSecret)
 
 	oauth.RegisterRealm(blueking.New())
 	oauth.RegisterRealm(devops.New())

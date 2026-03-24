@@ -210,7 +210,7 @@ func (m *accessKeyManager) ListAccessKeyByAppCode(
 	if errors.Is(err, sql.ErrNoRows) {
 		return appSecrets, nil
 	}
-	return appSecrets, nil
+	return appSecrets, err
 }
 
 func (m *accessKeyManager) selectAccessKey(ctx context.Context, appCode string) ([]AccessKey, error) {

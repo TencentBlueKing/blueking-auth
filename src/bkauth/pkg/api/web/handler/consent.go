@@ -19,6 +19,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,11 @@ import (
 	"bkauth/pkg/util"
 )
 
+const (
+	consentActionApprove = "approve"
+	consentActionDeny    = "deny"
+)
+
 type consentInfoResponse struct {
 	ClientName    string `json:"client_name"`
 	ClientLogoURI string `json:"client_logo_uri,omitempty"`
@@ -40,7 +46,7 @@ type consentInfoResponse struct {
 
 type consentConfirmRequest struct {
 	ConsentChallenge string `json:"consent_challenge" binding:"required"`
-	Action           string `json:"action" binding:"required"`
+	Action           string `json:"action" binding:"required,oneof=approve deny"`
 }
 
 type consentConfirmResponse struct {
@@ -51,7 +57,7 @@ type consentConfirmResponse struct {
 //
 // The consent data has been pre-validated by the /authorize endpoint, so we trust it
 // and only need to look up display information (client name, logo, parsed resources).
-func NewConsentInfoHandler(cfg *config.Config) gin.HandlerFunc {
+func NewConsentInfoHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		consentChallenge := c.Query("consent_challenge")
 		if consentChallenge == "" {
@@ -116,13 +122,6 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 
 		consentChallenge := req.ConsentChallenge
 
-		if req.Action != "approve" && req.Action != "deny" {
-			webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeInvalidArgument,
-				"invalid action",
-				[]webErrorDetail{{Field: "action", Message: "must be 'approve' or 'deny'"}})
-			return
-		}
-
 		ctx := c.Request.Context()
 
 		consent, err := impls.GetConsent(ctx, consentChallenge)
@@ -138,10 +137,23 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		if req.Action == "deny" {
+		if req.Action == consentActionDeny {
 			redirectURL := oauth.BuildErrorRedirectURL(consent.RedirectURI, consent.State,
 				"access_denied", "User denied the authorization request")
 			webJSONSuccess(c, consentConfirmResponse{RedirectURL: redirectURL})
+			return
+		}
+
+		userTenantID := util.GetTenantID(c)
+		if err := checkUserClientTenant(ctx, consent.ClientID, userTenantID); err != nil {
+			if errors.Is(err, errTenantMismatch) {
+				redirectURL := oauth.BuildErrorRedirectURL(consent.RedirectURI, consent.State,
+					oauth.ErrorCodeAccessDenied, "User tenant does not match client tenant")
+				webJSONSuccess(c, consentConfirmResponse{RedirectURL: redirectURL})
+				return
+			}
+			webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
+				"Failed to resolve client tenant info")
 			return
 		}
 
@@ -164,6 +176,7 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 		authCode := types.CreateAuthorizationCodeInput{
 			Code:                code,
 			ClientID:            consent.ClientID,
+			TenantID:            userTenantID,
 			RealmName:           consent.RealmName,
 			Sub:                 username,
 			Username:            username,
@@ -184,3 +197,4 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 		webJSONSuccess(c, consentConfirmResponse{RedirectURL: redirectURL})
 	}
 }
+

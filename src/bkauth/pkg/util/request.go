@@ -87,6 +87,14 @@ func GetUsername(c *gin.Context) string {
 	return c.GetString(UsernameKey)
 }
 
+func SetTenantID(c *gin.Context, tenantID string) {
+	c.Set(TenantIDKey, tenantID)
+}
+
+func GetTenantID(c *gin.Context) string {
+	return c.GetString(TenantIDKey)
+}
+
 func SetRealmName(c *gin.Context, realmName string) {
 	c.Set(RealmNameKey, realmName)
 }

@@ -23,6 +23,7 @@ package bkapigateway
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -30,20 +31,27 @@ import (
 	"bkauth/pkg/util"
 )
 
-var (
-	gatewayBaseURL string
-	authJSON       string
+const (
+	gatewayName  = "bk-apigateway"
+	gatewayStage = "prod"
 )
 
-// Init sets the BK API Gateway base URL and pre-serializes the authentication
-// header. Must be called once during startup before any client is used.
-func Init(apiBaseURL, appCode, appSecret string) {
-	gatewayBaseURL = util.URLJoin(apiBaseURL, "prod")
+var (
+	baseURL         string
+	authCredentials string
+)
+
+// Init resolves the gateway base URL from the URL template and pre-serializes
+// the authentication header. Must be called once during startup before any
+// client is used.
+func Init(bkApiURLTmpl, appCode, appSecret string) {
+	apiURL := strings.Replace(bkApiURLTmpl, "{api_name}", gatewayName, 1)
+	baseURL = util.URLJoin(apiURL, gatewayStage)
 	data, _ := json.Marshal(map[string]string{
 		"bk_app_code":   appCode,
 		"bk_app_secret": appSecret,
 	})
-	authJSON = string(data)
+	authCredentials = string(data)
 }
 
 var defaultHTTPClient = &http.Client{

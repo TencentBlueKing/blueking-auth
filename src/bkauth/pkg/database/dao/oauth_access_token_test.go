@@ -17,7 +17,7 @@ func Test_oauthAccessTokenManager_CreateWithTx(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectExec(`^INSERT INTO oauth_access_token`).WithArgs(
 			"jti-001", "hash123", "mask123", "grant-001",
-			"client1", "devops", "user1", "admin",
+			"client1", "", "devops", "user1", "admin",
 			`["aud1"]`, "openid profile",
 			sqlmock.AnyArg(), // expires_at
 			false,            // revoked
@@ -57,12 +57,12 @@ func Test_oauthAccessTokenManager_GetByTokenHash(t *testing.T) {
 		now := time.Now()
 		mockRows := sqlmock.NewRows([]string{
 			"id", "jti", "token_hash", "token_mask", "grant_id",
-			"client_id", "realm_name", "sub", "username",
+			"client_id", "tenant_id", "realm_name", "sub", "username",
 			"audience", "scope", "expires_at", "revoked",
 			"created_at", "updated_at",
 		}).AddRow(
 			int64(1), "jti-001", "hash123", "mask123", "grant-001",
-			"client1", "devops", "user1", "admin",
+			"client1", "", "devops", "user1", "admin",
 			`["aud1"]`, "openid profile", now.Add(time.Hour), false,
 			now, now,
 		)
@@ -91,7 +91,7 @@ func Test_oauthAccessTokenManager_GetByTokenHash_NotFound(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mockRows := sqlmock.NewRows([]string{
 			"id", "jti", "token_hash", "token_mask", "grant_id",
-			"client_id", "realm_name", "sub", "username",
+			"client_id", "tenant_id", "realm_name", "sub", "username",
 			"audience", "scope", "expires_at", "revoked",
 			"created_at", "updated_at",
 		})

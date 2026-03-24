@@ -15,7 +15,8 @@ import (
 func Test_oauthDeviceCodeManager_Create(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mock.ExpectExec(`^INSERT INTO oauth_device_code`).WithArgs(
-			"device123", "ABCD-EFGH", "client1", "openid", "bk_paas", "devops",
+			"device123", "ABCD-EFGH", "client1", "",
+			"openid", "bk_paas", "devops",
 			nil,              // audience (*string, nil)
 			"pending",        // status
 			"",               // sub
@@ -54,11 +55,11 @@ func Test_oauthDeviceCodeManager_GetByDeviceCode(t *testing.T) {
 		now := time.Now()
 		audience := `["aud1"]`
 		mockRows := sqlmock.NewRows([]string{
-			"id", "device_code", "user_code", "client_id", "scope", "resource", "realm_name",
+			"id", "device_code", "user_code", "client_id", "tenant_id", "scope", "resource", "realm_name",
 			"audience", "status", "sub", "username", "poll_interval",
 			"last_polled_at", "expires_at", "created_at", "updated_at",
 		}).AddRow(
-			int64(1), "device123", "ABCD-EFGH", "client1", "openid", "bk_paas", "devops",
+			int64(1), "device123", "ABCD-EFGH", "client1", "", "openid", "bk_paas", "devops",
 			audience, "pending", "", "", int64(5),
 			nil, now.Add(10*time.Minute), now, now,
 		)
@@ -82,7 +83,7 @@ func Test_oauthDeviceCodeManager_GetByDeviceCode(t *testing.T) {
 func Test_oauthDeviceCodeManager_GetByDeviceCode_NotFound(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mockRows := sqlmock.NewRows([]string{
-			"id", "device_code", "user_code", "client_id", "scope", "resource", "realm_name",
+			"id", "device_code", "user_code", "client_id", "tenant_id", "scope", "resource", "realm_name",
 			"audience", "status", "sub", "username", "poll_interval",
 			"last_polled_at", "expires_at", "created_at", "updated_at",
 		})
@@ -101,11 +102,11 @@ func Test_oauthDeviceCodeManager_GetByUserCode(t *testing.T) {
 		now := time.Now()
 		audience := `["aud1"]`
 		mockRows := sqlmock.NewRows([]string{
-			"id", "device_code", "user_code", "client_id", "scope", "resource", "realm_name",
+			"id", "device_code", "user_code", "client_id", "tenant_id", "scope", "resource", "realm_name",
 			"audience", "status", "sub", "username", "poll_interval",
 			"last_polled_at", "expires_at", "created_at", "updated_at",
 		}).AddRow(
-			int64(1), "device123", "ABCD-EFGH", "client1", "openid", "bk_paas", "devops",
+			int64(1), "device123", "ABCD-EFGH", "client1", "", "openid", "bk_paas", "devops",
 			audience, "pending", "", "", int64(5),
 			nil, now.Add(10*time.Minute), now, now,
 		)
@@ -154,12 +155,12 @@ func Test_oauthDeviceCodeManager_UpdateStatus(t *testing.T) {
 
 func Test_oauthDeviceCodeManager_Approve(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		mock.ExpectExec(`^UPDATE oauth_device_code SET status = 'approved', sub = \?, username = \?, audience = \? WHERE id = \? AND status = 'pending'$`).
-			WithArgs("user1", "admin", `["aud1"]`, int64(1)).
+		mock.ExpectExec(`^UPDATE oauth_device_code SET status = 'approved', tenant_id = \?, sub = \?, username = \?, audience = \? WHERE id = \? AND status = 'pending'$`).
+			WithArgs("default", "user1", "admin", `["aud1"]`, int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
 		manager := &oauthDeviceCodeManager{DB: db}
-		affected, err := manager.Approve(context.Background(), 1, "user1", "admin", `["aud1"]`)
+		affected, err := manager.Approve(context.Background(), 1, "default", "user1", "admin", `["aud1"]`)
 
 		assert.NoError(t, err)
 		assert.Equal(t, int64(1), affected)

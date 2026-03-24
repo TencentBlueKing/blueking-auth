@@ -21,9 +21,9 @@ package bklogin
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"go.uber.org/zap"
 
@@ -32,7 +32,7 @@ import (
 	"bkauth/pkg/util"
 )
 
-const bkTicketSVC = "bklogin.VerifyBKTicket"
+const bkTicketSVC = "bklogin.BKTicketVerifier"
 
 type bkTicketResponse struct {
 	Ret  int    `json:"ret"`
@@ -42,13 +42,22 @@ type bkTicketResponse struct {
 	} `json:"data"`
 }
 
-// VerifyBKTicket calls the BK Login direct API (user/get_info) to verify a bk_ticket.
-func VerifyBKTicket(ctx context.Context, baseURL, tokenName, ticket string) (VerifyResult, error) {
+// BKTicketVerifier verifies a bk_ticket by calling the BK Login direct API (user/get_info).
+type BKTicketVerifier struct {
+	baseURL string
+}
+
+// NewBKTicketVerifier creates a BKTicketVerifier bound to the given BK Login base URL.
+func NewBKTicketVerifier(baseURL string) *BKTicketVerifier {
+	return &BKTicketVerifier{baseURL: baseURL}
+}
+
+func (v *BKTicketVerifier) Verify(ctx context.Context, ticket string) (VerifyResult, error) {
 	logger := logging.GetWebLogger()
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(bkTicketSVC, "")
 
-	api := util.URLJoin(baseURL, "user/get_info")
-	checkURL := fmt.Sprintf("%s?%s=%s", api, tokenName, ticket)
+	api := util.URLJoin(v.baseURL, "user/get_info")
+	checkURL := util.URLSetQuery(api, url.Values{"bk_ticket": {ticket}})
 
 	tokenPreview := ticket
 	if len(tokenPreview) > 12 {

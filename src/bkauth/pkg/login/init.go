@@ -19,49 +19,46 @@
 package login
 
 import (
-	"encoding/json"
+	"strings"
 	"sync"
 
 	"bkauth/pkg/config"
-	"bkauth/pkg/util"
 )
 
 var (
-	defaultAuthenticator Authenticator
-	initOnce             sync.Once
+	authenticator Authenticator
+	initOnce      sync.Once
 )
 
 // InitAuthenticator creates and stores the global Authenticator based on config.
 // Must be called once during startup before the HTTP server begins accepting requests.
+//
+// Selection logic:
+//   - BKLoginTokenName == "bk_ticket" → bkTicketAuthenticator (always direct;
+//     BKLoginAPIViaGateway is ignored because bk_ticket does not support gateway).
+//   - BKLoginAPIViaGateway == true    → bkTokenViaGatewayAuthenticator.
+//   - Otherwise                       → bkTokenAuthenticator (direct).
 func InitAuthenticator(cfg *config.Config) {
-	if defaultAuthenticator == nil {
-		initOnce.Do(func() {
-			loginURL := cfg.BKLoginURL
-			tokenName := cfg.BKLoginTokenName
+	initOnce.Do(func() {
+		loginURL := cfg.BKLoginURL
 
-			var gw *gatewayTransport
-			if cfg.BKLoginAPICallMethod == "gateway" {
-				authData, _ := json.Marshal(map[string]string{
-					"bk_app_code":   cfg.AppCode,
-					"bk_app_secret": cfg.AppSecret,
-				})
-				gw = &gatewayTransport{
-					baseURL:  util.URLJoin(cfg.BKApiURL("bk-login"), "prod"),
-					authJSON: string(authData),
-				}
-			}
+		if strings.EqualFold(cfg.BKLoginTokenName, "bk_ticket") {
+			authenticator = newBKTicketAuthenticator(loginURL)
+			return
+		}
 
-			switch tokenName {
-			case "bk_ticket":
-				defaultAuthenticator = newBKTicketAuthenticator(loginURL, tokenName, gw)
-			default:
-				defaultAuthenticator = newBKTokenAuthenticator(loginURL, tokenName, gw)
-			}
-		})
-	}
+		if cfg.BKLoginAPIViaGateway {
+			authenticator = newBKTokenViaGatewayAuthenticator(
+				loginURL, cfg.BKApiURLTmpl, cfg.AppCode, cfg.AppSecret,
+			)
+			return
+		}
+
+		authenticator = newBKTokenAuthenticator(loginURL)
+	})
 }
 
 // GetAuthenticator returns the globally initialized Authenticator.
 func GetAuthenticator() Authenticator {
-	return defaultAuthenticator
+	return authenticator
 }

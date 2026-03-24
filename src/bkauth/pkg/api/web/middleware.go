@@ -57,6 +57,7 @@ func LoginRequired() gin.HandlerFunc {
 		}
 
 		util.SetUsername(c, loginResult.Username)
+		util.SetTenantID(c, loginResult.TenantID)
 		c.Next()
 	}
 }

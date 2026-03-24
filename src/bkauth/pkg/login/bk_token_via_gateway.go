@@ -22,25 +22,24 @@ import (
 	"context"
 
 	"bkauth/pkg/external/bklogin"
-	"bkauth/pkg/util"
 )
 
-type bkTicketAuthenticator struct {
+type bkTokenViaGatewayAuthenticator struct {
 	loginURL string
-	verifier *bklogin.BKTicketVerifier
+	verifier *bklogin.BKTokenGatewayVerifier
 }
 
-func newBKTicketAuthenticator(loginURL string) *bkTicketAuthenticator {
-	return &bkTicketAuthenticator{
+func newBKTokenViaGatewayAuthenticator(loginURL, bkApiURLTmpl, appCode, appSecret string) *bkTokenViaGatewayAuthenticator {
+	return &bkTokenViaGatewayAuthenticator{
 		loginURL: loginURL,
-		verifier: bklogin.NewBKTicketVerifier(loginURL),
+		verifier: bklogin.NewBKTokenGatewayVerifier(bkApiURLTmpl, appCode, appSecret),
 	}
 }
 
-func (a *bkTicketAuthenticator) CookieName() string  { return "bk_ticket" }
-func (a *bkTicketAuthenticator) GetLoginURL() string { return a.loginURL }
+func (a *bkTokenViaGatewayAuthenticator) CookieName() string  { return "bk_token" }
+func (a *bkTokenViaGatewayAuthenticator) GetLoginURL() string { return a.loginURL }
 
-func (a *bkTicketAuthenticator) CheckLogin(ctx context.Context, token string) (AuthResult, error) {
+func (a *bkTokenViaGatewayAuthenticator) CheckLogin(ctx context.Context, token string) (AuthResult, error) {
 	result, err := a.verifier.Verify(ctx, token)
 	if err != nil {
 		// TODO: stop relying on result.Message when err != nil; error info should flow through error only
@@ -48,7 +47,7 @@ func (a *bkTicketAuthenticator) CheckLogin(ctx context.Context, token string) (A
 	}
 	return AuthResult{
 		Username: result.Username,
-		TenantID: util.TenantIDDefault,
+		TenantID: result.TenantID,
 		Success:  result.Success,
 		Message:  result.Message,
 	}, nil

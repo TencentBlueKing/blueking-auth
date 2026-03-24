@@ -42,17 +42,17 @@ func (m *MockOAuthDeviceCodeService) EXPECT() *MockOAuthDeviceCodeServiceMockRec
 }
 
 // ApproveByUserCode mocks base method.
-func (m *MockOAuthDeviceCodeService) ApproveByUserCode(ctx context.Context, userCode, sub, username string, audience []string) error {
+func (m *MockOAuthDeviceCodeService) ApproveByUserCode(ctx context.Context, tenantID, userCode, sub, username string, audience []string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ApproveByUserCode", ctx, userCode, sub, username, audience)
+	ret := m.ctrl.Call(m, "ApproveByUserCode", ctx, tenantID, userCode, sub, username, audience)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ApproveByUserCode indicates an expected call of ApproveByUserCode.
-func (mr *MockOAuthDeviceCodeServiceMockRecorder) ApproveByUserCode(ctx, userCode, sub, username, audience any) *gomock.Call {
+func (mr *MockOAuthDeviceCodeServiceMockRecorder) ApproveByUserCode(ctx, tenantID, userCode, sub, username, audience any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApproveByUserCode", reflect.TypeOf((*MockOAuthDeviceCodeService)(nil).ApproveByUserCode), ctx, userCode, sub, username, audience)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApproveByUserCode", reflect.TypeOf((*MockOAuthDeviceCodeService)(nil).ApproveByUserCode), ctx, tenantID, userCode, sub, username, audience)
 }
 
 // CreateDeviceCode mocks base method.
