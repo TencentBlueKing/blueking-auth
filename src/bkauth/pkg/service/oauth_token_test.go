@@ -77,9 +77,9 @@ var _ = Describe("oauthTokenService", func() {
 			start := time.Now()
 			prepared, err := svc.prepareTokenPair(
 				"blueking",
-				"default",
 				"grant-1",
 				"client-1",
+				"default",
 				"sub-1",
 				"user-1",
 				[]string{"aud-1", "aud-2"},
@@ -97,6 +97,7 @@ var _ = Describe("oauthTokenService", func() {
 			Expect(prepared.daoAccessToken.GrantID).To(Equal("grant-1"))
 			Expect(prepared.daoAccessToken.ClientID).To(Equal("client-1"))
 			Expect(prepared.daoAccessToken.RealmName).To(Equal("blueking"))
+			Expect(prepared.daoAccessToken.TenantID).To(Equal("default"))
 			Expect(prepared.daoAccessToken.Sub).To(Equal("sub-1"))
 			Expect(prepared.daoAccessToken.Username).To(Equal("user-1"))
 			Expect(prepared.daoAccessToken.TokenHash).To(Equal(oauth.HashToken(prepared.accessToken)))
@@ -107,6 +108,7 @@ var _ = Describe("oauthTokenService", func() {
 			Expect(prepared.daoRefreshToken.GrantID).To(Equal("grant-1"))
 			Expect(prepared.daoRefreshToken.ClientID).To(Equal("client-1"))
 			Expect(prepared.daoRefreshToken.RealmName).To(Equal("blueking"))
+			Expect(prepared.daoRefreshToken.TenantID).To(Equal("default"))
 			Expect(prepared.daoRefreshToken.Sub).To(Equal("sub-1"))
 			Expect(prepared.daoRefreshToken.Username).To(Equal("user-1"))
 			Expect(prepared.daoRefreshToken.TokenHash).To(Equal(oauth.HashToken(prepared.refreshToken)))
