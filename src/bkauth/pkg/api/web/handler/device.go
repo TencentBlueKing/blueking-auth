@@ -187,4 +187,3 @@ func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 		webJSONSuccess(c, deviceConfirmResponse{Result: "approved"})
 	}
 }
-

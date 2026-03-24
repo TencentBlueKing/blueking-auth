@@ -314,11 +314,11 @@ type Config struct {
 	// well-known endpoints, and frontend redirect URLs.
 	BKAuthURL string
 
-	AppCode            string
-	AppSecret          string
-	BKApiURLTmpl       string
-	BKLoginURL         string
-	BKLoginTokenName   string
+	AppCode              string
+	AppSecret            string
+	BKApiURLTmpl         string
+	BKLoginURL           string
+	BKLoginTokenName     string
 	BKLoginAPIViaGateway bool
 
 	OAuth OAuth
@@ -364,8 +364,9 @@ func Load(v *viper.Viper) (*Config, error) {
 	}
 
 	// 6. Build secret exemption map for O(1) lookups
-	cfg.OAuth.secretExemptMap = make(map[ConfidentialClientSecretExemption]struct{}, len(cfg.OAuth.ConfidentialClientSecretExemptions))
-	for _, ex := range cfg.OAuth.ConfidentialClientSecretExemptions {
+	exemptions := cfg.OAuth.ConfidentialClientSecretExemptions
+	cfg.OAuth.secretExemptMap = make(map[ConfidentialClientSecretExemption]struct{}, len(exemptions))
+	for _, ex := range exemptions {
 		cfg.OAuth.secretExemptMap[ex] = struct{}{}
 	}
 
@@ -379,4 +380,3 @@ func Load(v *viper.Viper) (*Config, error) {
 
 	return &cfg, nil
 }
-

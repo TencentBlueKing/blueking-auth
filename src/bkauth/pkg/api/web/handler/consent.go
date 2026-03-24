@@ -197,4 +197,3 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 		webJSONSuccess(c, consentConfirmResponse{RedirectURL: redirectURL})
 	}
 }
-

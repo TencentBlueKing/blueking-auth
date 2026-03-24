@@ -29,7 +29,9 @@ type bkTokenViaGatewayAuthenticator struct {
 	verifier *bklogin.BKTokenGatewayVerifier
 }
 
-func newBKTokenViaGatewayAuthenticator(loginURL, bkApiURLTmpl, appCode, appSecret string) *bkTokenViaGatewayAuthenticator {
+func newBKTokenViaGatewayAuthenticator(
+	loginURL, bkApiURLTmpl, appCode, appSecret string,
+) *bkTokenViaGatewayAuthenticator {
 	return &bkTokenViaGatewayAuthenticator{
 		loginURL: loginURL,
 		verifier: bklogin.NewBKTokenGatewayVerifier(bkApiURLTmpl, appCode, appSecret),

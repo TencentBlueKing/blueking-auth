@@ -33,10 +33,10 @@ import (
 
 // OAuthAuthorizationCode represents an OAuth authorization code
 type OAuthAuthorizationCode struct {
-	Code      string `db:"code"`
-	ClientID  string `db:"client_id"`
-	TenantID  string `db:"tenant_id"`
-	RealmName string `db:"realm_name"`
+	Code        string `db:"code"`
+	ClientID    string `db:"client_id"`
+	TenantID    string `db:"tenant_id"`
+	RealmName   string `db:"realm_name"`
 	Sub         string `db:"sub"`
 	Username    string `db:"username"`
 	RedirectURI string `db:"redirect_uri"`

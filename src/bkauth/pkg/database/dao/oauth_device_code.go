@@ -184,7 +184,9 @@ func (m *oauthDeviceCodeManager) UpdateStatus(ctx context.Context, id int64, sta
 	return result.RowsAffected()
 }
 
-func (m *oauthDeviceCodeManager) Approve(ctx context.Context, id int64, tenantID, sub, username, audience string) (int64, error) {
+func (m *oauthDeviceCodeManager) Approve(
+	ctx context.Context, id int64, tenantID, sub, username, audience string,
+) (int64, error) {
 	query := `UPDATE oauth_device_code SET status = 'approved', tenant_id = ?, sub = ?, username = ?, audience = ?` +
 		` WHERE id = ? AND status = 'pending'`
 	result, err := m.DB.ExecContext(ctx, query, tenantID, sub, username, audience, id)

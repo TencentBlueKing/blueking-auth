@@ -141,7 +141,7 @@ func (s *oauthTokenService) prepareTokenPair(
 			GrantID:       grantID,
 			ClientID:      clientID,
 			RealmName:     realmName,
-			TenantID:  tenantID,
+			TenantID:      tenantID,
 			Sub:           sub,
 			Username:      username,
 			Audience:      string(audienceJSON),
@@ -258,7 +258,7 @@ func (s *oauthTokenService) GetAccessTokenByTokenHash(
 	return types.ResolvedAccessToken{
 		ClientID:  daoToken.ClientID,
 		RealmName: daoToken.RealmName,
-		TenantID:  tenantID,
+		TenantID:  daoToken.TenantID,
 		Sub:       daoToken.Sub,
 		Username:  daoToken.Username,
 		Audience:  audience,
