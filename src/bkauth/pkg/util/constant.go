@@ -26,13 +26,17 @@ const (
 	AccessAppCodeKey         = "access_app_code"
 	EnableMultiTenantModeKey = "enable_multi_tenant_mode"
 
-	ErrorIDKey = "err"
+	ErrorIDKey   = "err"
+	UsernameKey  = "username"
+	TenantIDKey  = "tenant_id"
+	RealmNameKey = "realm_name"
+	ClientIDKey  = "client_id"
 
-	// 应用在租户层的可用模式：全租户
+	// TenantModeGlobal 应用在租户层的可用模式：全租户
 	TenantModeGlobal = "global"
-	// 应用在租户层的可用模式：单租户
+	// TenantModeSingle 应用在租户层的可用模式：单租户
 	TenantModeSingle = "single"
 
-	// 单租户模式下，默认租户 id 为 default
+	// TenantIDDefault 单租户模式下，默认租户 id 为 default
 	TenantIDDefault = "default"
 )

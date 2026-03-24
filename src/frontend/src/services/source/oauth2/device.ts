@@ -10,7 +10,7 @@ export const verifyDeviceCode = (
   http.post<{
     client_name: string
     client_logo_uri?: string
-    realm: string
+    realm_name: string
     resources: ResourceGroup[]
   }>('/api/v1/web/oauth2/device/verify', params);
 

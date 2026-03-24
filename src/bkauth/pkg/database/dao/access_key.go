@@ -24,12 +24,21 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 
 	"bkauth/pkg/database"
 )
+
+// accessKeyColumns enumerates all columns of the access_key table.
+// Used by UpdateByID to prevent SQL injection in dynamic SET clause construction
+// (column names from map keys are concatenated into SQL and cannot be parameterized).
+var accessKeyColumns = map[string]bool{
+	"id": true, "app_code": true, "app_secret": true, "created_source": true,
+	"enabled": true, "description": true, "created_at": true, "updated_at": true,
+}
 
 type AccessKey struct {
 	ID        int64  `db:"id"`
@@ -122,13 +131,15 @@ func (m *accessKeyManager) UpdateByID(
 	id int64,
 	updateFieldMap map[string]interface{},
 ) (int64, error) {
-	// get setCause
-	setCause := database.GetSetClause(updateFieldMap)
+	for key := range updateFieldMap {
+		if !accessKeyColumns[key] {
+			return 0, fmt.Errorf("invalid column: %s", key)
+		}
+	}
 
-	// build sql
+	setCause := database.GetSetClause(updateFieldMap)
 	query := `UPDATE access_key SET ` + setCause + ` WHERE id = :id`
 
-	// add where data
 	updateFieldMap["id"] = id
 	return database.SqlxUpdate(ctx, m.DB, query, updateFieldMap)
 }
@@ -199,7 +210,7 @@ func (m *accessKeyManager) ListAccessKeyByAppCode(
 	if errors.Is(err, sql.ErrNoRows) {
 		return appSecrets, nil
 	}
-	return appSecrets, nil
+	return appSecrets, err
 }
 
 func (m *accessKeyManager) selectAccessKey(ctx context.Context, appCode string) ([]AccessKey, error) {

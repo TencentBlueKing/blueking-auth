@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -27,6 +27,9 @@ import (
 
 	"bkauth/pkg/api/app"
 	"bkauth/pkg/api/basic"
+	"bkauth/pkg/api/oauth"
+	"bkauth/pkg/api/oauth/handler"
+	"bkauth/pkg/api/web"
 	"bkauth/pkg/config"
 	"bkauth/pkg/middleware"
 	"bkauth/pkg/util"
@@ -48,6 +51,9 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	router.Use(middleware.Recovery(cfg.Sentry.Enable))
 	// MW: request_id
 	router.Use(middleware.RequestID())
+	if cfg.Debug {
+		router.Use(middleware.DebugCORS("/api/v1/web"))
+	}
 
 	if cfg.Trace.Enabled {
 		router.Use(otelgin.Middleware(cfg.Trace.ServiceName))
@@ -59,11 +65,41 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	// app apis for app code/secret
 	appRouter := router.Group("/api/v1/apps")
 	appRouter.Use(middleware.Metrics())
-	// TODO: 接口日志有些敏感有些不敏感，校验接口也有使用POST的, 目前一刀切
+	// TODO: 接口日志有些敏感有些不敏感，校验接口也有使用 POST 的，目前一刀切
 	appRouter.Use(middleware.APILogger())
 	appRouter.Use(middleware.AccessAppAuthMiddleware())
 	appRouter.Use(middleware.NewEnableMultiTenantModeMiddleware(cfg.EnableMultiTenantMode))
 	app.Register(appRouter)
+
+	// OAuth 2.0 APIs
+	oauthRouter := router.Group("/realms/:realm_name/oauth2")
+	oauthRouter.Use(oauth.RealmMiddleware())
+	oauthRouter.Use(middleware.Metrics())
+	oauthRouter.Use(middleware.WebLogger())
+	oauth.Register(cfg, oauthRouter)
+
+	// Web frontend APIs
+	webRouter := router.Group("/api/v1/web")
+	webRouter.Use(middleware.Metrics())
+	webRouter.Use(middleware.WebLogger())
+	web.Register(cfg, webRouter)
+
+	// [MCP Client] Authorization Server Metadata Discovery
+	// Supports: /.well-known/oauth-authorization-server/realms/:realm/oauth2
+	router.GET(
+		"/.well-known/oauth-authorization-server/realms/:realm_name/oauth2",
+		oauth.RealmMiddleware(),
+		middleware.Metrics(),
+		middleware.WebLogger(),
+		handler.NewMetadataHandler(cfg),
+	)
+	// 临时兼容 CodeBuddy IDE MCP CLIENT BUG (defaults to blueking realm)
+	router.GET(
+		"/.well-known/oauth-authorization-server",
+		middleware.Metrics(),
+		middleware.WebLogger(),
+		handler.NewDefaultRealmMetadataHandler(cfg),
+	)
 
 	return router
 }

@@ -16,58 +16,53 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package handler_test
+package util_test
 
 import (
-	"net/http"
-
-	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo/v2"
-	"github.com/steinfletcher/apitest"
 	"github.com/stretchr/testify/assert"
 
-	"bkauth/pkg/api/basic"
-	"bkauth/pkg/config"
 	"bkauth/pkg/util"
 )
 
-var _ = Describe("Basic", func() {
-	var (
-		t GinkgoTInterface
-		r *gin.Engine
-	)
+var _ = Describe("Slice", func() {
+	Describe("Deduplicate", func() {
+		DescribeTable("string cases",
+			func(input []string, expected []string) {
+				result := util.Deduplicate(input)
+				assert.Equal(GinkgoT(), expected, result)
+			},
+			Entry("no duplicates",
+				[]string{"a", "b", "c"},
+				[]string{"a", "b", "c"}),
+			Entry("with duplicates",
+				[]string{"a", "b", "a"},
+				[]string{"a", "b"}),
+			Entry("all same",
+				[]string{"x", "x", "x"},
+				[]string{"x"}),
+			Entry("single",
+				[]string{"a"},
+				[]string{"a"}),
+			Entry("empty",
+				[]string{},
+				[]string{}),
+		)
 
-	BeforeEach(func() {
-		t = GinkgoT()
-		r = util.SetupRouter()
-		basic.Register(&config.Config{Debug: false}, r)
-	})
-
-	It("Ping", func() {
-		apitest.New().
-			Handler(r).
-			Get("/ping").
-			Expect(t).
-			Body(`{"message":"pong"}`).
-			Status(http.StatusOK).
-			End()
-	})
-
-	It("version", func() {
-		apitest.New().
-			Handler(r).
-			Get("/version").
-			Expect(t).
-			Assert(
-				util.NewJSONAssertFunc(t, func(m map[string]interface{}) error {
-					assert.Contains(t, m, "version")
-					assert.Contains(t, m, "commit")
-					assert.Contains(t, m, "buildTime")
-					assert.Contains(t, m, "goVersion")
-					assert.Contains(t, m, "env")
-					return nil
-				})).
-			Status(http.StatusOK).
-			End()
+		DescribeTable("int cases",
+			func(input []int, expected []int) {
+				result := util.Deduplicate(input)
+				assert.Equal(GinkgoT(), expected, result)
+			},
+			Entry("no duplicates",
+				[]int{1, 2, 3},
+				[]int{1, 2, 3}),
+			Entry("with duplicates",
+				[]int{1, 2, 1, 3, 2},
+				[]int{1, 2, 3}),
+			Entry("all same",
+				[]int{5, 5, 5},
+				[]int{5}),
+		)
 	})
 })
