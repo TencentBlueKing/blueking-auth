@@ -131,9 +131,9 @@ func Test_oauthClientManager_GetGrants_NotFound(t *testing.T) {
 
 func Test_oauthClientManager_GetDisplay(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		mockRows := sqlmock.NewRows([]string{"id", "name", "logo_uri"}).
-			AddRow("client1", "Test Client", "https://example.com/logo.png")
-		mock.ExpectQuery(`^SELECT id, name, logo_uri FROM oauth_client WHERE id = \? LIMIT 1$`).
+		mockRows := sqlmock.NewRows([]string{"id", "name", "type", "logo_uri"}).
+			AddRow("client1", "Test Client", "public", "https://example.com/logo.png")
+		mock.ExpectQuery(`^SELECT id, name, type, logo_uri FROM oauth_client WHERE id = \? LIMIT 1$`).
 			WithArgs("client1").WillReturnRows(mockRows)
 
 		manager := &oauthClientManager{DB: db}
@@ -142,14 +142,15 @@ func Test_oauthClientManager_GetDisplay(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "client1", display.ID)
 		assert.Equal(t, "Test Client", display.Name)
+		assert.Equal(t, "public", display.Type)
 		assert.Equal(t, "https://example.com/logo.png", display.LogoURI)
 	})
 }
 
 func Test_oauthClientManager_GetDisplay_NotFound(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		mockRows := sqlmock.NewRows([]string{"id", "name", "logo_uri"})
-		mock.ExpectQuery(`^SELECT id, name, logo_uri FROM oauth_client WHERE id = \? LIMIT 1$`).
+		mockRows := sqlmock.NewRows([]string{"id", "name", "type", "logo_uri"})
+		mock.ExpectQuery(`^SELECT id, name, type, logo_uri FROM oauth_client WHERE id = \? LIMIT 1$`).
 			WithArgs("nonexistent").WillReturnRows(mockRows)
 
 		manager := &oauthClientManager{DB: db}

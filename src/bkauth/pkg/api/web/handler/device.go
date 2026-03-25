@@ -41,6 +41,7 @@ type deviceVerifyRequest struct {
 
 type deviceVerifyResponse struct {
 	ClientName    string `json:"client_name"`
+	ClientType    string `json:"client_type"`
 	ClientLogoURI string `json:"client_logo_uri,omitempty"`
 	RealmName     string `json:"realm_name,omitempty"`
 	Resources     any    `json:"resources,omitempty"`
@@ -96,9 +97,11 @@ func NewDeviceVerifyHandler(cfg *config.Config) gin.HandlerFunc {
 		clientSvc := service.NewOAuthClientService()
 		profile, err := clientSvc.GetProfile(ctx, dc.ClientID)
 		clientName := dc.ClientID
+		clientType := ""
 		clientLogoURI := ""
 		if err == nil && profile.ID != "" {
 			clientName = profile.Name
+			clientType = profile.Type
 			clientLogoURI = profile.LogoURI
 		}
 
@@ -112,6 +115,7 @@ func NewDeviceVerifyHandler(cfg *config.Config) gin.HandlerFunc {
 
 		webJSONSuccess(c, deviceVerifyResponse{
 			ClientName:    clientName,
+			ClientType:    clientType,
 			ClientLogoURI: clientLogoURI,
 			RealmName:     realmName,
 			Resources:     resources,

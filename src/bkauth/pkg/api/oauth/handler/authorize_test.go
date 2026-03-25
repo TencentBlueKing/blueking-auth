@@ -167,7 +167,7 @@ var _ = Describe("AuthorizeRequest.Validate", func() {
 		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeUnsupportedResponseType))
 	})
 
-	It("should reject empty state", func() {
+	It("should reject empty state for confidential client", func() {
 		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), "test-client").Return(validFlowSpec, nil)
 		validReq.State = ""
 
@@ -179,6 +179,24 @@ var _ = Describe("AuthorizeRequest.Validate", func() {
 		Expect(ok).To(BeTrue())
 		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeInvalidRequest))
 		Expect(oauthErr.Description).To(ContainSubstring("state"))
+	})
+
+	It("should accept empty state for public client", func() {
+		publicClientID := "dcr_abc123def456"
+		publicFlowSpec := types.OAuthClientFlowSpec{
+			ID:           publicClientID,
+			GrantTypes:   []string{oauth.GrantTypeAuthorizationCode},
+			RedirectURIs: []string{"https://example.com/callback"},
+		}
+		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), publicClientID).Return(publicFlowSpec, nil)
+
+		validReq.ClientID = publicClientID
+		validReq.State = ""
+
+		canRedirect, err := validReq.Validate(c, clientSvc)
+
+		Expect(canRedirect).To(BeTrue())
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	It("should reject empty code_challenge", func() {

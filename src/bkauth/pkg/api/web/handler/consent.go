@@ -39,6 +39,7 @@ const (
 
 type consentInfoResponse struct {
 	ClientName    string `json:"client_name"`
+	ClientType    string `json:"client_type"`
 	ClientLogoURI string `json:"client_logo_uri,omitempty"`
 	RealmName     string `json:"realm_name"`
 	Resources     any    `json:"resources,omitempty"`
@@ -92,6 +93,7 @@ func NewConsentInfoHandler() gin.HandlerFunc {
 
 		webJSONSuccess(c, consentInfoResponse{
 			ClientName:    profile.Name,
+			ClientType:    profile.Type,
 			ClientLogoURI: profile.LogoURI,
 			RealmName:     consent.RealmName,
 			Resources:     resources,

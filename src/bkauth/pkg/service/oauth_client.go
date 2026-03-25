@@ -157,6 +157,7 @@ func (s *oauthClientService) GetProfile(ctx context.Context, clientID string) (t
 	return types.OAuthClientProfile{
 		ID:      daoDisplay.ID,
 		Name:    daoDisplay.Name,
+		Type:    daoDisplay.Type,
 		LogoURI: daoDisplay.LogoURI,
 	}, nil
 }

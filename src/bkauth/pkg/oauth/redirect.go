@@ -37,20 +37,27 @@ func IsLoopbackHost(host string) bool {
 }
 
 // BuildAuthorizationRedirectURL builds the success redirect with authorization code (RFC 6749 Section 4.1.2).
+// state is included only when non-empty (RFC 6749 §4.1.2: "REQUIRED if the 'state' parameter
+// was present in the client authorization request").
 func BuildAuthorizationRedirectURL(redirectURI, state, code string) string {
-	return util.URLSetQuery(redirectURI, url.Values{
-		"code":  {code},
-		"state": {state},
-	})
+	q := url.Values{"code": {code}}
+	if state != "" {
+		q.Set("state", state)
+	}
+	return util.URLSetQuery(redirectURI, q)
 }
 
 // BuildErrorRedirectURL builds the error redirect (RFC 6749 Section 4.1.2.1).
+// state is included only when non-empty.
 func BuildErrorRedirectURL(redirectURI, state, errorCode, errorDesc string) string {
-	return util.URLSetQuery(redirectURI, url.Values{
+	q := url.Values{
 		"error":             {errorCode},
 		"error_description": {errorDesc},
-		"state":             {state},
-	})
+	}
+	if state != "" {
+		q.Set("state", state)
+	}
+	return util.URLSetQuery(redirectURI, q)
 }
 
 // MatchRedirectURI checks if requestURI matches the registered registeredURI.

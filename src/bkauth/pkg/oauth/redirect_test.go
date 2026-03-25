@@ -125,6 +125,14 @@ var _ = Describe("Redirect", func() {
 			assert.Contains(GinkgoT(), result, "code=mycode")
 			assert.Contains(GinkgoT(), result, "state=mystate")
 		})
+
+		It("omits state when empty", func() {
+			result := oauth.BuildAuthorizationRedirectURL(
+				"https://example.com/callback", "", "mycode")
+			assert.Equal(GinkgoT(),
+				"https://example.com/callback?code=mycode", result)
+			assert.NotContains(GinkgoT(), result, "state")
+		})
 	})
 
 	Describe("BuildErrorRedirectURL", func() {
@@ -134,6 +142,15 @@ var _ = Describe("Redirect", func() {
 			assert.Equal(GinkgoT(),
 				"https://example.com/callback?error=access_denied&error_description=user+denied&state=mystate",
 				result)
+		})
+
+		It("omits state when empty", func() {
+			result := oauth.BuildErrorRedirectURL(
+				"https://example.com/callback", "", "access_denied", "user denied")
+			assert.Equal(GinkgoT(),
+				"https://example.com/callback?error=access_denied&error_description=user+denied",
+				result)
+			assert.NotContains(GinkgoT(), result, "state")
 		})
 	})
 
