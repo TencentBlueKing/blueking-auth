@@ -82,10 +82,14 @@ func MaskToken(token string) string {
 	return token[:maskVisiblePrefix] + maskPlaceholder + token[len(token)-maskVisibleSuffix:]
 }
 
-// HashToken creates a SHA-256 hash of the token for storage.
+// HashToken returns a truncated SHA-256 hex digest for storage and lookup.
+// Only the first 16 bytes (128-bit) are kept, yielding a 32-char hex string
+// instead of the full 64 chars — shorter keys improve DB index fan-out and
+// reduce Redis cache key overhead, while 128-bit preimage resistance remains
+// more than sufficient for the token's ~145-bit entropy.
 func HashToken(token string) string {
 	hash := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(hash[:])
+	return hex.EncodeToString(hash[:16])
 }
 
 // GenerateToken generates a token of exactly TokenLength characters: prefix + random suffix.

@@ -42,10 +42,10 @@ var _ = Describe("Token", func() {
 	})
 
 	Describe("HashToken", func() {
-		It("returns known SHA-256 hex", func() {
-			// SHA-256("hello") is a well-known test vector
+		It("returns truncated SHA-256 hex (first 128 bits)", func() {
+			// First 16 bytes of SHA-256("hello")
 			assert.Equal(GinkgoT(),
-				"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+				"2cf24dba5fb0a30e26e83b2ac5b9e29e",
 				oauth.HashToken("hello"))
 		})
 
@@ -57,10 +57,10 @@ var _ = Describe("Token", func() {
 			assert.NotEqual(GinkgoT(), oauth.HashToken("token-a"), oauth.HashToken("token-b"))
 		})
 
-		It("output is 64-char hex string", func() {
+		It("output is 32-char hex string", func() {
 			hash := oauth.HashToken("any-input")
-			assert.Equal(GinkgoT(), 64, len(hash))
-			assert.Regexp(GinkgoT(), regexp.MustCompile(`^[0-9a-f]{64}$`), hash)
+			assert.Equal(GinkgoT(), 32, len(hash))
+			assert.Regexp(GinkgoT(), regexp.MustCompile(`^[0-9a-f]{32}$`), hash)
 		})
 	})
 
