@@ -105,7 +105,13 @@
 
         <div class="info-row">
           <span class="info-label">授权对象</span>
-          <span class="info-value">{{ consentInfo?.client_name || '--' }}</span>
+          <span class="info-value">
+            {{ consentInfo?.client_name || '--' }}
+            <span
+              v-if="consentInfo?.client_type === 'public'"
+              class="client-type-tag"
+            >（公开客户端）</span>
+          </span>
         </div>
 
         <!-- 分割线 -->
