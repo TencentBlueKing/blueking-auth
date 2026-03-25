@@ -57,6 +57,7 @@ type OAuthClientGrants struct {
 type OAuthClientDisplay struct {
 	ID      string `db:"id"`
 	Name    string `db:"name"`
+	Type    string `db:"type"`
 	LogoURI string `db:"logo_uri"`
 }
 
@@ -144,7 +145,7 @@ func (m *oauthClientManager) GetGrants(ctx context.Context, clientID string) (gr
 }
 
 func (m *oauthClientManager) GetDisplay(ctx context.Context, clientID string) (display OAuthClientDisplay, err error) {
-	query := `SELECT id, name, logo_uri FROM oauth_client WHERE id = ? LIMIT 1`
+	query := `SELECT id, name, type, logo_uri FROM oauth_client WHERE id = ? LIMIT 1`
 	err = database.SqlxGet(ctx, m.DB, &display, query, clientID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return display, nil

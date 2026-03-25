@@ -77,6 +77,7 @@ func (s OAuthClientFlowSpec) SupportsGrantType(grantType string) bool {
 type OAuthClientProfile struct {
 	ID      string
 	Name    string
+	Type    string
 	LogoURI string
 }
 

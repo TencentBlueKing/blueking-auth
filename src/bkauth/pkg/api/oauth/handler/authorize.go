@@ -39,7 +39,7 @@ type AuthorizeRequest struct {
 	ClientID            string `form:"client_id"`             // required
 	RedirectURI         string `form:"redirect_uri"`          // required
 	ResponseType        string `form:"response_type"`         // required ("code")
-	State               string `form:"state"`                 // required
+	State               string `form:"state"`                 // optional for public clients (PKCE); required otherwise
 	CodeChallenge       string `form:"code_challenge"`        // required (RFC 7636)
 	CodeChallengeMethod string `form:"code_challenge_method"` // required ("S256" or "plain")
 	Resource            string `form:"resource"`              // required
@@ -94,7 +94,7 @@ func (r *AuthorizeRequest) Validate(
 		return true, oauth.NewUnsupportedResponseTypeError("Only 'code' response type is supported")
 	}
 
-	if r.State == "" {
+	if r.State == "" && !oauth.IsPublicClient(r.ClientID) {
 		return true, oauth.NewInvalidRequestError("state is required")
 	}
 

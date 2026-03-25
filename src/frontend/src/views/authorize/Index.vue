@@ -43,6 +43,10 @@
             </div>
             <div class="subject-name">
               {{ consentInfo?.client_name || '--' }}
+              <span
+                v-if="consentInfo?.client_type === 'public'"
+                class="client-type-tag"
+              >（公开客户端）</span>
             </div>
           </div>
           <AgIcon
@@ -324,6 +328,10 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
       white-space: nowrap;
     }
   }
+}
+
+.client-type-tag {
+  color: #ff9c01;
 }
 
 .logo-circle {

@@ -42,6 +42,18 @@ type ResourceDisplay struct {
 
 const Name = "bk-devops"
 
+// key: lowercase service name -> display name
+var serviceDisplayNames = map[string]string{
+	"codecc": "CodeCC",
+}
+
+func resolveServiceDisplayName(name string) string {
+	if displayName, ok := serviceDisplayNames[strings.ToLower(name)]; ok {
+		return displayName
+	}
+	return name
+}
+
 type devopsRealm struct{}
 
 // New creates the devops Realm implementation.
@@ -112,7 +124,7 @@ func (r *devopsRealm) ResolveResourceDisplay(_ context.Context, resource string)
 		if err != nil {
 			return nil, err
 		}
-		serviceItems = append(serviceItems, ServiceDisplay{Name: name, DisplayName: name})
+		serviceItems = append(serviceItems, ServiceDisplay{Name: name, DisplayName: resolveServiceDisplayName(name)})
 	}
 
 	return []ResourceDisplay{{

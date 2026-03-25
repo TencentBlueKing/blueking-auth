@@ -8,6 +8,8 @@ export interface ConsentResponseData {
   status?: 'pending' | 'error'
   /** 请求授权的应用名称（status = pending 时存在） */
   client_name?: string
+  /** 客户端类型: public / confidential */
+  client_type?: string
   /** 应用 Logo 地址 */
   client_logo_uri?: string
   /** 所属 Realm */
