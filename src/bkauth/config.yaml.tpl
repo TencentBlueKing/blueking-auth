@@ -30,9 +30,9 @@ accessKeys:
 
 appCode: "bkauth"
 appSecret: "WnF1qwjGSVE0ScXrz1hKWMG3dsdftR9nGQ"
-bkAuthURL: "https://bkauth.example.com"
-bkApiURLTmpl: "http://bkapi.example.com/api/{api_name}"
-bkLoginURL: "https://bk.example.com/login/"
+bkAuthUrl: "https://bkauth.example.com"
+bkApiUrlTmpl: "http://bkapi.example.com/api/{api_name}"
+bkLoginUrl: "https://bk.example.com/login/"
 # "direct" (default) or "gateway"
 bkLoginAPICallMethod: "direct"
 # "bk_token" (default) or "bk_ticket"
