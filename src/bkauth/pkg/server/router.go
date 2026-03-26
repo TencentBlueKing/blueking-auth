@@ -75,7 +75,7 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 	oauthRouter := router.Group("/realms/:realm_name/oauth2")
 	oauthRouter.Use(oauth.RealmMiddleware())
 	oauthRouter.Use(middleware.Metrics())
-	oauthRouter.Use(middleware.WebLogger())
+	oauthRouter.Use(middleware.APILogger())
 	oauth.Register(cfg, oauthRouter)
 
 	// Web frontend APIs
@@ -90,14 +90,14 @@ func NewRouter(cfg *config.Config) *gin.Engine {
 		"/.well-known/oauth-authorization-server/realms/:realm_name/oauth2",
 		oauth.RealmMiddleware(),
 		middleware.Metrics(),
-		middleware.WebLogger(),
+		middleware.APILogger(),
 		handler.NewMetadataHandler(cfg),
 	)
 	// 临时兼容 CodeBuddy IDE MCP CLIENT BUG (defaults to blueking realm)
 	router.GET(
 		"/.well-known/oauth-authorization-server",
 		middleware.Metrics(),
-		middleware.WebLogger(),
+		middleware.APILogger(),
 		handler.NewDefaultRealmMetadataHandler(cfg),
 	)
 

@@ -40,9 +40,9 @@ const (
 type consentInfoResponse struct {
 	ClientName    string `json:"client_name"`
 	ClientType    string `json:"client_type"`
-	ClientLogoURI string `json:"client_logo_uri,omitempty"`
+	ClientLogoURI string `json:"client_logo_uri"`
 	RealmName     string `json:"realm_name"`
-	Resources     any    `json:"resources,omitempty"`
+	Resources     any    `json:"resources"`
 }
 
 type consentConfirmRequest struct {
