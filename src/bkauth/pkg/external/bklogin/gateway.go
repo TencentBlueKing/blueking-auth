@@ -96,6 +96,7 @@ func (v *BKTokenGatewayVerifier) Verify(ctx context.Context, token string) (Veri
 		}, errorWrapf(err, "http.NewRequest url=`%s` fail", checkURL)
 	}
 	req.Header.Set("X-Bkapi-Authorization", v.authCredentials)
+	req.Header.Set("X-Bk-Tenant-Id", "system")
 
 	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
