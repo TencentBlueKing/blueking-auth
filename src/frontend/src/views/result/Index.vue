@@ -27,9 +27,7 @@ watch(
 
       if (route.query?.redirect) {
         url.value = route.query.redirect as string;
-        setTimeout(() => {
-          window.location.replace(url.value);
-        }, 2000);
+        window.location.replace(url.value);
       }
     }
   },

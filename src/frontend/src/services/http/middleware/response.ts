@@ -105,7 +105,7 @@ export default (interceptors: AxiosInterceptorManager<AxiosResponse>) => {
         }
         return Promise.reject(new RequestError(error.response.status || -1, errorMessage, error.response));
       }
-      return Promise.reject(new RequestError(-1, `${window.BK_DASHBOARD_URL} 无法访问`));
+      return Promise.reject(new RequestError(-1, `${window.BK_AUTH_URL} 无法访问`));
     },
   );
 

@@ -87,7 +87,7 @@ func CreateAccessKey(c *gin.Context) {
 	}
 
 	// 缓存里删除 appCode 的所有 Secret
-	cacheImpls.DeleteAccessKey(ctx, appCode)
+	_ = cacheImpls.DeleteAccessKey(ctx, appCode)
 
 	util.SuccessJSONResponse(c, "ok", accessKey)
 }
@@ -139,7 +139,7 @@ func DeleteAccessKey(c *gin.Context) {
 	}
 
 	// 缓存里删除 appCode 的所有 Secret
-	cacheImpls.DeleteAccessKey(ctx, appCode)
+	_ = cacheImpls.DeleteAccessKey(ctx, appCode)
 
 	util.SuccessJSONResponse(c, "ok", nil)
 }

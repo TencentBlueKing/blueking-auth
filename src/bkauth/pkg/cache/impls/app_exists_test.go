@@ -23,21 +23,19 @@ import (
 	"errors"
 	"time"
 
-	"github.com/agiledragon/gomonkey"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
+	"bkauth/pkg/cache"
 	"bkauth/pkg/cache/redis"
-	"bkauth/pkg/service"
 	"bkauth/pkg/service/mock"
-	"bkauth/pkg/util"
 )
 
 var _ = Describe("AppCodeCache", func() {
 	BeforeEach(func() {
 		expiration := 5 * time.Minute
-		cli := util.NewTestRedisClient()
+		cli := newTestRedisClient()
 		mockCache := redis.NewMockCache(cli, "mockCache", expiration)
 
 		AppExistsCache = mockCache
@@ -52,22 +50,22 @@ var _ = Describe("AppCodeCache", func() {
 
 	Context("AppExists", func() {
 		var ctl *gomock.Controller
-		var patches *gomonkey.Patches
 		BeforeEach(func() {
 			ctl = gomock.NewController(GinkgoT())
 		})
 		AfterEach(func() {
 			ctl.Finish()
-			patches.Reset()
 		})
 		It("AppCodeCache Get ok", func() {
 			mockService := mock.NewMockAppService(ctl)
 			mockService.EXPECT().Exists(gomock.Any(), "test").Return(true, nil).AnyTimes()
 
-			patches = gomonkey.ApplyFunc(service.NewAppService,
-				func() service.AppService {
-					return mockService
-				})
+			origRetrieve := retrieveAppExists
+			retrieveAppExists = func(ctx context.Context, key cache.Key) (interface{}, error) {
+				k := key.(AppExistsKey)
+				return mockService.Exists(ctx, k.AppCode)
+			}
+			defer func() { retrieveAppExists = origRetrieve }()
 
 			exists, err := AppExists(context.Background(), "test")
 			assert.NoError(GinkgoT(), err)
@@ -77,10 +75,12 @@ var _ = Describe("AppCodeCache", func() {
 			mockService := mock.NewMockAppService(ctl)
 			mockService.EXPECT().Exists(gomock.Any(), "test").Return(false, errors.New("error")).AnyTimes()
 
-			patches = gomonkey.ApplyFunc(service.NewAppService,
-				func() service.AppService {
-					return mockService
-				})
+			origRetrieve := retrieveAppExists
+			retrieveAppExists = func(ctx context.Context, key cache.Key) (interface{}, error) {
+				k := key.(AppExistsKey)
+				return mockService.Exists(ctx, k.AppCode)
+			}
+			defer func() { retrieveAppExists = origRetrieve }()
 
 			exists, err := AppExists(context.Background(), "test")
 			assert.Error(GinkgoT(), err)

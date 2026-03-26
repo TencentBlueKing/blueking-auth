@@ -60,6 +60,28 @@ var _ = Describe("Conv", func() {
 		)
 	})
 
+	Describe("StringToInt64", func() {
+		DescribeTable("StringToInt64 cases",
+			func(input string, expected int64, willError bool) {
+				result, err := util.StringToInt64(input)
+				if willError {
+					assert.Error(GinkgoT(), err)
+				} else {
+					assert.NoError(GinkgoT(), err)
+					assert.Equal(GinkgoT(), expected, result)
+				}
+			},
+			Entry("valid positive number", "123", int64(123), false),
+			Entry("valid negative number", "-456", int64(-456), false),
+			Entry("zero", "0", int64(0), false),
+			Entry("max int64", "9223372036854775807", int64(9223372036854775807), false),
+			Entry("empty string", "", int64(0), true),
+			Entry("non-numeric string", "abc", int64(0), true),
+			Entry("float string", "1.5", int64(0), true),
+			Entry("overflow", "9223372036854775808", int64(0), true),
+		)
+	})
+
 	Describe("StringToInt64Slice", func() {
 		DescribeTable("StringToInt64Slice cases", func(expected []int64, willError bool, input string, sep string) {
 			data, err := util.StringToInt64Slice(input, sep)

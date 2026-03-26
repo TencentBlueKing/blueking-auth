@@ -19,10 +19,7 @@
 package middleware
 
 import (
-	"encoding/hex"
-
 	"github.com/gin-gonic/gin"
-	"github.com/gofrs/uuid"
 	"go.uber.org/zap"
 
 	"bkauth/pkg/util"
@@ -35,7 +32,7 @@ func RequestID() gin.HandlerFunc {
 
 		requestID := c.GetHeader(util.RequestIDHeaderKey)
 		if requestID == "" {
-			requestID = hex.EncodeToString(uuid.Must(uuid.NewV4()).Bytes())
+			requestID = util.NewUUIDHex()
 		}
 		util.SetRequestID(c, requestID)
 		c.Writer.Header().Set(util.RequestIDHeaderKey, requestID)

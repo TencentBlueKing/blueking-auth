@@ -37,13 +37,13 @@
 
       <!-- 按钮区域 -->
       <div class="success-actions">
-        <BkButton
+        <!-- <BkButton
           v-if="url"
           theme="primary"
           @click="handleBack"
         >
           返回应用
-        </BkButton>
+        </BkButton> -->
         <BkButton @click="handleClose">
           关闭窗口
         </BkButton>
