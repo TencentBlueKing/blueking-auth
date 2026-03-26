@@ -115,14 +115,31 @@ logger:
       ## 日志脱敏开关配置
       enabled: true
       ## 日志脱敏规则配置: key -- 日志打印 field 的 key，jsonPath -- 日志 value 需要脱敏的 json path 路径
+      ## 注意: form-urlencoded 请求体会被中间件自动转为 JSON，因此 jsonPath 规则对 form 字段同样生效
       fields:
         - key: body
           jsonPath:
+            # App API
             - "bk_app_secret"
+            # OAuth: client credentials
+            - "client_secret"
+            # OAuth: authorization code / token exchange
+            - "code"
+            - "code_verifier"
+            - "refresh_token"
+            - "device_code"
+            # OAuth: revoke / introspect
+            - "token"
         - key: response_body
           jsonPath:
+            # App API
             - "bk_app_secret"
             - "data.#.bk_app_secret"
+            # OAuth: token response
+            - "access_token"
+            - "refresh_token"
+            # OAuth: device authorization response
+            - "device_code"
   sql:
     level: debug
     encoding: json

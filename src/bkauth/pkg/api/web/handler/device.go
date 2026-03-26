@@ -42,9 +42,9 @@ type deviceVerifyRequest struct {
 type deviceVerifyResponse struct {
 	ClientName    string `json:"client_name"`
 	ClientType    string `json:"client_type"`
-	ClientLogoURI string `json:"client_logo_uri,omitempty"`
-	RealmName     string `json:"realm_name,omitempty"`
-	Resources     any    `json:"resources,omitempty"`
+	ClientLogoURI string `json:"client_logo_uri"`
+	RealmName     string `json:"realm_name"`
+	Resources     any    `json:"resources"`
 }
 
 type deviceConfirmRequest struct {
