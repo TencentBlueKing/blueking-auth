@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -19,27 +19,38 @@
 package fixture
 
 import (
+	"context"
+	"fmt"
+
 	"go.uber.org/zap"
 
-	"bkauth/pkg/config"
-	"bkauth/pkg/util"
+	"bkauth/pkg/oauth"
+	"bkauth/pkg/service"
+	"bkauth/pkg/service/types"
 )
 
-func InitFixture(cfg *config.Config) {
-	var tenantMode, tenantID string
-	if cfg.EnableMultiTenantMode {
-		tenantMode = util.TenantModeGlobal
-		tenantID = ""
-		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=global, tenantID={empty}")
-	} else {
-		tenantMode = util.TenantModeSingle
-		tenantID = util.TenantIDDefault
-		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=single, tenantID=default")
+func ensurePublicApp(tenantMode, tenantID string) {
+	ctx := context.Background()
+
+	appSvc := service.NewAppService()
+	exists, err := appSvc.Exists(ctx, oauth.PublicAppCode)
+	if err != nil {
+		zap.S().Panic(err, fmt.Sprintf("appSvc.Exists appCode=%s fail", oauth.PublicAppCode))
+	}
+	if exists {
+		return
 	}
 
-	for appCode, appSecret := range cfg.AccessKeys {
-		createAccessKey(appCode, appSecret, tenantMode, tenantID)
+	app := types.App{
+		Code:        oauth.PublicAppCode,
+		Name:        oauth.PublicAppCode,
+		Description: oauth.PublicAppCode,
+		TenantMode:  tenantMode,
+		TenantID:    tenantID,
 	}
-
-	ensurePublicApp(tenantMode, tenantID)
+	err = appSvc.Create(ctx, app, "deploy_init")
+	if err != nil {
+		zap.S().Panic(err, fmt.Sprintf("appSvc.Create appCode=%s fail", oauth.PublicAppCode))
+	}
+	zap.S().Infof("created reserved app: %s", oauth.PublicAppCode)
 }
