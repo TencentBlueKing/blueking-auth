@@ -44,7 +44,7 @@ func ensurePublicApp(tenantMode, tenantID string) {
 	app := types.App{
 		Code:        oauth.PublicAppCode,
 		Name:        oauth.PublicAppCode,
-		Description: oauth.PublicAppCode,
+		Description: "reserved for public OAuth clients",
 		TenantMode:  tenantMode,
 		TenantID:    tenantID,
 	}
