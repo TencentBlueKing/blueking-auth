@@ -191,6 +191,7 @@ var _ = Describe("accessKeyService", func() {
 			defer restoreCrypto()
 
 			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(1), nil)
 			mockManager.EXPECT().
 				Create(gomock.Any(), gomock.AssignableToTypeOf(dao.AccessKey{})).
 				DoAndReturn(func(_ context.Context, ak dao.AccessKey) (int64, error) {
@@ -207,11 +208,22 @@ var _ = Describe("accessKeyService", func() {
 			assert.NoError(GinkgoT(), err)
 		})
 
+		It("max secrets exceeded", func() {
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(MaxSecretsPreApp), nil)
+
+			svc := accessKeyService{manager: mockManager}
+			err := svc.CreateWithSecret(context.Background(), "testApp", "my-plain-secret", "bk_paas", "test desc")
+			assert.Error(GinkgoT(), err)
+			assert.True(GinkgoT(), util.IsValidationError(err))
+		})
+
 		It("create error", func() {
 			restoreCrypto := useDeterministicAppSecretCrypto()
 			defer restoreCrypto()
 
 			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(0), nil)
 			mockManager.EXPECT().
 				Create(gomock.Any(), gomock.AssignableToTypeOf(dao.AccessKey{})).
 				Return(int64(0), errors.New("db error"))
