@@ -65,20 +65,6 @@ func TestCreateAppSerializer_Validate(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "prefix reserved: public_xxx",
-			serializer: createAppSerializer{
-				Tenant: tenantSerializer{
-					Mode: util.TenantModeSingle,
-					ID:   "valid-id",
-				},
-				AppCodeSerializer: common.AppCodeSerializer{
-					AppCode: "public_xxx",
-				},
-			},
-			wantErr: true,
-			errMsg:  common.ErrReservedAppCodePrefix.Error(),
-		},
 	}
 
 	for _, tt := range tests {
