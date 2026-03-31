@@ -24,59 +24,83 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAppCodeSerializer_ValidateAppCode(t *testing.T) {
+func TestIsReservedAppCode(t *testing.T) {
 	tests := []struct {
 		name    string
 		appCode string
-		wantErr bool
-		errMsg  string
+		want    bool
 	}{
 		{
-			name:    "valid app_code",
+			name:    "normal app_code",
 			appCode: "valid_app_code",
-			wantErr: false,
-		},
-		{
-			name:    "invalid app_code: starts with special char",
-			appCode: "==1",
-			wantErr: true,
-			errMsg:  ErrInvalidAppCode.Error(),
-		},
-		{
-			name:    "reserved prefix: public_xxx",
-			appCode: "public_xxx",
-			wantErr: true,
-			errMsg:  ErrReservedAppCode.Error(),
-		},
-		{
-			name:    "reserved prefix: dcr-xxx",
-			appCode: "dcr-xxx",
-			wantErr: true,
-			errMsg:  ErrReservedAppCode.Error(),
+			want:    false,
 		},
 		{
 			name:    "reserved exact match: public",
 			appCode: "public",
-			wantErr: true,
-			errMsg:  ErrReservedAppCode.Error(),
+			want:    true,
+		},
+		{
+			name:    "reserved exact match: private",
+			appCode: "private",
+			want:    true,
+		},
+		{
+			name:    "reserved exact match: dcr",
+			appCode: "dcr",
+			want:    true,
+		},
+		{
+			name:    "reserved exact match: cimd",
+			appCode: "cimd",
+			want:    true,
+		},
+		{
+			name:    "reserved prefix with underscore: public_xxx",
+			appCode: "public_xxx",
+			want:    true,
+		},
+		{
+			name:    "reserved prefix with hyphen: dcr-xxx",
+			appCode: "dcr-xxx",
+			want:    true,
+		},
+		{
+			name:    "reserved prefix with hyphen: cimd-foo",
+			appCode: "cimd-foo",
+			want:    true,
+		},
+		{
+			name:    "reserved prefix with underscore: private_key",
+			appCode: "private_key",
+			want:    true,
 		},
 		{
 			name:    "not reserved: publicapp (no delimiter)",
 			appCode: "publicapp",
-			wantErr: false,
+			want:    false,
+		},
+		{
+			name:    "not reserved: dcraft (no delimiter)",
+			appCode: "dcraft",
+			want:    false,
+		},
+		{
+			name:    "not reserved: privateer (no delimiter)",
+			appCode: "privateer",
+			want:    false,
+		},
+		{
+			name:    "not reserved: empty string",
+			appCode: "",
+			want:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &AppCodeSerializer{AppCode: tt.appCode}
-			err := s.ValidateAppCode()
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Equal(t, tt.errMsg, err.Error())
-			} else {
-				assert.NoError(t, err)
-			}
+			got := IsReservedAppCode(tt.appCode)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
