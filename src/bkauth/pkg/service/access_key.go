@@ -88,6 +88,24 @@ func newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description
 	}
 }
 
+// validateSecretCount queries the current secret count and checks that the app has not reached MaxSecretsPreApp.
+func (s *accessKeyService) validateSecretCount(ctx context.Context, appCode string) error {
+	// 数量的保证是业务上的一个基础逻辑
+	// Note: 这里没有处理并发问题导致创建超过 2 个的问题，因为多创建了也没有太多影响
+	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "validateSecretCount")
+
+	count, err := s.manager.Count(ctx, appCode)
+	if err != nil {
+		return errorWrapf(err, "manager.Count appCode=`%s` fail", appCode)
+	}
+	if count >= MaxSecretsPreApp {
+		// Note: 这里不能使用 errorWrapf，否则上层无法判断错误是系统错误还是校验不通过
+		return util.ValidationErrorWrap(
+			fmt.Errorf("app(%s) can only have %d secrets, [current %d]", appCode, MaxSecretsPreApp, count))
+	}
+	return nil
+}
+
 // Create : 创建应用密钥，createdSource 为创建来源，即哪个系统创建的
 func (s *accessKeyService) Create(
 	ctx context.Context,
@@ -95,16 +113,7 @@ func (s *accessKeyService) Create(
 ) (accessKey types.AccessKey, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "Create")
 
-	// 数量的保证是业务上的一个基础逻辑
-	// Note: 这里没有处理并发问题导致创建超过 2 个的问题，因为多创建了也没有太多影响
-	count, err := s.manager.Count(ctx, appCode)
-	if err != nil {
-		return accessKey, errorWrapf(err, "manager.Count appCode=`%s` fail", appCode)
-	}
-	if count >= MaxSecretsPreApp {
-		// Note: 这里不能使用 errorWrapf，否则上层无法判断错误是系统错误还是校验不通过
-		err = util.ValidationErrorWrap(
-			fmt.Errorf("app(%s) can only have %d secrets, [current %d]", appCode, MaxSecretsPreApp, count))
+	if err = s.validateSecretCount(ctx, appCode); err != nil {
 		return accessKey, err
 	}
 
@@ -143,6 +152,10 @@ func (s *accessKeyService) CreateWithSecret(
 	appCode, appSecret, createdSource, description string,
 ) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "CreateWithSecret")
+
+	if err = s.validateSecretCount(ctx, appCode); err != nil {
+		return err
+	}
 
 	daoAccessKey := newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description)
 	_, err = s.manager.Create(ctx, daoAccessKey)
