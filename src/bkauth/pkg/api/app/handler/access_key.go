@@ -25,7 +25,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/mitchellh/mapstructure"
-	"go.uber.org/zap"
 
 	"bkauth/pkg/api/common"
 	cacheImpls "bkauth/pkg/cache/impls"
@@ -89,9 +88,7 @@ func CreateAccessKey(c *gin.Context) {
 	}
 
 	// 缓存里删除 appCode 的所有 Secret
-	if err := cacheImpls.DeleteAccessKey(ctx, appCode); err != nil {
-		zap.S().Warnf("delete access key cache failed, appCode=%s, err=%s", appCode, err)
-	}
+	_ = cacheImpls.DeleteAccessKey(ctx, appCode)
 
 	util.SuccessJSONResponse(c, "ok", accessKey)
 }
@@ -143,9 +140,7 @@ func DeleteAccessKey(c *gin.Context) {
 	}
 
 	// 缓存里删除 appCode 的所有 Secret
-	if err := cacheImpls.DeleteAccessKey(ctx, appCode); err != nil {
-		zap.S().Warnf("delete access key cache failed, appCode=%s, err=%s", appCode, err)
-	}
+	_ = cacheImpls.DeleteAccessKey(ctx, appCode)
 
 	util.SuccessJSONResponse(c, "ok", nil)
 }

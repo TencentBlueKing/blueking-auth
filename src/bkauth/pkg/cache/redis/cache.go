@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -26,9 +26,9 @@ import (
 	"strconv"
 	"time"
 
-	cache "github.com/go-redis/cache/v8"
-	redis "github.com/go-redis/redis/v8"
-	msgpack "github.com/vmihailenco/msgpack/v5"
+	"github.com/go-redis/cache/v8"
+	"github.com/go-redis/redis/v8"
+	"github.com/vmihailenco/msgpack/v5"
 	"go.uber.org/zap"
 	"golang.org/x/sync/singleflight"
 
@@ -64,7 +64,7 @@ type Cache struct {
 
 // NewCache create a cache instance
 func NewCache(cli *redis.Client, name string, expiration time.Duration) *Cache {
-	// key format = iam:{version}:{cache_name}:{real_key}
+	// key format = bkauth:{version}:{cache_name}:{real_key}
 	keyPrefix := fmt.Sprintf("bkauth:%s:%s", CacheVersion, name)
 
 	codec := cache.New(&cache.Options{
@@ -178,8 +178,8 @@ func (c *Cache) GetInto(
 		zap.S().Errorf("set to redis fail, key=%s, err=%s", key.Key(), errNotImportant)
 	}
 
-	// 注意, 这里基础类型无法通过 *obj = value 来赋值
-	// 所以利用从缓存再次反序列化给对应指针赋值(相当于底层msgpack.unmarshal帮做了转换再次反序列化给对应指针赋值
+	// 注意，这里基础类型无法通过 *obj = value 来赋值
+	// 所以利用从缓存再次反序列化给对应指针赋值 (相当于底层 msgpack.unmarshal 帮做了转换再次反序列化给对应指针赋值
 	return c.copyTo(data, obj)
 }
 
@@ -245,7 +245,7 @@ func (c *Cache) BatchGet(ctx context.Context, keys []bkauthCache.Key) (map[bkaut
 	}
 
 	_, err := pipe.Exec(ctx)
-	// 当批量操作, 里面有个key不存在, err = redis.Nil; 但是不应该影响其他存在的key的获取
+	// 当批量操作，里面有个 key 不存在，err = redis.Nil; 但是不应该影响其他存在的 key 的获取
 	// Nil reply returned by Redis when key does not exist.
 	if err != nil && !errors.Is(err, redis.Nil) {
 		return nil, err
@@ -307,7 +307,7 @@ func (c *Cache) ZRevRangeByScore(
 	offset int64,
 	count int64,
 ) ([]redis.Z, error) {
-	// 时间戳, 从大到小排序
+	// 时间戳，从大到小排序
 	key := c.genKey(k)
 	// TODO: add limit, offset, count => to ignore the too large list size
 	// LIMIT 0 -1 equals no args
@@ -376,7 +376,7 @@ func (c *Cache) BatchHGet(ctx context.Context, hashKeyFields []HashKeyField) (ma
 	}
 
 	_, err := pipe.Exec(ctx)
-	// 当批量操作, 里面有个key不存在, err = redis.Nil; 但是不应该影响其他存在的key的获取
+	// 当批量操作，里面有个 key 不存在，err = redis.Nil; 但是不应该影响其他存在的 key 的获取
 	// Nil reply returned by Redis when key does not exist.
 	if err != nil && !errors.Is(err, redis.Nil) {
 		return nil, err

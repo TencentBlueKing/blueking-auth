@@ -41,4 +41,6 @@ func InitFixture(cfg *config.Config) {
 	for appCode, appSecret := range cfg.AccessKeys {
 		createAccessKey(appCode, appSecret, tenantMode, tenantID)
 	}
+
+	ensurePublicApp(tenantMode, tenantID)
 }

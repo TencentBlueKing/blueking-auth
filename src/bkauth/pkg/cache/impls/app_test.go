@@ -5,22 +5,20 @@ import (
 	"errors"
 	"time"
 
-	"github.com/agiledragon/gomonkey"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
+	"bkauth/pkg/cache"
 	"bkauth/pkg/cache/redis"
-	"bkauth/pkg/service"
 	"bkauth/pkg/service/mock"
 	"bkauth/pkg/service/types"
-	"bkauth/pkg/util"
 )
 
 var _ = Describe("AppCache", func() {
 	BeforeEach(func() {
 		expiration := 5 * time.Minute
-		cli := util.NewTestRedisClient()
+		cli := newTestRedisClient()
 		mockCache := redis.NewMockCache(cli, "mockCache", expiration)
 
 		AppCache = mockCache
@@ -35,23 +33,23 @@ var _ = Describe("AppCache", func() {
 
 	Context("GetApp", func() {
 		var ctl *gomock.Controller
-		var patches *gomonkey.Patches
 		BeforeEach(func() {
 			ctl = gomock.NewController(GinkgoT())
 		})
 		AfterEach(func() {
 			ctl.Finish()
-			patches.Reset()
 		})
 		It("AppCache Get ok", func() {
 			mockService := mock.NewMockAppService(ctl)
 			mockApp := types.App{Code: "test"}
 			mockService.EXPECT().Get(gomock.Any(), "test").Return(mockApp, nil).AnyTimes()
 
-			patches = gomonkey.ApplyFunc(service.NewAppService,
-				func() service.AppService {
-					return mockService
-				})
+			origRetrieve := retrieveApp
+			retrieveApp = func(ctx context.Context, key cache.Key) (any, error) {
+				k := key.(AppKey)
+				return mockService.Get(ctx, k.AppCode)
+			}
+			defer func() { retrieveApp = origRetrieve }()
 
 			app, err := GetApp(context.Background(), "test")
 			assert.NoError(GinkgoT(), err)
@@ -67,10 +65,12 @@ var _ = Describe("AppCache", func() {
 				errors.New("error"),
 			).AnyTimes()
 
-			patches = gomonkey.ApplyFunc(service.NewAppService,
-				func() service.AppService {
-					return mockService
-				})
+			origRetrieve := retrieveApp
+			retrieveApp = func(ctx context.Context, key cache.Key) (any, error) {
+				k := key.(AppKey)
+				return mockService.Get(ctx, k.AppCode)
+			}
+			defer func() { retrieveApp = origRetrieve }()
 
 			app, err := GetApp(context.Background(), "test")
 			assert.Error(GinkgoT(), err)

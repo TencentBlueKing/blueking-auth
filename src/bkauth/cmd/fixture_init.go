@@ -43,7 +43,7 @@ func init() {
 	fixtureInitCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
 	fixtureInitCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
 
-	fixtureInitCmd.MarkFlagRequired("config")
+	_ = fixtureInitCmd.MarkFlagRequired("config")
 
 	rootCmd.AddCommand(fixtureInitCmd)
 }

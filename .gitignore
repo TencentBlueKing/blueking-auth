@@ -5,7 +5,7 @@
 .envrc
 
 # build file
-bin/
+src/bkauth/bin
 src/bkauth/bkauth
 
 # mac

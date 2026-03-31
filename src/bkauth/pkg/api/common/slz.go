@@ -21,6 +21,7 @@ package common
 import (
 	"errors"
 	"regexp"
+	"strings"
 )
 
 const (
@@ -34,6 +35,21 @@ var (
 
 	ErrInvalidAppCode = errors.New("invalid app_code: app_code should begin with a lowercase letter or numbers, " +
 		"contains lowercase letters(a-z), numbers(0-9), underline(_) or hyphen(-), length should be 1 to 32 letters")
+
+	// reservedAppCodes lists base words that must not appear as an
+	// app_code (exact match) or as the start of an app_code followed by '_' or '-'.
+	//
+	//   "public"  – used as PublicAppCode for dcr / cimd
+	//   "private" – personal token
+	//   "dcr"     – dynamic client registration prefix
+	//   "cimd"    – reserved for future Client Instance Metadata Document functionality
+	reservedAppCodes = []string{"public", "private", "dcr", "cimd"}
+
+	ErrReservedAppCode = errors.New(
+		"app_code must not start with 'public', 'private', 'dcr', or 'cimd' " +
+			"(including forms like 'public_xxx', 'dcr-xxx'); " +
+			"these prefixes are reserved for internal use",
+	)
 
 	// 租户相关验证
 	ValidTenantIDRegex = regexp.MustCompile("^[a-z][a-z0-9-]{1,30}[a-z0-9]$")
@@ -50,12 +66,28 @@ type AccessKeyAndAppCodeSerializer struct {
 	AccessKeyID int64 `uri:"access_key_id" binding:"required" example:"1"`
 }
 
-// ValidateAppCode validates the app code format.
+// IsReservedAppCode reports whether appCode equals a reserved prefix or starts with one followed by '_' or '-'.
+func IsReservedAppCode(appCode string) bool {
+	for _, prefix := range reservedAppCodes {
+		if !strings.HasPrefix(appCode, prefix) {
+			continue
+		}
+		if len(appCode) == len(prefix) || appCode[len(prefix)] == '_' || appCode[len(prefix)] == '-' {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateAppCode checks that AppCode matches syntax rules and is not a reserved code.
 func (s *AppCodeSerializer) ValidateAppCode() error {
 	// app_code 的规则是：
 	// 由小写英文字母、连接符 (-)、下划线 (_) 或数字组成，长度为 [1~32] 个字符，并且以字母或数字开头 (^[a-z0-9][a-z0-9_-]{0,31}$)
 	if !ValidAppCodeRegex.MatchString(s.AppCode) {
 		return ErrInvalidAppCode
+	}
+	if IsReservedAppCode(s.AppCode) {
+		return ErrReservedAppCode
 	}
 	return nil
 }
@@ -65,7 +97,7 @@ type PageParamSerializer struct {
 	PageSize int `form:"page_size" binding:"omitempty,min=1,max=100" example:"10"`
 }
 
-// GetPage returns the current page, defaulting to 1.
+// GetPage returns the requested page number, defaulting to 1 when unset.
 func (p *PageParamSerializer) GetPage() int {
 	if p.Page == 0 {
 		return 1
@@ -73,7 +105,7 @@ func (p *PageParamSerializer) GetPage() int {
 	return p.Page
 }
 
-// GetPageSize returns the current page size, defaulting to `DefaultPageSize`.
+// GetPageSize returns the requested page size, defaulting to DefaultPageSize when unset.
 func (p *PageParamSerializer) GetPageSize() int {
 	if p.PageSize == 0 {
 		return DefaultPageSize

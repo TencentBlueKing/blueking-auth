@@ -101,9 +101,9 @@ func GetAuditLogger() *zap.Logger {
 
 // SyncAll 用于程序结束时将所有类型的缓存日志推送到文件里，避免丢失日志
 func SyncAll() {
-	systemLogger.Sync()
-	apiLogger.Sync()
-	webLogger.Sync()
-	sqlLogger.Sync()
-	auditLogger.Sync()
+	_ = systemLogger.Sync()
+	_ = apiLogger.Sync()
+	_ = webLogger.Sync()
+	_ = sqlLogger.Sync()
+	_ = auditLogger.Sync()
 }

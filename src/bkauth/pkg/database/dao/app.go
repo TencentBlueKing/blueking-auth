@@ -24,11 +24,29 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 
 	"bkauth/pkg/database"
 )
+
+// appColumns enumerates all columns of the app table.
+// Used by List to prevent SQL injection in ORDER BY clause
+// (column name is concatenated into SQL and cannot be parameterized).
+var appColumns = map[string]bool{
+	"code": true, "name": true, "description": true,
+	"tenant_mode": true, "tenant_id": true,
+	"created_at": true, "updated_at": true,
+}
+
+// validSortDirections lists all sort directions allowed by MySQL (uppercase).
+// Callers must normalize to uppercase before lookup.
+// Used by List to prevent SQL injection in ORDER BY clause.
+var validSortDirections = map[string]bool{
+	"ASC": true, "DESC": true,
+}
 
 type App struct {
 	Code        string `db:"code"`
@@ -144,8 +162,15 @@ func (m *appManager) List(
 	if orderBy == "" {
 		orderBy = "created_at"
 	}
+	if !appColumns[orderBy] {
+		return nil, fmt.Errorf("invalid column: %s", orderBy)
+	}
 	if orderByDirection == "" {
 		orderByDirection = "ASC"
+	}
+	orderByDirection = strings.ToUpper(orderByDirection)
+	if !validSortDirections[orderByDirection] {
+		return nil, fmt.Errorf("invalid sort direction: %s", orderByDirection)
 	}
 	query += ` ORDER BY ` + orderBy + ` ` + orderByDirection
 

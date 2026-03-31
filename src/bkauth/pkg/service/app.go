@@ -126,7 +126,10 @@ func (s *appService) Create(ctx context.Context, app types.App, createdSource st
 	}
 
 	// 创建应用对应 Secret
-	daoAccessKey := newDaoAccessKey(app.Code, createdSource, "initialized by default when the app is created")
+	daoAccessKey, err := newDaoAccessKey(app.Code, createdSource, "initialized by default when the app is created")
+	if err != nil {
+		return errorWrapf(err, "newDaoAccessKey fail")
+	}
 	_, err = s.accessKeyManager.CreateWithTx(ctx, tx, daoAccessKey)
 	if err != nil {
 		return errorWrapf(err, "accessKeyManager.CreateWithTx secret=`%+v` fail", daoAccessKey)

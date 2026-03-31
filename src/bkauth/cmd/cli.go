@@ -70,14 +70,14 @@ var deleteAccessKeyCmd = &cobra.Command{
 func init() {
 	cliCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is config.yml;required)")
 	cliCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
-	cliCmd.MarkPersistentFlagRequired("config")
+	_ = cliCmd.MarkPersistentFlagRequired("config")
 	rootCmd.AddCommand(cliCmd)
 
 	// List Access Key
 	listAccessKeyCmd.Flags().StringVarP(
 		&appCodeParam, "app_code", "a", "", "app codes (use comma `,` separated when multiple app_code)",
 	)
-	listAccessKeyCmd.MarkFlagRequired("app_code")
+	_ = listAccessKeyCmd.MarkFlagRequired("app_code")
 	cliCmd.AddCommand(listAccessKeyCmd)
 
 	// Delete Access Key
@@ -87,8 +87,8 @@ func init() {
 	deleteAccessKeyCmd.Flags().Int64VarP(
 		&accessKeyIDParam, "access_key_id", "i", 0, "access_key_id which need deleted",
 	)
-	deleteAccessKeyCmd.MarkFlagRequired("app_code")
-	deleteAccessKeyCmd.MarkFlagRequired("access_key_id")
+	_ = deleteAccessKeyCmd.MarkFlagRequired("app_code")
+	_ = deleteAccessKeyCmd.MarkFlagRequired("access_key_id")
 	cliCmd.AddCommand(deleteAccessKeyCmd)
 }
 

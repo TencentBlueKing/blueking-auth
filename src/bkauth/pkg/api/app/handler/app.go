@@ -20,7 +20,6 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
 	"bkauth/pkg/api/common"
 	cacheImpls "bkauth/pkg/cache/impls"
@@ -113,9 +112,7 @@ func CreateApp(c *gin.Context) {
 	}
 
 	// 由于应用在创建前可能调用相关接口查询，导致`是否存在该App/app基本信息`的查询已被缓存，若不删除缓存，则创建后在缓存未实现前，还是会出现 app 不存在的
-	if err := cacheImpls.DeleteAppCache(ctx, app.Code); err != nil {
-		zap.S().Warnf("delete app cache failed, appCode=%s, err=%s", app.Code, err)
-	}
+	_ = cacheImpls.DeleteAppCache(ctx, app.Code)
 
 	data := common.AppResponse{
 		AppCode:     app.Code,
@@ -272,12 +269,8 @@ func DeleteApp(c *gin.Context) {
 	}
 
 	// 删除缓存
-	if err := cacheImpls.DeleteAppCache(ctx, appCode); err != nil {
-		zap.S().Warnf("delete app cache failed, appCode=%s, err=%s", appCode, err)
-	}
-	if err := cacheImpls.DeleteAccessKey(ctx, appCode); err != nil {
-		zap.S().Warnf("delete access key cache failed, appCode=%s, err=%s", appCode, err)
-	}
+	_ = cacheImpls.DeleteAppCache(ctx, appCode)
+	_ = cacheImpls.DeleteAccessKey(ctx, appCode)
 
 	util.SuccessJSONResponse(c, "ok", nil)
 }

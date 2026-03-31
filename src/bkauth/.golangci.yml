@@ -81,7 +81,7 @@ formatters:
     - golines
     - gofumpt
   exclusions:
-    warn-unused: true
+    warn-unused: false
     generated: lax
     paths:
       - third_party$

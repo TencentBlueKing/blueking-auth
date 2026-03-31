@@ -25,6 +25,7 @@ import (
 	"context"
 	"fmt"
 
+	"bkauth/pkg/app"
 	"bkauth/pkg/database/dao"
 	"bkauth/pkg/errorx"
 	"bkauth/pkg/service/types"
@@ -64,6 +65,31 @@ func NewAccessKeyService() AccessKeyService {
 	}
 }
 
+func newDaoAccessKey(appCode, createdSource, description string) (dao.AccessKey, error) {
+	encryptedSecret, err := app.GenerateEncryptedSecret(app.SecretLength)
+	if err != nil {
+		return dao.AccessKey{}, err
+	}
+	return dao.AccessKey{
+		AppCode:       appCode,
+		AppSecret:     encryptedSecret,
+		CreatedSource: createdSource,
+		Enabled:       true,
+		Description:   description,
+	}, nil
+}
+
+// newDaoAccessKeyWithAppSecret is used for data migration with an existing client secret.
+func newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description string) dao.AccessKey {
+	return dao.AccessKey{
+		AppCode:       appCode,
+		AppSecret:     app.EncryptSecret(appSecret),
+		CreatedSource: createdSource,
+		Enabled:       true,
+		Description:   description,
+	}
+}
+
 // Create : 创建应用密钥，createdSource 为创建来源，即哪个系统创建的
 func (s *accessKeyService) Create(
 	ctx context.Context,
@@ -84,18 +110,21 @@ func (s *accessKeyService) Create(
 		return accessKey, err
 	}
 
-	daoAccessKey := newDaoAccessKey(appCode, createdSource, description)
+	daoAccessKey, err := newDaoAccessKey(appCode, createdSource, description)
+	if err != nil {
+		return accessKey, errorWrapf(err, "newDaoAccessKey fail")
+	}
 	id, err := s.manager.Create(ctx, daoAccessKey)
 	if err != nil {
 		return accessKey, errorWrapf(err, "manager.Create accessKey=`%+v` fail", daoAccessKey)
 	}
 
 	// 获取明文密钥
-	appSecret, err := convertToPlainAppSecret(daoAccessKey.AppSecret)
+	appSecret, err := app.DecryptSecret(daoAccessKey.AppSecret)
 	if err != nil {
 		return accessKey, errorWrapf(
 			err,
-			"convertToPlainAppSecret encryptedAppSecret=`%s` fail",
+			"app.DecryptSecret encryptedAppSecret=`%s` fail",
 			daoAccessKey.AppSecret,
 		)
 	}
@@ -186,11 +215,11 @@ func (s *accessKeyService) ListWithCreatedAtByAppCode(ctx context.Context, appCo
 	accessKeys = make([]types.AccessKeyWithCreatedAt, 0, len(daoAccessKeys))
 	for _, accessKey := range daoAccessKeys {
 		// 获取明文密钥
-		appSecret, err := convertToPlainAppSecret(accessKey.AppSecret)
+		appSecret, err := app.DecryptSecret(accessKey.AppSecret)
 		if err != nil {
 			return accessKeys, errorWrapf(
 				err,
-				"convertToPlainAppSecret encryptedAppSecret=`%s` fail",
+				"app.DecryptSecret encryptedAppSecret=`%s` fail",
 				accessKey.AppSecret,
 			)
 		}
@@ -215,7 +244,7 @@ func (s *accessKeyService) Verify(ctx context.Context, appCode, appSecret string
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "Verify")
 
 	// DB 里存储的是加密后的密钥，需要对即将校验的 Secret 加密后查询
-	encryptedAppSecret := ConvertToEncryptedAppSecret(appSecret)
+	encryptedAppSecret := app.EncryptSecret(appSecret)
 
 	exists, err = s.manager.Exists(ctx, appCode, encryptedAppSecret)
 	if err != nil {
@@ -258,10 +287,10 @@ func (s *accessKeyService) List(ctx context.Context) (accessKeys []types.AccessK
 	accessKeys = make([]types.AccessKey, 0, len(daoAccessKeys))
 	for _, daoAccessKey := range daoAccessKeys {
 		// 获取明文密钥
-		appSecret, err := convertToPlainAppSecret(daoAccessKey.AppSecret)
+		appSecret, err := app.DecryptSecret(daoAccessKey.AppSecret)
 		if err != nil {
 			return accessKeys, errorWrapf(
-				err, "convertToPlainAppSecret encryptedAppSecret=`%s` fail", daoAccessKey.AppSecret)
+				err, "app.DecryptSecret encryptedAppSecret=`%s` fail", daoAccessKey.AppSecret)
 		}
 		accessKeys = append(accessKeys, types.AccessKey{
 			ID:          daoAccessKey.ID,

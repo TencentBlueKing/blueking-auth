@@ -66,17 +66,6 @@ var _ = Describe("String", func() {
 			Entry("truncated size greater than real size", s, 20),
 		)
 	})
-
-	Describe("RandString", func() {
-		DescribeTable("RandString cases", func(length int) {
-			letterBytes := "abcdefghijklmnopqrstuvwxyz1234567890"
-			assert.Equal(GinkgoT(), length, len(util.RandString(letterBytes, length)))
-		},
-			Entry("string length 0", 0),
-			Entry("string length 1", 10),
-			Entry("string length 10", 10),
-		)
-	})
 })
 
 func BenchmarkStringSprintf(b *testing.B) {

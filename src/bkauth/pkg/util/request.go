@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -57,8 +57,8 @@ func GetAccessAppCode(c *gin.Context) string {
 }
 
 // SetAccessAppCode ...
-func SetAccessAppCode(c *gin.Context, clientID string) {
-	c.Set(AccessAppCodeKey, clientID)
+func SetAccessAppCode(c *gin.Context, appCode string) {
+	c.Set(AccessAppCodeKey, appCode)
 }
 
 // GetError ...
@@ -79,4 +79,44 @@ func SetEnableMultiTenantMode(c *gin.Context, enableMultiTenantMode bool) {
 // GetEnableMultiTenantMode gets the multi-tenant mode flag from the request context.
 func GetEnableMultiTenantMode(c *gin.Context) bool {
 	return c.GetBool(EnableMultiTenantModeKey)
+}
+
+// SetUsername stores the authenticated username in the request context.
+func SetUsername(c *gin.Context, username string) {
+	c.Set(UsernameKey, username)
+}
+
+// GetUsername retrieves the authenticated username from the request context.
+func GetUsername(c *gin.Context) string {
+	return c.GetString(UsernameKey)
+}
+
+// SetTenantID stores the tenant ID in the request context.
+func SetTenantID(c *gin.Context, tenantID string) {
+	c.Set(TenantIDKey, tenantID)
+}
+
+// GetTenantID retrieves the tenant ID from the request context.
+func GetTenantID(c *gin.Context) string {
+	return c.GetString(TenantIDKey)
+}
+
+// SetRealmName stores the OAuth realm name in the request context.
+func SetRealmName(c *gin.Context, realmName string) {
+	c.Set(RealmNameKey, realmName)
+}
+
+// GetRealmName retrieves the OAuth realm name from the request context.
+func GetRealmName(c *gin.Context) string {
+	return c.GetString(RealmNameKey)
+}
+
+// SetClientID stores the OAuth client ID in the request context.
+func SetClientID(c *gin.Context, clientID string) {
+	c.Set(ClientIDKey, clientID)
+}
+
+// GetClientID retrieves the OAuth client ID from the request context.
+func GetClientID(c *gin.Context) string {
+	return c.GetString(ClientIDKey)
 }

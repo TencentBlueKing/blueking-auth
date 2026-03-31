@@ -21,18 +21,68 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 
-	"github.com/agiledragon/gomonkey"
 	"github.com/jmoiron/sqlx"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
+	"bkauth/pkg/cryptography"
 	"bkauth/pkg/database"
 	"bkauth/pkg/database/dao"
 	"bkauth/pkg/database/dao/mock"
 	"bkauth/pkg/service/types"
 )
+
+type deterministicAppSecretCrypto struct{}
+
+func (deterministicAppSecretCrypto) Encrypt(plaintext []byte) []byte {
+	return []byte("enc:" + string(plaintext))
+}
+
+func (deterministicAppSecretCrypto) Decrypt(encryptedText []byte) ([]byte, error) {
+	if !strings.HasPrefix(string(encryptedText), "enc:") {
+		return nil, errors.New("invalid encrypted text")
+	}
+	return []byte(strings.TrimPrefix(string(encryptedText), "enc:")), nil
+}
+
+func (deterministicAppSecretCrypto) EncryptToBase64(plaintext string) string {
+	return "enc:" + plaintext
+}
+
+func (deterministicAppSecretCrypto) DecryptFromBase64(encryptedTextB64 string) (string, error) {
+	if !strings.HasPrefix(encryptedTextB64, "enc:") {
+		return "", errors.New("invalid encrypted text")
+	}
+	return strings.TrimPrefix(encryptedTextB64, "enc:"), nil
+}
+
+func useDeterministicAppSecretCrypto() func() {
+	old := cryptography.AppSecretCrypto
+	cryptography.AppSecretCrypto = deterministicAppSecretCrypto{}
+	return func() {
+		cryptography.AppSecretCrypto = old
+	}
+}
+
+func assertGeneratedAccessKey(secret dao.AccessKey, description string) {
+	assert.Equal(GinkgoT(), "bkauth", secret.AppCode)
+	assert.Equal(GinkgoT(), "bk_paas", secret.CreatedSource)
+	assert.Equal(GinkgoT(), true, secret.Enabled)
+	assert.Equal(GinkgoT(), description, secret.Description)
+	assert.NotEmpty(GinkgoT(), secret.AppSecret)
+	assert.True(GinkgoT(), strings.HasPrefix(secret.AppSecret, "enc:"))
+}
+
+func assertProvidedAccessKey(secret dao.AccessKey, plainSecret, description string) {
+	assert.Equal(GinkgoT(), "bkauth", secret.AppCode)
+	assert.Equal(GinkgoT(), "bk_paas", secret.CreatedSource)
+	assert.Equal(GinkgoT(), true, secret.Enabled)
+	assert.Equal(GinkgoT(), description, secret.Description)
+	assert.Equal(GinkgoT(), "enc:"+plainSecret, secret.AppSecret)
+}
 
 var _ = Describe("App", func() {
 	Describe("Exists cases", func() {
@@ -137,31 +187,23 @@ var _ = Describe("App", func() {
 			}).Return(nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.AccessKey{
-				AppCode:       "bkauth",
-				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
-				CreatedSource: "bk_paas",
-				Description:   "",
-			}).Return(int64(1), nil)
+			mockAccessKeyManager.EXPECT().
+				CreateWithTx(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(dao.AccessKey{})).
+				DoAndReturn(func(_ context.Context, _ *sqlx.Tx, secret dao.AccessKey) (int64, error) {
+					assertGeneratedAccessKey(
+						secret,
+						"initialized by default when the app is created",
+					)
+					return int64(1), nil
+				})
 
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
 			dbMock.ExpectCommit()
-
-			patches := gomonkey.ApplyFunc(
-				database.GenerateDefaultDBTx,
-				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
-			)
-			defer patches.Reset()
-
-			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) dao.AccessKey {
-				return dao.AccessKey{
-					AppCode:       "bkauth",
-					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
-					CreatedSource: "bk_paas",
-					Description:   "",
-				}
-			})
+			restoreDB := useMockDefaultDB(db)
+			defer restoreDB()
+			restoreCrypto := useDeterministicAppSecretCrypto()
+			defer restoreCrypto()
 
 			svc := appService{
 				manager:          mockAppManager,
@@ -189,13 +231,9 @@ var _ = Describe("App", func() {
 
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
-			dbMock.ExpectCommit()
-
-			patches := gomonkey.ApplyFunc(
-				database.GenerateDefaultDBTx,
-				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
-			)
-			defer patches.Reset()
+			dbMock.ExpectRollback()
+			restoreDB := useMockDefaultDB(db)
+			defer restoreDB()
 
 			svc := appService{
 				manager:          mockAppManager,
@@ -218,31 +256,23 @@ var _ = Describe("App", func() {
 			}).Return(nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.AccessKey{
-				AppCode:       "bkauth",
-				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
-				CreatedSource: "bk_paas",
-				Description:   "secret of bkauth",
-			}).Return(int64(0), errors.New("error"))
+			mockAccessKeyManager.EXPECT().
+				CreateWithTx(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(dao.AccessKey{})).
+				DoAndReturn(func(_ context.Context, _ *sqlx.Tx, secret dao.AccessKey) (int64, error) {
+					assertGeneratedAccessKey(
+						secret,
+						"initialized by default when the app is created",
+					)
+					return int64(0), errors.New("error")
+				})
 
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
-			dbMock.ExpectCommit()
-
-			patches := gomonkey.ApplyFunc(
-				database.GenerateDefaultDBTx,
-				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
-			)
-			defer patches.Reset()
-
-			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) dao.AccessKey {
-				return dao.AccessKey{
-					AppCode:       "bkauth",
-					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
-					CreatedSource: "bk_paas",
-					Description:   "secret of bkauth",
-				}
-			})
+			dbMock.ExpectRollback()
+			restoreDB := useMockDefaultDB(db)
+			defer restoreDB()
+			restoreCrypto := useDeterministicAppSecretCrypto()
+			defer restoreCrypto()
 
 			svc := appService{
 				manager:          mockAppManager,
@@ -277,31 +307,24 @@ var _ = Describe("App", func() {
 			}).Return(nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.AccessKey{
-				AppCode:       "bkauth",
-				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
-				CreatedSource: "bk_paas",
-				Description:   "",
-			}).Return(int64(1), nil)
+			mockAccessKeyManager.EXPECT().
+				CreateWithTx(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(dao.AccessKey{})).
+				DoAndReturn(func(_ context.Context, _ *sqlx.Tx, secret dao.AccessKey) (int64, error) {
+					assertProvidedAccessKey(
+						secret,
+						"4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
+						"specified when the app is created",
+					)
+					return int64(1), nil
+				})
 
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
 			dbMock.ExpectCommit()
-
-			patches := gomonkey.ApplyFunc(
-				database.GenerateDefaultDBTx,
-				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
-			)
-			defer patches.Reset()
-
-			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) dao.AccessKey {
-				return dao.AccessKey{
-					AppCode:       "bkauth",
-					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
-					CreatedSource: "bk_paas",
-					Description:   "",
-				}
-			})
+			restoreDB := useMockDefaultDB(db)
+			defer restoreDB()
+			restoreCrypto := useDeterministicAppSecretCrypto()
+			defer restoreCrypto()
 
 			svc := appService{
 				manager:          mockAppManager,
@@ -330,13 +353,9 @@ var _ = Describe("App", func() {
 
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
-			dbMock.ExpectCommit()
-
-			patches := gomonkey.ApplyFunc(
-				database.GenerateDefaultDBTx,
-				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
-			)
-			defer patches.Reset()
+			dbMock.ExpectRollback()
+			restoreDB := useMockDefaultDB(db)
+			defer restoreDB()
 
 			svc := appService{
 				manager:          mockAppManager,
@@ -360,31 +379,24 @@ var _ = Describe("App", func() {
 			}).Return(nil)
 
 			mockAccessKeyManager := mock.NewMockAccessKeyManager(ctl)
-			mockAccessKeyManager.EXPECT().CreateWithTx(gomock.Any(), gomock.Any(), dao.AccessKey{
-				AppCode:       "bkauth",
-				AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
-				CreatedSource: "bk_paas",
-				Description:   "secret of bkauth",
-			}).Return(int64(0), errors.New("error"))
+			mockAccessKeyManager.EXPECT().
+				CreateWithTx(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(dao.AccessKey{})).
+				DoAndReturn(func(_ context.Context, _ *sqlx.Tx, secret dao.AccessKey) (int64, error) {
+					assertProvidedAccessKey(
+						secret,
+						"4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
+						"specified when the app is created",
+					)
+					return int64(0), errors.New("error")
+				})
 
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
-			dbMock.ExpectCommit()
-
-			patches := gomonkey.ApplyFunc(
-				database.GenerateDefaultDBTx,
-				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
-			)
-			defer patches.Reset()
-
-			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) dao.AccessKey {
-				return dao.AccessKey{
-					AppCode:       "bkauth",
-					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
-					CreatedSource: "bk_paas",
-					Description:   "secret of bkauth",
-				}
-			})
+			dbMock.ExpectRollback()
+			restoreDB := useMockDefaultDB(db)
+			defer restoreDB()
+			restoreCrypto := useDeterministicAppSecretCrypto()
+			defer restoreCrypto()
 
 			svc := appService{
 				manager:          mockAppManager,
@@ -554,12 +566,8 @@ var _ = Describe("App", func() {
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
 			dbMock.ExpectCommit()
-
-			patches := gomonkey.ApplyFunc(
-				database.GenerateDefaultDBTx,
-				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
-			)
-			defer patches.Reset()
+			restoreDB := useMockDefaultDB(db)
+			defer restoreDB()
 
 			svc := appService{
 				manager:          mockAppManager,
@@ -584,12 +592,8 @@ var _ = Describe("App", func() {
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
 			dbMock.ExpectRollback()
-
-			patches := gomonkey.ApplyFunc(
-				database.GenerateDefaultDBTx,
-				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
-			)
-			defer patches.Reset()
+			restoreDB := useMockDefaultDB(db)
+			defer restoreDB()
 
 			svc := appService{
 				manager:          mockAppManager,
@@ -618,12 +622,8 @@ var _ = Describe("App", func() {
 			db, dbMock := database.NewMockSqlxDB()
 			dbMock.ExpectBegin()
 			dbMock.ExpectRollback()
-
-			patches := gomonkey.ApplyFunc(
-				database.GenerateDefaultDBTx,
-				func(_ context.Context) (*sqlx.Tx, error) { return db.Beginx() },
-			)
-			defer patches.Reset()
+			restoreDB := useMockDefaultDB(db)
+			defer restoreDB()
 
 			svc := appService{
 				manager:          mockAppManager,

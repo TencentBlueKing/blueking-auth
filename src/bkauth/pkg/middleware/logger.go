@@ -20,7 +20,9 @@ package middleware
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -95,9 +97,12 @@ func logContextFields(c *gin.Context, logFullRequestBody bool) []zap.Field {
 	if err != nil {
 		body = ""
 	} else {
-		// 对于审计等特殊情况，需要完整记录请求数据
+		// Normalize form-urlencoded body to JSON so gjson-based desensitization can match field paths.
+		if jsonBody, ok := formBodyToJSON(requestBody, c.ContentType()); ok {
+			requestBody = jsonBody
+		}
+
 		if logFullRequestBody {
-			// NOTE: no truncation
 			body = string(requestBody)
 		} else {
 			body = util.TruncateBytesToString(requestBody, 1024)
@@ -118,7 +123,6 @@ func logContextFields(c *gin.Context, logFullRequestBody bool) []zap.Field {
 		e = ""
 	}
 
-	// TODO : 对于body和 response body里包含 app_secret的需要单独处理，如果没办法很好处理，可以直接使用"-"代替
 	params := util.TruncateString(c.Request.URL.RawQuery, 1024)
 	fields := []zap.Field{
 		zap.String("method", c.Request.Method),
@@ -149,4 +153,34 @@ func logContextFields(c *gin.Context, logFullRequestBody bool) []zap.Field {
 	}
 
 	return fields
+}
+
+const contentTypeFormURLEncoded = "application/x-www-form-urlencoded"
+
+// formBodyToJSON converts a URL-encoded form body to a JSON object ([]byte),
+// so that gjson-based log desensitization can match field paths like "client_secret".
+// Returns (nil, false) when contentType is not form-urlencoded or parsing fails.
+func formBodyToJSON(body []byte, contentType string) ([]byte, bool) {
+	if contentType != contentTypeFormURLEncoded {
+		return nil, false
+	}
+
+	values, err := url.ParseQuery(string(body))
+	if err != nil {
+		return nil, false
+	}
+
+	m := make(map[string]string, len(values))
+	for k, v := range values {
+		if len(v) > 0 {
+			m[k] = v[0]
+		}
+	}
+
+	jsonBytes, err := json.Marshal(m)
+	if err != nil {
+		return nil, false
+	}
+
+	return jsonBytes, true
 }

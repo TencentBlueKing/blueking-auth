@@ -33,7 +33,7 @@ export const useEnv = defineStore('useEnv', {
       BK_DASHBOARD_CSRF_COOKIE_DOMAIN: '',
       BK_DASHBOARD_CSRF_COOKIE_NAME: '',
       BK_DASHBOARD_FE_URL: '',
-      BK_DASHBOARD_URL: '',
+      BK_AUTH_URL: '',
       BK_DEFAULT_TEST_APP_CODE: '',
       BK_DOCS_URL_PREFIX: '',
       BK_LOGIN_URL: '',

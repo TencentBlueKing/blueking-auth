@@ -24,6 +24,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"bkauth/pkg/app"
 	"bkauth/pkg/cache"
 	"bkauth/pkg/errorx"
 	"bkauth/pkg/service"
@@ -40,7 +41,7 @@ func (k AccessKeysKey) Key() string {
 	return k.AppCode
 }
 
-func retrieveAccessKeys(ctx context.Context, key cache.Key) (any, error) {
+var retrieveAccessKeys = func(ctx context.Context, key cache.Key) (any, error) {
 	k := key.(AccessKeysKey)
 
 	svc := service.NewAccessKeyService()
@@ -49,7 +50,7 @@ func retrieveAccessKeys(ctx context.Context, key cache.Key) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 构造 map: appSecret:enabled，方便查询校验
+	// map: appSecret -> enabled
 	secretsMap := make(map[string]bool)
 	for _, secret := range secretList {
 		secretsMap[secret.AppSecret] = secret.Enabled
@@ -75,8 +76,7 @@ func VerifyAccessKey(ctx context.Context, appCode, appSecret string) (bool, erro
 		return false, nil
 	}
 
-	// 将明文密钥加密后才能进行对比校验
-	encryptedAppSecret := service.ConvertToEncryptedAppSecret(appSecret)
+	encryptedAppSecret := app.EncryptSecret(appSecret)
 
 	// 每个密钥都进行对比
 	if enabled, ok := encryptedAppSecretsMap[encryptedAppSecret]; ok {

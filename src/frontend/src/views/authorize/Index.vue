@@ -36,13 +36,22 @@
           <div class="subject-info">
             <div class="logo-circle">
               <img
-                :src="consentInfo?.client_logo_uri"
+                v-if="consentInfo?.client_logo_uri"
+                :src="consentInfo.client_logo_uri"
                 :alt="consentInfo?.client_name || '--'"
                 class="logo-img"
               >
+              <span
+                v-else
+                class="logo-letter"
+              >{{ (consentInfo?.client_name || '?')[0].toUpperCase() }}</span>
             </div>
             <div class="subject-name">
               {{ consentInfo?.client_name || '--' }}
+              <span
+                v-if="consentInfo?.client_type === 'public'"
+                class="client-type-tag"
+              >（公开客户端）</span>
             </div>
           </div>
           <AgIcon
@@ -54,13 +63,13 @@
           <div class="subject-info">
             <div class="logo-circle">
               <img
-                :src="logoImageMap[consentInfo?.realm as keyof typeof logoImageMap]"
-                :alt="consentInfo?.realm || '--'"
+                :src="logoImageMap[consentInfo?.realm_name as keyof typeof logoImageMap]"
+                :alt="consentInfo?.realm_name || '--'"
                 class="logo-img"
               >
             </div>
             <div class="subject-name">
-              {{ realmNameMap[consentInfo?.realm as keyof typeof realmNameMap] || '--' }}
+              {{ realmNameMap[consentInfo?.realm_name as keyof typeof realmNameMap] || '--' }}
             </div>
           </div>
         </div>
@@ -74,7 +83,7 @@
       <!-- 描述 -->
       <p class="auth-desc">
         授权 <span class="highlight">{{ consentInfo?.client_name || '--' }}</span> 访问或操作您在
-        <span class="highlight">{{ realmNameMap[consentInfo?.realm as keyof typeof realmNameMap] || '--' }}</span> 上的资源
+        <span class="highlight">{{ realmNameMap[consentInfo?.realm_name as keyof typeof realmNameMap] || '--' }}</span> 上的资源
       </p>
 
       <!-- 警告 -->
@@ -101,11 +110,17 @@
 
         <div class="info-row">
           <span class="info-label">授权对象</span>
-          <span class="info-value">{{ consentInfo?.client_name || '--' }}</span>
+          <span class="info-value">
+            {{ consentInfo?.client_name || '--' }}
+            <span
+              v-if="consentInfo?.client_type === 'public'"
+              class="client-type-tag"
+            >（公开客户端）</span>
+          </span>
         </div>
 
         <!-- 分割线 -->
-        <div class="h-1px my-16px mr-24px bg-[#DCDEE5]" />
+        <div class="h-1px mb-16px mr-24px bg-[#DCDEE5]" />
 
         <div class="info-row info-row-resource">
           <span class="info-label">授权资源</span>
@@ -278,17 +293,16 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
   display: flex;
   width: 100%;
   height: calc(100vh - 48px);
-  min-height: 905.6px;
   padding: 40px 0;
   box-sizing: border-box;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .auth-card {
   display: flex;
   width: clamp(516px, 25vw, 700px);
-  height: clamp(825.6px, 40vw, 1120px);
+  max-height: clamp(825.6px, 40vw, 1120px);
   padding: 24px 32px 32px;
   background: #fff;
   border-radius: 16px;
@@ -308,12 +322,14 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
 
 .logo-section {
   display: flex;
-   align-items: flex-start;
+  align-items: flex-start;
+  justify-content: center;
   gap: 16px;
 
   .subject-info {
     display: flex;
-    width: 30%;
+    width: 140px;
+    flex-shrink: 0;
     flex-direction: column;
     gap: 8px;
     align-items: center;
@@ -321,9 +337,14 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
     .subject-name {
       font-size: 12px;
       color: #979ba5;
-      white-space: nowrap;
+      text-align: center;
+      word-break: break-word;
     }
   }
+}
+
+.client-type-tag {
+  color: #ff9c01;
 }
 
 .logo-circle {
@@ -345,6 +366,13 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.logo-letter {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+  user-select: none;
 }
 
 /* 标题 & 描述 */
@@ -373,12 +401,14 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
 /* 信息区域 */
 
 .auth-info {
-  max-height: calc(100% - 318.4px);
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 16px 0 24px 24px;
   overflow: hidden;
   background: #f5f7fa;
   border-radius: 10px;
-  flex: 1;
 }
 
 .info-row {
@@ -402,7 +432,8 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
 }
 
 .info-row-resource {
-  height: calc(100% - 91px);
+  flex: 1 1 auto;
+  min-height: 0;
   padding-right: 0;
   margin-bottom: 0;
   align-items: flex-start;
@@ -416,10 +447,11 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
 /* 授权资源 */
 
 .resource-section {
-  height: 100%;
+  align-self: stretch;
+  min-height: 0;
   padding-right: 24px;
   padding-bottom: 12px;
-   overflow-y: auto;
+  overflow-y: auto;
   flex: 1;
 }
 

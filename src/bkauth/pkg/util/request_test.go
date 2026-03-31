@@ -19,8 +19,10 @@
 package util_test
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo/v2"
@@ -28,6 +30,32 @@ import (
 
 	"bkauth/pkg/util"
 )
+
+var testingContent = []byte("Hello, World!")
+
+type errReader int
+
+func (errReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("test error")
+}
+
+func newRequestResponse() (*http.Request, *httptest.ResponseRecorder) {
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(testingContent))
+	w := httptest.NewRecorder()
+	return r, w
+}
+
+func newRequestEmptyResponse() (*http.Request, *httptest.ResponseRecorder) {
+	r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("")))
+	w := httptest.NewRecorder()
+	return r, w
+}
+
+func newRequestErrorResponse() (*http.Request, *httptest.ResponseRecorder) {
+	r := httptest.NewRequest(http.MethodPost, "/", errReader(0))
+	w := httptest.NewRecorder()
+	return r, w
+}
 
 var _ = Describe("Request", func() {
 	Describe("ReadRequestBody", func() {
@@ -39,38 +67,34 @@ var _ = Describe("Request", func() {
 		})
 
 		It("Empty response", func() {
-			// read empty body
-			r, _ := util.NewRequestEmptyResponse()
+			r, _ := newRequestEmptyResponse()
 			body, err := util.ReadRequestBody(r)
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []byte(""), body)
 		})
 
 		It("Error response", func() {
-			// read error body, will error
-			r, _ := util.NewRequestErrorResponse()
+			r, _ := newRequestErrorResponse()
 			_, err := util.ReadRequestBody(r)
 			assert.Error(GinkgoT(), err)
 		})
 
 		It("read test content from body", func() {
-			// read test content from body
-			r, _ := util.NewRequestResponse()
+			r, _ := newRequestResponse()
 			body, err := util.ReadRequestBody(r)
 			assert.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), util.TestingContent, body)
+			assert.Equal(GinkgoT(), testingContent, body)
 		})
 
 		It("read twice", func() {
-			// test read twice
-			r, _ := util.NewRequestResponse()
+			r, _ := newRequestResponse()
 			body, err := util.ReadRequestBody(r)
 			assert.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), util.TestingContent, body)
+			assert.Equal(GinkgoT(), testingContent, body)
 
 			body, err = util.ReadRequestBody(r)
 			assert.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), util.TestingContent, body)
+			assert.Equal(GinkgoT(), testingContent, body)
 		})
 	})
 
@@ -129,6 +153,75 @@ var _ = Describe("Request", func() {
 			err, ok := util.GetError(c)
 			assert.True(GinkgoT(), ok)
 			assert.Equal(GinkgoT(), expected, err)
+		})
+	})
+
+	Describe("EnableMultiTenantMode", func() {
+		var c *gin.Context
+		BeforeEach(func() {
+			c = &gin.Context{}
+		})
+
+		It("GetEnableMultiTenantMode default", func() {
+			assert.False(GinkgoT(), util.GetEnableMultiTenantMode(c))
+		})
+
+		It("SetEnableMultiTenantMode true", func() {
+			util.SetEnableMultiTenantMode(c, true)
+			assert.True(GinkgoT(), util.GetEnableMultiTenantMode(c))
+		})
+
+		It("SetEnableMultiTenantMode false", func() {
+			util.SetEnableMultiTenantMode(c, false)
+			assert.False(GinkgoT(), util.GetEnableMultiTenantMode(c))
+		})
+	})
+
+	Describe("Username", func() {
+		var c *gin.Context
+		BeforeEach(func() {
+			c = &gin.Context{}
+		})
+
+		It("GetUsername default", func() {
+			assert.Equal(GinkgoT(), "", util.GetUsername(c))
+		})
+
+		It("SetUsername", func() {
+			util.SetUsername(c, "admin")
+			assert.Equal(GinkgoT(), "admin", util.GetUsername(c))
+		})
+	})
+
+	Describe("RealmName", func() {
+		var c *gin.Context
+		BeforeEach(func() {
+			c = &gin.Context{}
+		})
+
+		It("GetRealmName default", func() {
+			assert.Equal(GinkgoT(), "", util.GetRealmName(c))
+		})
+
+		It("SetRealmName", func() {
+			util.SetRealmName(c, "bk")
+			assert.Equal(GinkgoT(), "bk", util.GetRealmName(c))
+		})
+	})
+
+	Describe("ClientID", func() {
+		var c *gin.Context
+		BeforeEach(func() {
+			c = &gin.Context{}
+		})
+
+		It("GetClientID default", func() {
+			assert.Equal(GinkgoT(), "", util.GetClientID(c))
+		})
+
+		It("SetClientID", func() {
+			util.SetClientID(c, "my-client")
+			assert.Equal(GinkgoT(), "my-client", util.GetClientID(c))
 		})
 	})
 })

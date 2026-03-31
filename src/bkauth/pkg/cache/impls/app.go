@@ -38,7 +38,7 @@ func (k AppKey) Key() string {
 	return k.AppCode
 }
 
-func retrieveApp(ctx context.Context, key cache.Key) (any, error) {
+var retrieveApp = func(ctx context.Context, key cache.Key) (any, error) {
 	k := key.(AppKey)
 
 	svc := service.NewAppService()
