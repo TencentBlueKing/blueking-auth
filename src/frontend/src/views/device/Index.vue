@@ -84,7 +84,7 @@
           class="code-submit-btn"
           :theme="btnTheme"
           :loading="loading"
-          :disabled="fullCode.length < CODE_LENGTH"
+          :disabled="fullCode.length < CODE_LENGTH || hasError"
           @click="handleSubmit"
         >
           继续
