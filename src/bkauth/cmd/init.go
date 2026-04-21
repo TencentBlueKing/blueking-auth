@@ -40,6 +40,7 @@ import (
 	"bkauth/pkg/observability"
 	"bkauth/pkg/realm/blueking"
 	"bkauth/pkg/realm/devops"
+	"bkauth/pkg/realm/gpu"
 	"bkauth/pkg/redis"
 )
 
@@ -169,6 +170,7 @@ func initRealms() {
 
 	oauth.RegisterRealm(blueking.New())
 	oauth.RegisterRealm(devops.New())
+	oauth.RegisterRealm(gpu.New())
 }
 
 func initAPIAllowList() {
