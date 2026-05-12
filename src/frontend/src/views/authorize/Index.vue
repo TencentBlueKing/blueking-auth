@@ -211,7 +211,7 @@ const logoImageMap = {
 const realmNameMap = {
   'blueking': '蓝鲸网关 MCP & API',
   'bk-devops': '蓝盾',
-  'bk-gpu': 'IEG GPU管理平台',
+  'bk-gpu': 'IEG GPU 管理平台',
 };
 
 watch(
