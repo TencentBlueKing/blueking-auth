@@ -287,8 +287,6 @@ func handleTokenError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, oauth.NewInvalidGrantError("Refresh token has expired"))
 	case errors.Is(err, oauth.ErrRefreshTokenRevoked):
 		c.JSON(http.StatusBadRequest, oauth.NewInvalidGrantError("Refresh token has been revoked"))
-	case errors.Is(err, oauth.ErrRotationLimitExceeded):
-		c.JSON(http.StatusBadRequest, oauth.NewInvalidGrantError("Refresh token rotation limit exceeded"))
 	default:
 		c.JSON(http.StatusInternalServerError, oauth.NewServerError("An unexpected error occurred"))
 	}

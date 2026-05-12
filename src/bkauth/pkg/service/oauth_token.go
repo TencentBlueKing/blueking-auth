@@ -91,11 +91,15 @@ type preparedTokenPair struct {
 // prepareTokenPair generates all random material and builds DAO structs for
 // a token pair. This is pure computation with no database access, so it can
 // safely run outside a transaction to minimize lock hold time.
-// rotationCount should be oauth.InitialRotationCount for initial issuance
-// and old.RotationCount+1 for rotation.
+//
+// refreshTokenExpiresAt is the absolute expiration for the refresh token.
+// For initial issuance, pass time.Now() + RefreshTokenTTL.
+// For rotation, pass the previous token's ExpiresAt to preserve the
+// absolute lifetime (the grant family expires at the originally issued time).
 func (s *oauthTokenService) prepareTokenPair(
 	realmName, grantID, clientID, tenantID, sub, username string,
 	audience []string, rotationCount int64,
+	refreshTokenExpiresAt time.Time,
 	policy types.TokenIssuancePolicy,
 ) (preparedTokenPair, error) {
 	now := time.Now()
@@ -145,7 +149,7 @@ func (s *oauthTokenService) prepareTokenPair(
 			Sub:           sub,
 			Username:      username,
 			Audience:      string(audienceJSON),
-			ExpiresAt:     now.Add(time.Duration(policy.RefreshTokenTTL) * time.Second),
+			ExpiresAt:     refreshTokenExpiresAt,
 			Revoked:       false,
 			RotationCount: rotationCount,
 		},
@@ -202,8 +206,10 @@ func (s *oauthTokenService) generateTokenPair(
 ) (types.TokenPair, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(OAuthTokenSVC, "generateTokenPair")
 
+	refreshTokenExpiresAt := time.Now().Add(time.Duration(policy.RefreshTokenTTL) * time.Second)
 	prepared, err := s.prepareTokenPair(
-		realmName, grantID, clientID, tenantID, sub, username, audience, oauth.InitialRotationCount, policy,
+		realmName, grantID, clientID, tenantID, sub, username, audience,
+		oauth.InitialRotationCount, refreshTokenExpiresAt, policy,
 	)
 	if err != nil {
 		return types.TokenPair{}, errorWrapf(err, "prepareTokenPair fail")
@@ -376,20 +382,6 @@ func (s *oauthTokenService) RefreshAccessToken(
 		return types.TokenPair{}, oauth.ErrRefreshTokenExpired
 	}
 
-	// NOTE: MaxRefreshTokenRotations is currently a constant, so the "> 0"
-	// guard is always true. Keep it here because we plan to make this value
-	// configurable per-environment; once it becomes a runtime config, the
-	// zero-value will mean "unlimited rotations" and this guard will matter.
-	if oauth.MaxRefreshTokenRotations > 0 && daoRefreshToken.RotationCount >= oauth.MaxRefreshTokenRotations {
-		// Proactively revoke the entire grant family so that the current
-		// (still technically valid) refresh token and its associated access
-		// token cannot be used again. Without this, the token pair would
-		// remain valid until natural expiry, leaving an open window despite
-		// the rotation limit being reached.
-		_ = s.RevokeByGrantID(ctx, daoRefreshToken.GrantID)
-		return types.TokenPair{}, oauth.ErrRotationLimitExceeded
-	}
-
 	var audience []string
 	if err := json.Unmarshal([]byte(daoRefreshToken.Audience), &audience); err != nil {
 		return types.TokenPair{}, errorWrapf(err, "json.Unmarshal audience fail")
@@ -397,10 +389,13 @@ func (s *oauthTokenService) RefreshAccessToken(
 
 	// Pre-generate all random material outside the transaction to minimize
 	// the time the transaction holds locks.
+	// Carry forward the original ExpiresAt so the grant family has a fixed
+	// absolute lifetime from initial issuance — rotation does not extend it.
 	prepared, err := s.prepareTokenPair(
 		realmName, daoRefreshToken.GrantID, clientID, daoRefreshToken.TenantID,
 		daoRefreshToken.Sub, daoRefreshToken.Username,
 		audience, daoRefreshToken.RotationCount+1,
+		daoRefreshToken.ExpiresAt,
 		policy,
 	)
 	if err != nil {

@@ -159,10 +159,9 @@ var (
 
 // Refresh token errors
 var (
-	ErrInvalidRefreshToken   = errors.New("invalid refresh token")
-	ErrRefreshTokenExpired   = errors.New("refresh token expired")
-	ErrRefreshTokenRevoked   = errors.New("refresh token revoked")
-	ErrRotationLimitExceeded = errors.New("refresh token rotation limit exceeded")
+	ErrInvalidRefreshToken = errors.New("invalid refresh token")
+	ErrRefreshTokenExpired = errors.New("refresh token expired")
+	ErrRefreshTokenRevoked = errors.New("refresh token revoked")
 )
 
 // Device code errors (RFC 8628)
