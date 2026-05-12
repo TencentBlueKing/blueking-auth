@@ -39,14 +39,6 @@ const (
 	// (authorization_code grant, device_code grant, etc.).
 	InitialRotationCount int64 = 0
 
-	// MaxRefreshTokenRotations is the maximum number of times a grant family
-	// may rotate its refresh token before the family is revoked and the user
-	// must re-authenticate. This bounds the total session lifetime regardless
-	// of individual token TTL. For example, with a 30-minute access token TTL,
-	// 50 rotations cap the effective session at roughly 25 hours.
-	// Set to 0 to disable the limit.
-	MaxRefreshTokenRotations int64 = 50
-
 	// ReplayDetectionGracePeriod is the window after a refresh token is revoked
 	// during which a duplicate use is treated as a benign concurrent request
 	// rather than a replay attack.
@@ -68,7 +60,8 @@ const (
 	// Trade-off: a real attacker who replays within the grace window will not
 	// trigger family revocation. This is acceptable because (a) the attacker
 	// still cannot obtain new tokens, (b) the window is short, and (c) the
-	// rotation limit (MaxRefreshTokenRotations) provides an additional bound.
+	// absolute lifetime (ExpiresAt inherited from initial issuance) provides
+	// an additional bound on the grant family's total lifespan.
 	ReplayDetectionGracePeriod = 30 * time.Second
 )
 

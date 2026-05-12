@@ -75,6 +75,7 @@ var _ = Describe("oauthTokenService", func() {
 			svc := oauthTokenService{}
 
 			start := time.Now()
+			refreshExpiresAt := start.Add(24 * time.Hour)
 			prepared, err := svc.prepareTokenPair(
 				"blueking",
 				"grant-1",
@@ -84,6 +85,7 @@ var _ = Describe("oauthTokenService", func() {
 				"user-1",
 				[]string{"aud-1", "aud-2"},
 				3,
+				refreshExpiresAt,
 				policy,
 			)
 
@@ -115,7 +117,7 @@ var _ = Describe("oauthTokenService", func() {
 			Expect(prepared.daoRefreshToken.TokenMask).To(Equal(oauth.MaskToken(prepared.refreshToken)))
 			Expect(prepared.daoRefreshToken.Revoked).To(BeFalse())
 			Expect(prepared.daoRefreshToken.RotationCount).To(Equal(int64(3)))
-			Expect(prepared.daoRefreshToken.ExpiresAt).To(BeTemporally("~", start.Add(time.Hour), 2*time.Second))
+			Expect(prepared.daoRefreshToken.ExpiresAt).To(Equal(refreshExpiresAt))
 
 			Expect(prepared.daoAccessToken.Audience).To(Equal(`["aud-1","aud-2"]`))
 			Expect(prepared.daoRefreshToken.Audience).To(Equal(`["aud-1","aud-2"]`))
@@ -289,30 +291,6 @@ var _ = Describe("oauthTokenService", func() {
 			Expect(err).To(MatchError(oauth.ErrRefreshTokenExpired))
 		})
 
-		It("should revoke the family when rotation limit is exceeded", func() {
-			rt := newValidRefreshTokenDAO()
-			rt.RotationCount = oauth.MaxRefreshTokenRotations
-			mockRefreshManager.EXPECT().GetByTokenHash(gomock.Any(), gomock.Any()).Return(rt, nil)
-
-			mockRefreshManager.EXPECT().
-				RevokeByGrantIDWithTx(gomock.Any(), gomock.Any(), "grant-1").
-				Return(int64(1), nil)
-			mockAccessManager.EXPECT().
-				RevokeByGrantIDWithTx(gomock.Any(), gomock.Any(), "grant-1").
-				Return(int64(1), nil)
-
-			db, dbMock := database.NewMockSqlxDB()
-			dbMock.ExpectBegin()
-			dbMock.ExpectCommit()
-			restore := useMockDefaultDB(db)
-			defer restore()
-
-			_, err := svc.RefreshAccessToken(context.Background(), "blueking", "refresh-1", "client-1", policy)
-
-			Expect(err).To(MatchError(oauth.ErrRotationLimitExceeded))
-			Expect(dbMock.ExpectationsWereMet()).To(Succeed())
-		})
-
 		It("should return wrapped error when stored audience is invalid", func() {
 			rt := newValidRefreshTokenDAO()
 			rt.Audience = "{invalid-json}"
@@ -343,9 +321,10 @@ var _ = Describe("oauthTokenService", func() {
 			Expect(dbMock.ExpectationsWereMet()).To(Succeed())
 		})
 
-		It("should revoke old tokens and persist a rotated pair", func() {
+		It("should revoke old tokens and persist a rotated pair with inherited ExpiresAt", func() {
 			rt := newValidRefreshTokenDAO()
 			rt.RotationCount = 7
+			originalExpiresAt := rt.ExpiresAt
 			mockRefreshManager.EXPECT().GetByTokenHash(gomock.Any(), gomock.Any()).Return(rt, nil)
 
 			mockRefreshManager.EXPECT().
@@ -369,6 +348,7 @@ var _ = Describe("oauthTokenService", func() {
 					Expect(token.GrantID).To(Equal("grant-1"))
 					Expect(token.RealmName).To(Equal("blueking"))
 					Expect(token.RotationCount).To(Equal(int64(8)))
+					Expect(token.ExpiresAt).To(Equal(originalExpiresAt))
 					return int64(2002), nil
 				})
 

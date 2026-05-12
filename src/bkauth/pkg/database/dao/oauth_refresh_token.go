@@ -51,8 +51,8 @@ type OAuthRefreshToken struct {
 	// GrantID) has been rotated via refresh token rotation (RFC 6749 §6).
 	// Each successful rotation creates a new refresh token row with
 	// count = previous_token.RotationCount + 1; initial issuance starts at 0.
-	// Used to enforce oauth.MaxRefreshTokenRotations — once exceeded the
-	// grant family is revoked and the user must re-authenticate.
+	// Retained for auditing and observability; session lifetime is bounded
+	// by the absolute ExpiresAt inherited from initial issuance.
 	RotationCount int64     `db:"rotation_count"`
 	CreatedAt     time.Time `db:"created_at"`
 	UpdatedAt     time.Time `db:"updated_at"`

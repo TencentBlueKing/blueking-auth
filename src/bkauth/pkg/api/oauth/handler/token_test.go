@@ -105,8 +105,6 @@ var _ = Describe("handleTokenError", func() {
 			errorCase{oauth.ErrRefreshTokenExpired, oauth.ErrorCodeInvalidGrant, http.StatusBadRequest}),
 		Entry("refresh token revoked",
 			errorCase{oauth.ErrRefreshTokenRevoked, oauth.ErrorCodeInvalidGrant, http.StatusBadRequest}),
-		Entry("rotation limit exceeded",
-			errorCase{oauth.ErrRotationLimitExceeded, oauth.ErrorCodeInvalidGrant, http.StatusBadRequest}),
 		Entry("unexpected error",
 			errorCase{errors.New("something went wrong"), oauth.ErrorCodeServerError, http.StatusInternalServerError}),
 	)
