@@ -109,6 +109,7 @@ func NewConsentInfoHandler() gin.HandlerFunc {
 // negligible — the codes are short-lived and bound to the same user/client.
 func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		sub := util.GetSub(c)
 		username := util.GetUsername(c)
 
 		var req consentConfirmRequest
@@ -180,7 +181,7 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 			ClientID:            consent.ClientID,
 			TenantID:            userTenantID,
 			RealmName:           consent.RealmName,
-			Sub:                 username,
+			Sub:                 sub,
 			Username:            username,
 			RedirectURI:         consent.RedirectURI,
 			Audience:            audience,

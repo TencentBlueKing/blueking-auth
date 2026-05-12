@@ -132,6 +132,7 @@ func (v *BKTicketVerifier) Verify(ctx context.Context, ticket string) (VerifyRes
 
 	return VerifyResult{
 		Success:  true,
+		Sub:      loginResp.Data.Username,
 		Username: loginResp.Data.Username,
 	}, nil
 }

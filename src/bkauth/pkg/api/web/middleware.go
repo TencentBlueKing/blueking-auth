@@ -56,6 +56,7 @@ func LoginRequired() gin.HandlerFunc {
 			return
 		}
 
+		util.SetSub(c, loginResult.Sub)
 		util.SetUsername(c, loginResult.Username)
 		util.SetTenantID(c, loginResult.TenantID)
 		c.Next()

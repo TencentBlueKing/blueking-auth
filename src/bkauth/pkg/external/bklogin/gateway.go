@@ -43,6 +43,7 @@ const (
 type bkGatewayResponse struct {
 	Data *struct {
 		BKUsername string `json:"bk_username"`
+		LoginName  string `json:"login_name"`
 		TenantID   string `json:"tenant_id"`
 	} `json:"data"`
 	Error *struct {
@@ -152,18 +153,25 @@ func (v *BKTokenGatewayVerifier) Verify(ctx context.Context, token string) (Veri
 	}
 
 	if gatewayResp.Data == nil || gatewayResp.Data.BKUsername == "" {
-		logger.Warn("gateway verify: empty username in response")
-		return VerifyResult{Message: "empty username in login response"}, nil
+		logger.Warn("gateway verify: empty bk_username in response")
+		return VerifyResult{Message: "empty bk_username in login response"}, nil
+	}
+
+	if gatewayResp.Data.LoginName == "" {
+		logger.Warn("gateway verify: empty login_name in response")
+		return VerifyResult{Message: "empty login_name in login response"}, nil
 	}
 
 	logger.Info("gateway verify: login verified successfully",
-		zap.String("username", gatewayResp.Data.BKUsername),
+		zap.String("sub", gatewayResp.Data.BKUsername),
+		zap.String("username", gatewayResp.Data.LoginName),
 		zap.String("tenant_id", gatewayResp.Data.TenantID),
 	)
 
 	return VerifyResult{
 		Success:  true,
-		Username: gatewayResp.Data.BKUsername,
+		Sub:      gatewayResp.Data.BKUsername,
+		Username: gatewayResp.Data.LoginName,
 		TenantID: gatewayResp.Data.TenantID,
 	}, nil
 }

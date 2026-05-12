@@ -126,6 +126,7 @@ func NewDeviceVerifyHandler(cfg *config.Config) gin.HandlerFunc {
 // NewDeviceConfirmHandler creates a handler for POST /oauth/device/confirm
 func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		sub := util.GetSub(c)
 		username := util.GetUsername(c)
 
 		var req deviceConfirmRequest
@@ -176,7 +177,7 @@ func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 			audience = []string{}
 		}
 
-		if err := deviceCodeSvc.ApproveByUserCode(ctx, userTenantID, req.UserCode, username, username, audience); err != nil {
+		if err := deviceCodeSvc.ApproveByUserCode(ctx, userTenantID, req.UserCode, sub, username, audience); err != nil {
 			if errors.Is(err, oauth.ErrUserCodeExpired) ||
 				errors.Is(err, oauth.ErrUserCodeAlreadyUsed) ||
 				errors.Is(err, oauth.ErrInvalidUserCode) {
