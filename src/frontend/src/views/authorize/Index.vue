@@ -185,6 +185,7 @@ import {
 import { useUserInfo } from '@/stores';
 import ApiGatewayLogo from '@/assets/bk_api_gateway_logo.png';
 import DevOpsLogo from '@/assets/bk_devops_logo.png';
+import GpuLogo from '@/assets/bk_gpu_logo.png';
 import { useDevice } from '@/stores/useDevice.ts';
 import { cloneDeep } from 'lodash-es';
 import { confirmDeviceCode } from '@/services/source/oauth2/device.ts';
@@ -204,11 +205,13 @@ const hasError = ref(false);
 const logoImageMap = {
   'blueking': ApiGatewayLogo,
   'bk-devops': DevOpsLogo,
+  'bk-gpu': GpuLogo,
 };
 
 const realmNameMap = {
   'blueking': '蓝鲸网关 MCP & API',
   'bk-devops': '蓝盾',
+  'bk-gpu': 'IEG GPU 管理平台',
 };
 
 watch(

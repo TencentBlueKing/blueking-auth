@@ -33,8 +33,8 @@ appSecret: "WnF1qwjGSVE0ScXrz1hKWMG3dsdftR9nGQ"
 bkAuthUrl: "https://bkauth.example.com"
 bkApiUrlTmpl: "http://bkapi.example.com/api/{api_name}"
 bkLoginUrl: "https://bk.example.com/login/"
-# "direct" (default) or "gateway"
-bkLoginAPICallMethod: "direct"
+# true: call login API via gateway; false: call directly (default)
+bkLoginAPIViaGateway: false
 # "bk_token" (default) or "bk_ticket"
 bkLoginTokenName: "bk_token"
 
