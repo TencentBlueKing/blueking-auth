@@ -79,6 +79,14 @@ func GetEnableMultiTenantMode(c *gin.Context) bool {
 	return c.GetBool(EnableMultiTenantModeKey)
 }
 
+func SetSub(c *gin.Context, sub string) {
+	c.Set(SubKey, sub)
+}
+
+func GetSub(c *gin.Context) string {
+	return c.GetString(SubKey)
+}
+
 func SetUsername(c *gin.Context, username string) {
 	c.Set(UsernameKey, username)
 }

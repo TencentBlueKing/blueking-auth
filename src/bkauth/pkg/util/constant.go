@@ -27,6 +27,7 @@ const (
 	EnableMultiTenantModeKey = "enable_multi_tenant_mode"
 
 	ErrorIDKey   = "err"
+	SubKey       = "sub"
 	UsernameKey  = "username"
 	TenantIDKey  = "tenant_id"
 	RealmNameKey = "realm_name"

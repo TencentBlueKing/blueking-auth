@@ -137,6 +137,7 @@ func (v *BKTokenVerifier) Verify(ctx context.Context, token string) (VerifyResul
 
 	return VerifyResult{
 		Success:  true,
+		Sub:      loginResp.Data.Username,
 		Username: loginResp.Data.Username,
 	}, nil
 }

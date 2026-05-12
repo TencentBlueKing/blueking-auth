@@ -47,6 +47,7 @@ func (a *bkTokenAuthenticator) CheckLogin(ctx context.Context, token string) (Au
 		return AuthResult{Success: false, Message: result.Message}, err
 	}
 	return AuthResult{
+		Sub:      result.Sub,
 		Username: result.Username,
 		TenantID: util.TenantIDDefault,
 		Success:  result.Success,

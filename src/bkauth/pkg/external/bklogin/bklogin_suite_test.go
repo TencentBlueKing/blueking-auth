@@ -16,22 +16,16 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package login
+package bklogin
 
-import "context"
+import (
+	"testing"
 
-// AuthResult represents the result of a login verification.
-type AuthResult struct {
-	Sub      string
-	Username string
-	TenantID string
-	Success  bool
-	Message  string
-}
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+)
 
-// Authenticator defines the interface for user login verification.
-type Authenticator interface {
-	CookieName() string
-	CheckLogin(ctx context.Context, token string) (AuthResult, error)
-	GetLoginURL() string
+func TestBKLogin(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "BKLogin Suite")
 }

@@ -48,6 +48,7 @@ func (a *bkTokenViaGatewayAuthenticator) CheckLogin(ctx context.Context, token s
 		return AuthResult{Success: false, Message: result.Message}, err
 	}
 	return AuthResult{
+		Sub:      result.Sub,
 		Username: result.Username,
 		TenantID: result.TenantID,
 		Success:  result.Success,
