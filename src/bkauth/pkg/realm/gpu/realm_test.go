@@ -59,7 +59,7 @@ var _ = Describe("gpuRealm", func() {
 			groups := display.([]gpu.ResourceDisplay)
 			require.Len(GinkgoT(), groups, 1)
 			assert.Equal(GinkgoT(), "resource", groups[0].Type)
-			assert.Equal(GinkgoT(), "IEG GPU管理平台", groups[0].DisplayName)
+			assert.Equal(GinkgoT(), "IEG GPU 管理平台", groups[0].DisplayName)
 			require.Len(GinkgoT(), groups[0].Items, 1)
 			assert.Equal(GinkgoT(), "all", groups[0].Items[0].Name)
 			assert.Equal(GinkgoT(), "所有", groups[0].Items[0].DisplayName)
