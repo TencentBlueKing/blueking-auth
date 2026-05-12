@@ -74,7 +74,7 @@ func (r *gpuRealm) ResolveResourceDisplay(_ context.Context, resource string) (a
 	}
 	return []ResourceDisplay{{
 		Type:        "resource",
-		DisplayName: "IEG GPU管理平台",
+		DisplayName: "IEG GPU 管理平台",
 		Items: []ItemDisplay{{
 			Name:        "all",
 			DisplayName: "所有",
