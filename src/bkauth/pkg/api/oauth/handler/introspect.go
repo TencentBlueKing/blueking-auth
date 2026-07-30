@@ -74,6 +74,16 @@ func NewIntrospectHandler() gin.HandlerFunc {
 			return
 		}
 
+		// A malformed token is reported as inactive, exactly like an unknown one:
+		// RFC 7662 mandates inactive for unknown tokens, and answering 400 here
+		// would hand the caller a way to tell "well-formed but unknown" apart
+		// from "malformed". The guard therefore changes no observable response —
+		// its only effect is keeping garbage away from Redis and MySQL.
+		if !oauth.IsAcceptedTokenFormat(req.Token) {
+			c.JSON(http.StatusOK, newInactiveIntrospectionResponse())
+			return
+		}
+
 		tokenHash := oauth.HashToken(req.Token)
 
 		token, err := impls.GetAccessTokenByTokenHash(ctx, tokenHash)

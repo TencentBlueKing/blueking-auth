@@ -16,95 +16,269 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package oauth_test
+// Unlike the rest of the package's tests, these live in package oauth rather
+// than oauth_test: the format invariants worth guarding (charset contents,
+// segment offsets, checksum padding) are expressed over unexported identifiers.
+// Ginkgo collects specs from both packages into the suite run by
+// oauth_suite_test.go.
+package oauth
 
 import (
-	"regexp"
+	"math"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
-	"github.com/stretchr/testify/assert"
-
-	"bkauth/pkg/oauth"
+	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Token", func() {
-	Describe("MaskToken", func() {
-		DescribeTable("MaskToken cases", func(token string, expected string) {
-			assert.Equal(GinkgoT(), expected, oauth.MaskToken(token))
+var (
+	// A fixed random segment keeps the malformed-input table deterministic.
+	sampleTokenRandom = "Qw3rTy7ZmK9pLxN2vB8cJhF4dGsA1e"
+	sampleToken       = "bko_" + sampleTokenRandom + tokenChecksum(sampleTokenRandom)
+)
+
+// replaceAt returns raw with the byte at index i replaced by c.
+func replaceAt(raw string, i int, c byte) string {
+	b := []byte(raw)
+	b[i] = c
+	return string(b)
+}
+
+// mutateAt swaps the byte at index i for a different character of the charset,
+// so the result stays in-charset while no longer matching its own checksum.
+func mutateAt(raw string, i int) string {
+	replacement := byte('Z')
+	if raw[i] == replacement {
+		replacement = 'Y'
+	}
+	return replaceAt(raw, i, replacement)
+}
+
+var _ = Describe("Token format contract", func() {
+	// These assertions pin the externally visible contract. They are expected
+	// to fail loudly if anyone edits the segment widths, because issued tokens
+	// cannot be recalled: a format change means a new type code, not new widths.
+	It("is 40 characters split into 4 + 30 + 6", func() {
+		Expect(tokenLength).To(Equal(40))
+		Expect(tokenPrefixLength).To(Equal(4))
+		Expect(tokenRandomLength).To(Equal(30))
+		Expect(tokenChecksumLength).To(Equal(6))
+		Expect(len(sampleToken)).To(Equal(tokenLength))
+	})
+
+	It("places the type code and separator inside the prefix", func() {
+		Expect(tokenTypeCodeOffset).To(Equal(len(tokenProductPrefix)))
+		Expect(tokenSeparatorOffset).To(Equal(tokenPrefixLength - 1))
+		Expect(tokenRandomOffset).To(Equal(tokenPrefixLength))
+		Expect(tokenChecksumOffset).To(Equal(tokenLength - tokenChecksumLength))
+	})
+
+	It("keeps the charset base62 and free of the separator", func() {
+		Expect(len(tokenCharset)).To(Equal(62))
+		Expect(tokenCharset).NotTo(ContainSubstring(string(tokenSeparator)))
+
+		seen := make(map[byte]bool, len(tokenCharset))
+		for i := 0; i < len(tokenCharset); i++ {
+			Expect(seen[tokenCharset[i]]).To(BeFalse(), "duplicate character in charset")
+			seen[tokenCharset[i]] = true
+		}
+	})
+
+	It("keeps the legacy charset able to match retired per-realm prefixes", func() {
+		// Legacy tokens are "bk_"/"bkci_"/"bkgpu_" plus a lowercase random
+		// tail, so the underscore must be part of the accepted set.
+		Expect(legacyTokenCharset).To(ContainSubstring(string(tokenSeparator)))
+		Expect(legacyTokenLength).To(Equal(32))
+	})
+})
+
+var _ = Describe("per-family token generators", func() {
+	DescribeTable("stamp the expected type code",
+		func(generate func() (string, error), expected byte) {
+			raw, err := generate()
+			Expect(err).NotTo(HaveOccurred())
+
+			parsed, err := parseToken(raw)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(parsed.typeCode).To(Equal(expected))
 		},
-			Entry("normal 32-char token", "bka_abc1defg2hij3klmn4opqr5stuv6", "bka_abc1******tuv6"),
-			Entry("token length equals prefix+suffix", "abcdefghijkl", "******"),
-			Entry("token shorter than prefix+suffix", "abc", "******"),
-			Entry("empty token", "", "******"),
-			Entry("token just above threshold", "abcdefghijklm", "abcdefgh******jklm"),
-		)
+		Entry("access", GenerateAccessToken, byte(tokenTypeCodeAccess)),
+		Entry("refresh", GenerateRefreshToken, byte(tokenTypeCodeRefresh)),
+	)
+})
+
+var _ = Describe("generateToken", func() {
+	DescribeTable("round-trips through parseToken for every registered type",
+		func(typeCode byte) {
+			raw, err := generateToken(typeCode)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(raw).To(HaveLen(tokenLength))
+			Expect(raw).To(HavePrefix(tokenProductPrefix))
+
+			parsed, err := parseToken(raw)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(parsed.typeCode).To(Equal(typeCode))
+			Expect(parsed.random).To(Equal(raw[tokenRandomOffset:tokenChecksumOffset]))
+			Expect(parsed.checksum).To(Equal(raw[tokenChecksumOffset:]))
+		},
+		Entry("access", byte(tokenTypeCodeAccess)),
+		Entry("refresh", byte(tokenTypeCodeRefresh)),
+		Entry("personal", byte(tokenTypeCodePersonal)),
+		Entry("service", byte(tokenTypeCodeService)),
+	)
+
+	It("rejects an unregistered type code", func() {
+		raw, err := generateToken('z')
+		Expect(err).To(MatchError(ErrInvalidTokenFormat))
+		Expect(raw).To(BeEmpty())
 	})
 
-	Describe("HashToken", func() {
-		It("returns truncated SHA-256 hex (first 128 bits)", func() {
-			// First 16 bytes of SHA-256("hello")
-			assert.Equal(GinkgoT(),
-				"2cf24dba5fb0a30e26e83b2ac5b9e29e",
-				oauth.HashToken("hello"))
-		})
-
-		It("same input produces same output", func() {
-			assert.Equal(GinkgoT(), oauth.HashToken("test-token"), oauth.HashToken("test-token"))
-		})
-
-		It("different input produces different output", func() {
-			assert.NotEqual(GinkgoT(), oauth.HashToken("token-a"), oauth.HashToken("token-b"))
-		})
-
-		It("output is 32-char hex string", func() {
-			hash := oauth.HashToken("any-input")
-			assert.Equal(GinkgoT(), 32, len(hash))
-			assert.Regexp(GinkgoT(), regexp.MustCompile(`^[0-9a-f]{32}$`), hash)
-		})
+	It("generates unique values", func() {
+		first, err := generateToken(tokenTypeCodeAccess)
+		Expect(err).NotTo(HaveOccurred())
+		second, err := generateToken(tokenTypeCodeAccess)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(first).NotTo(Equal(second))
 	})
 
-	Describe("GenerateToken", func() {
-		It("has correct length and prefix", func() {
-			token, err := oauth.GenerateToken("bka_")
-			assert.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), oauth.TokenLength, len(token))
-			assert.True(GinkgoT(), strings.HasPrefix(token, "bka_"))
-		})
+	It("draws the random segment only from the charset", func() {
+		raw, err := generateToken(tokenTypeCodeAccess)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(withinCharset(raw[tokenRandomOffset:], tokenCharset)).To(BeTrue())
+	})
+})
 
-		It("generates unique values", func() {
-			t1, _ := oauth.GenerateToken("bka_")
-			t2, _ := oauth.GenerateToken("bka_")
-			assert.NotEqual(GinkgoT(), t1, t2)
-		})
+var _ = Describe("HashToken", func() {
+	It("returns the first 128 bits of the SHA-256 digest as hex", func() {
+		// First 16 bytes of SHA-256("hello").
+		Expect(HashToken("hello")).To(Equal("2cf24dba5fb0a30e26e83b2ac5b9e29e"))
 	})
 
-	Describe("GenerateJTI", func() {
-		It("returns UUID v4 format", func() {
-			jti := oauth.GenerateJTI()
-			assert.NotEmpty(GinkgoT(), jti)
-			assert.Regexp(GinkgoT(),
-				regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`), jti)
-		})
-
-		It("generates unique values", func() {
-			jti1 := oauth.GenerateJTI()
-			jti2 := oauth.GenerateJTI()
-			assert.NotEqual(GinkgoT(), jti1, jti2)
-		})
+	It("is deterministic", func() {
+		Expect(HashToken("test-token")).To(Equal(HashToken("test-token")))
 	})
 
-	Describe("GenerateGrantID", func() {
-		It("returns UUID v4 format", func() {
-			id := oauth.GenerateGrantID()
-			assert.Regexp(GinkgoT(),
-				regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`), id)
-		})
-
-		It("generates unique values", func() {
-			id1 := oauth.GenerateGrantID()
-			id2 := oauth.GenerateGrantID()
-			assert.NotEqual(GinkgoT(), id1, id2)
-		})
+	It("maps different inputs to different digests", func() {
+		Expect(HashToken("token-a")).NotTo(Equal(HashToken("token-b")))
 	})
+
+	It("always produces 32 lowercase hex characters", func() {
+		// The width is a storage contract: token_hash is VARCHAR(32).
+		Expect(HashToken(sampleToken)).To(MatchRegexp(`^[0-9a-f]{32}$`))
+	})
+})
+
+var _ = Describe("parseToken", func() {
+	It("accepts a well-formed token", func() {
+		parsed, err := parseToken(sampleToken)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(parsed.typeCode).To(Equal(byte(tokenTypeCodeAccess)))
+		Expect(parsed.random).To(Equal(sampleTokenRandom))
+	})
+
+	// One sentinel covers every guard, so the table pins which shapes are
+	// rejected rather than which check fired.
+	DescribeTable("rejects every malformed shape",
+		func(raw string) {
+			parsed, err := parseToken(raw)
+			Expect(err).To(MatchError(ErrInvalidTokenFormat))
+			Expect(parsed).To(Equal(parsedToken{}))
+		},
+		Entry("empty", ""),
+		Entry("one character short", sampleToken[:tokenLength-1]),
+		Entry("one character too long", sampleToken+"x"),
+		Entry("legacy format", "bk_"+strings.Repeat("a", legacyTokenLength-3)),
+		Entry("wrong product prefix", "xk"+sampleToken[2:]),
+		Entry("missing separator", replaceAt(sampleToken, tokenSeparatorOffset, 'x')),
+		Entry("unregistered type code", replaceAt(sampleToken, tokenTypeCodeOffset, 'z')),
+		Entry("hyphen in random segment", replaceAt(sampleToken, tokenRandomOffset, '-')),
+		Entry("underscore in random segment", replaceAt(sampleToken, tokenChecksumOffset-1, '_')),
+		Entry("hyphen in checksum", replaceAt(sampleToken, tokenChecksumOffset, '-')),
+		Entry("tampered random segment", mutateAt(sampleToken, tokenRandomOffset)),
+		Entry("tampered checksum", mutateAt(sampleToken, tokenLength-1)),
+	)
+})
+
+var _ = Describe("IsAcceptedTokenFormat", func() {
+	It("accepts a freshly generated token", func() {
+		raw, err := GenerateAccessToken()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(IsAcceptedTokenFormat(raw)).To(BeTrue())
+	})
+
+	DescribeTable("accepts the current format and the legacy one it replaced",
+		func(raw string) {
+			Expect(IsAcceptedTokenFormat(raw)).To(BeTrue())
+		},
+		Entry("current format", sampleToken),
+		Entry("legacy blueking prefix", "bk_"+strings.Repeat("a", 29)),
+		Entry("legacy devops prefix", "bkci_"+strings.Repeat("b3", 13)+"c"),
+		Entry("legacy gpu prefix", "bkgpu_"+strings.Repeat("c", 26)),
+	)
+
+	DescribeTable("rejects input that cannot have been issued here",
+		func(raw string) {
+			Expect(IsAcceptedTokenFormat(raw)).To(BeFalse())
+		},
+		Entry("current length but bad checksum", mutateAt(sampleToken, tokenLength-1)),
+		Entry("current length, all-'a' random segment", "bko_"+strings.Repeat("a", tokenLength-4)),
+		Entry("legacy length with uppercase", "BK_"+strings.Repeat("a", 29)),
+		Entry("legacy length with hyphen", "bk-"+strings.Repeat("a", 29)),
+		Entry("one char over current length", strings.Repeat("a", tokenLength+1)),
+		Entry("empty", ""),
+		Entry("garbage", "not-a-token"),
+		Entry("sql injection attempt", "'; DROP TABLE oauth_access_token; --"),
+	)
+})
+
+var _ = Describe("MaskToken", func() {
+	It("shows the full prefix plus the first characters of the random segment", func() {
+		Expect(MaskToken(sampleToken)).To(Equal("bko_Qw3r" + tokenMaskPlaceholder))
+	})
+
+	It("has a fixed length and never leaks the checksum", func() {
+		raw, err := GenerateRefreshToken()
+		Expect(err).NotTo(HaveOccurred())
+		parsed, err := parseToken(raw)
+		Expect(err).NotTo(HaveOccurred())
+
+		masked := MaskToken(raw)
+		Expect(masked).To(HaveLen(tokenMaskLength))
+		Expect(tokenMaskLength).To(Equal(14))
+		Expect(masked).NotTo(ContainSubstring(parsed.checksum))
+		Expect(masked).To(HaveSuffix(tokenMaskPlaceholder))
+	})
+
+	DescribeTable("falls back to the bare placeholder for unparsable input",
+		func(raw string) {
+			Expect(MaskToken(raw)).To(Equal(tokenMaskPlaceholder))
+		},
+		Entry("empty", ""),
+		Entry("legacy format", "bk_"+strings.Repeat("a", 29)),
+		Entry("tampered checksum", mutateAt(sampleToken, tokenLength-1)),
+	)
+})
+
+var _ = Describe("tokenChecksum", func() {
+	It("is deterministic", func() {
+		Expect(tokenChecksum(sampleTokenRandom)).To(Equal(tokenChecksum(sampleTokenRandom)))
+	})
+
+	It("changes when the random segment changes", func() {
+		Expect(tokenChecksum(sampleTokenRandom)).NotTo(Equal(tokenChecksum(mutateAt(sampleTokenRandom, 0))))
+	})
+
+	DescribeTable("pads to exactly tokenChecksumLength characters",
+		func(v uint32, expected string) {
+			encoded := encodeBase62(v)
+			Expect(encoded).To(HaveLen(tokenChecksumLength))
+			if expected != "" {
+				Expect(encoded).To(Equal(expected))
+			}
+		},
+		Entry("zero pads instead of collapsing to an empty string", uint32(0), "000000"),
+		Entry("one", uint32(1), "000001"),
+		Entry("base boundary", uint32(62), "000010"),
+		Entry("max uint32 still fits", uint32(math.MaxUint32), ""),
+	)
 })

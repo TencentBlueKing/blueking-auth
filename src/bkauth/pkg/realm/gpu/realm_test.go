@@ -18,10 +18,9 @@ var _ = Describe("gpuRealm", func() {
 	})
 	ctx := context.Background()
 
-	Describe("Name and TokenPrefix", func() {
-		It("should return correct values", func() {
+	Describe("Name", func() {
+		It("should return correct value", func() {
 			assert.Equal(GinkgoT(), "bk-gpu", r.Name())
-			assert.Equal(GinkgoT(), "bkgpu_", r.TokenPrefix())
 		})
 	})
 

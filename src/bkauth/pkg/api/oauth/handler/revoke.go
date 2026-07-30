@@ -55,6 +55,14 @@ func NewRevokeHandler() gin.HandlerFunc {
 
 		ctx := c.Request.Context()
 
+		// RFC 7009 requires the endpoint to answer 200 regardless of the token's
+		// state, so a malformed token is silently accepted as already-revoked.
+		// The guard exists only to keep garbage away from the cache and the DB.
+		if !oauth.IsAcceptedTokenFormat(req.Token) {
+			c.Status(http.StatusOK)
+			return
+		}
+
 		tokenHash := oauth.HashToken(req.Token)
 
 		tokenSvc := service.NewOAuthTokenService()

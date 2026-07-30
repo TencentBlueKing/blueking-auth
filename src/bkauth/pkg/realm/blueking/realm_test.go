@@ -20,10 +20,9 @@ var _ = Describe("bluekingRealm", func() {
 	})
 	ctx := context.Background()
 
-	Describe("Name and TokenPrefix", func() {
-		It("should return correct values", func() {
+	Describe("Name", func() {
+		It("should return correct value", func() {
 			assert.Equal(GinkgoT(), "blueking", r.Name())
-			assert.Equal(GinkgoT(), "bk_", r.TokenPrefix())
 		})
 	})
 

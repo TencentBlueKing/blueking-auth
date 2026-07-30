@@ -24,7 +24,6 @@ import "context"
 // Implementations live in pkg/realm/{name}/ and are registered at startup.
 type Realm interface {
 	Name() string
-	TokenPrefix() string
 
 	ValidateResource(ctx context.Context, resource string) error
 	ExtractAudiences(ctx context.Context, resource string) ([]string, error)
