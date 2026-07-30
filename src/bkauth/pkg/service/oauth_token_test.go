@@ -64,7 +64,6 @@ var _ = Describe("oauthTokenService", func() {
 
 	BeforeEach(func() {
 		policy = types.TokenIssuancePolicy{
-			Prefix:          "bk_",
 			AccessTokenTTL:  300,
 			RefreshTokenTTL: 3600,
 		}
@@ -90,10 +89,11 @@ var _ = Describe("oauthTokenService", func() {
 			)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(prepared.accessToken).To(HavePrefix(policy.Prefix))
-			Expect(prepared.refreshToken).To(HavePrefix(policy.Prefix))
-			Expect(prepared.accessToken).To(HaveLen(oauth.TokenLength))
-			Expect(prepared.refreshToken).To(HaveLen(oauth.TokenLength))
+			// Access and refresh tokens must be distinguishable by their type code.
+			Expect(prepared.accessToken).To(HavePrefix("bko_"))
+			Expect(prepared.refreshToken).To(HavePrefix("bkr_"))
+			Expect(oauth.IsAcceptedTokenFormat(prepared.accessToken)).To(BeTrue())
+			Expect(oauth.IsAcceptedTokenFormat(prepared.refreshToken)).To(BeTrue())
 			Expect(prepared.expiresIn).To(Equal(policy.AccessTokenTTL))
 
 			Expect(prepared.daoAccessToken.GrantID).To(Equal("grant-1"))
@@ -361,8 +361,8 @@ var _ = Describe("oauthTokenService", func() {
 			pair, err := svc.RefreshAccessToken(context.Background(), "blueking", "refresh-1", "client-1", policy)
 
 			Expect(err).NotTo(HaveOccurred())
-			Expect(pair.AccessToken).To(HavePrefix(policy.Prefix))
-			Expect(pair.RefreshToken).To(HavePrefix(policy.Prefix))
+			Expect(pair.AccessToken).To(HavePrefix("bko_"))
+			Expect(pair.RefreshToken).To(HavePrefix("bkr_"))
 			Expect(pair.ExpiresIn).To(Equal(policy.AccessTokenTTL))
 			Expect(dbMock.ExpectationsWereMet()).To(Succeed())
 		})
@@ -487,7 +487,6 @@ var _ = Describe("oauthTokenService.IssueTokensForAuthorizationCode", func() {
 			refreshTokenManager: mockRefreshManager,
 		}
 		policy = types.TokenIssuancePolicy{
-			Prefix:          "bk_",
 			AccessTokenTTL:  300,
 			RefreshTokenTTL: 3600,
 		}
@@ -532,8 +531,8 @@ var _ = Describe("oauthTokenService.IssueTokensForAuthorizationCode", func() {
 		)
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(pair.AccessToken).To(HavePrefix(policy.Prefix))
-		Expect(pair.RefreshToken).To(HavePrefix(policy.Prefix))
+		Expect(pair.AccessToken).To(HavePrefix("bko_"))
+		Expect(pair.RefreshToken).To(HavePrefix("bkr_"))
 		Expect(pair.ExpiresIn).To(Equal(policy.AccessTokenTTL))
 		Expect(dbMock.ExpectationsWereMet()).To(Succeed())
 	})
@@ -572,7 +571,6 @@ var _ = Describe("oauthTokenService.IssueTokensForDeviceCode", func() {
 			refreshTokenManager: mockRefreshManager,
 		}
 		policy = types.TokenIssuancePolicy{
-			Prefix:          "bk_",
 			AccessTokenTTL:  300,
 			RefreshTokenTTL: 3600,
 		}
@@ -617,8 +615,8 @@ var _ = Describe("oauthTokenService.IssueTokensForDeviceCode", func() {
 		)
 
 		Expect(err).NotTo(HaveOccurred())
-		Expect(pair.AccessToken).To(HavePrefix(policy.Prefix))
-		Expect(pair.RefreshToken).To(HavePrefix(policy.Prefix))
+		Expect(pair.AccessToken).To(HavePrefix("bko_"))
+		Expect(pair.RefreshToken).To(HavePrefix("bkr_"))
 		Expect(pair.ExpiresIn).To(Equal(policy.AccessTokenTTL))
 		Expect(dbMock.ExpectationsWereMet()).To(Succeed())
 	})

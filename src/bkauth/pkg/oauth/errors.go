@@ -150,6 +150,9 @@ var (
 	ErrRedirectURIMismatch      = errors.New("redirect uri mismatch")
 )
 
+// Token character format errors
+var ErrInvalidTokenFormat = errors.New("invalid token format")
+
 // Access token errors
 var (
 	ErrInvalidAccessToken = errors.New("invalid access token")

@@ -18,10 +18,9 @@ var _ = Describe("devopsRealm", func() {
 	})
 	ctx := context.Background()
 
-	Describe("Name and TokenPrefix", func() {
-		It("should return correct values", func() {
+	Describe("Name", func() {
+		It("should return correct value", func() {
 			assert.Equal(GinkgoT(), "bk-devops", r.Name())
-			assert.Equal(GinkgoT(), "bkci_", r.TokenPrefix())
 		})
 	})
 

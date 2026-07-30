@@ -104,7 +104,7 @@ func (s *oauthTokenService) prepareTokenPair(
 ) (preparedTokenPair, error) {
 	now := time.Now()
 
-	accessToken, err := oauth.GenerateToken(policy.Prefix)
+	accessToken, err := oauth.GenerateAccessToken()
 	if err != nil {
 		return preparedTokenPair{}, err
 	}
@@ -116,7 +116,7 @@ func (s *oauthTokenService) prepareTokenPair(
 		return preparedTokenPair{}, err
 	}
 
-	refreshToken, err := oauth.GenerateToken(policy.Prefix)
+	refreshToken, err := oauth.GenerateRefreshToken()
 	if err != nil {
 		return preparedTokenPair{}, err
 	}

@@ -51,8 +51,7 @@ func New() oauth.Realm {
 	return &gpuRealm{}
 }
 
-func (r *gpuRealm) Name() string        { return Name }
-func (r *gpuRealm) TokenPrefix() string { return "bkgpu_" }
+func (r *gpuRealm) Name() string { return Name }
 
 func (r *gpuRealm) ValidateResource(_ context.Context, resource string) error {
 	if resource != validResource {

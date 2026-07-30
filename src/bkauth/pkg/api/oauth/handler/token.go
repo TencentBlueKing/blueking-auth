@@ -107,7 +107,6 @@ func resolveTokenIssuancePolicy(c *gin.Context, cfg *config.Config) types.TokenI
 	clientID := util.GetClientID(c)
 	accessTokenTTL, refreshTokenTTL := cfg.OAuth.ResolveTokenTTL(realmName, clientID)
 	return types.TokenIssuancePolicy{
-		Prefix:          oauth.GetRealm(realmName).TokenPrefix(),
 		AccessTokenTTL:  accessTokenTTL,
 		RefreshTokenTTL: refreshTokenTTL,
 	}
@@ -176,6 +175,13 @@ func handleRefreshTokenGrant(c *gin.Context, cfg *config.Config, req TokenReques
 	realmName := util.GetRealmName(c)
 	if req.RefreshToken == "" {
 		c.JSON(http.StatusBadRequest, oauth.NewInvalidRequestError("refresh_token is required"))
+		return
+	}
+
+	// A token that cannot have been issued by us is an invalid grant, which is
+	// what a lookup miss would report anyway — the guard just skips the lookup.
+	if !oauth.IsAcceptedTokenFormat(req.RefreshToken) {
+		c.JSON(http.StatusBadRequest, oauth.NewInvalidGrantError("Invalid refresh token"))
 		return
 	}
 

@@ -131,8 +131,9 @@ func (t ResolvedAccessToken) IsActive() bool {
 }
 
 // TokenIssuancePolicy holds the realm-specific parameters that govern token generation.
+// The token character format is realm-independent and owned by pkg/oauth,
+// so only lifetimes are carried here.
 type TokenIssuancePolicy struct {
-	Prefix          string
 	AccessTokenTTL  int64
 	RefreshTokenTTL int64
 }
