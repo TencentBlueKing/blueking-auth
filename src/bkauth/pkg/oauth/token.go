@@ -85,6 +85,14 @@ const (
 	// leaked long-lived token would be attributed to the wrong family. Codes are
 	// registered here even before the corresponding feature ships, so that a
 	// token minted by a later version parses correctly on an older one.
+	//
+	// The code is not integrity-protected: the checksum spans the random segment
+	// alone, so editing the code in a genuine token leaves the checksum valid
+	// and parseToken still accepts the result. It therefore identifies the
+	// family of tokens that were actually issued and left untouched — useful for
+	// attribution and for routing a lookup — and must never gate a security
+	// decision on its own. The hash lookup remains the only authority on what a
+	// token really is.
 	tokenTypeCodeAccess   = 'o' // OAuth access token
 	tokenTypeCodeRefresh  = 'r' // OAuth refresh token
 	tokenTypeCodePersonal = 'p' // personal access token, not issued yet
