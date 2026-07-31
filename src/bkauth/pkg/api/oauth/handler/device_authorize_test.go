@@ -62,7 +62,7 @@ var _ = Describe("DeviceAuthorizeRequest.Validate", func() {
 
 		validReq = DeviceAuthorizeRequest{
 			ClientID: clientID,
-			Resource: "gateway:bk-paas:api:get_users",
+			Resource: "gateway:bk-paas/api:get_users",
 		}
 	})
 

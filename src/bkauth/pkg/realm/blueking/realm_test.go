@@ -32,7 +32,7 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should accept valid gateway resource", func() {
-			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "gateway:gw:api:get_host"))
+			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "gateway:gw/api:get_host"))
 		})
 
 		It("should accept URL format", func() {
@@ -40,7 +40,7 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should accept mixed resources", func() {
-			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "mcp:s1,gateway:gw:api:*"))
+			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "mcp:s1,gateway:gw/api:*"))
 		})
 
 		It("should error on empty input", func() {
@@ -54,6 +54,10 @@ var _ = Describe("bluekingRealm", func() {
 		It("should error on gateway without API segment", func() {
 			assert.Error(GinkgoT(), r.ValidateResource(ctx, "gateway:gw"))
 		})
+
+		It("should error on legacy colon-separated API segment", func() {
+			assert.Error(GinkgoT(), r.ValidateResource(ctx, "gateway:gw:api:get_host"))
+		})
 	})
 
 	Describe("ExtractAudiences", func() {
@@ -65,7 +69,7 @@ var _ = Describe("bluekingRealm", func() {
 
 		It("should dedup gateway audiences", func() {
 			aud, err := r.ExtractAudiences(ctx,
-				"gateway:gw:api:a1,gateway:gw:api:a2,gateway:gw:api:*",
+				"gateway:gw/api:a1,gateway:gw/api:a2,gateway:gw/api:*",
 			)
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []string{"gateway:gw"}, aud)
@@ -73,7 +77,7 @@ var _ = Describe("bluekingRealm", func() {
 
 		It("should handle mixed types", func() {
 			aud, err := r.ExtractAudiences(ctx,
-				"mcp:s1,gateway:gw1:api:*,mcp:s2,gateway:gw2:api:a1",
+				"mcp:s1,gateway:gw1/api:*,mcp:s2,gateway:gw2/api:a1",
 			)
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []string{"mcp:s1", "gateway:gw1", "mcp:s2", "gateway:gw2"}, aud)
@@ -109,7 +113,7 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should parse gateway with wildcard API", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "gateway:bk-apigateway-a:api:*")
+			display, err := r.ResolveResourceDisplay(ctx, "gateway:bk-apigateway-a/api:*")
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
@@ -123,7 +127,7 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should parse gateway with specific APIs", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "gateway:gw1:api:get_host,gateway:gw1:api:get_app")
+			display, err := r.ResolveResourceDisplay(ctx, "gateway:gw1/api:get_host,gateway:gw1/api:get_app")
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
@@ -135,7 +139,7 @@ var _ = Describe("bluekingRealm", func() {
 
 		It("should let wildcard override specific APIs", func() {
 			display, err := r.ResolveResourceDisplay(ctx,
-				"gateway:gw1:api:get_host,gateway:gw1:api:*,gateway:gw1:api:get_app",
+				"gateway:gw1/api:get_host,gateway:gw1/api:*,gateway:gw1/api:get_app",
 			)
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
@@ -146,7 +150,7 @@ var _ = Describe("bluekingRealm", func() {
 
 		It("should handle mixed MCP and gateway types", func() {
 			display, err := r.ResolveResourceDisplay(ctx,
-				"mcp:s1,gateway:gw1:api:*,mcp:s2,gateway:gw2:api:a1,gateway:gw2:api:a2",
+				"mcp:s1,gateway:gw1/api:*,mcp:s2,gateway:gw2/api:a1,gateway:gw2/api:a2",
 			)
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
@@ -175,7 +179,7 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should dedup duplicate gateway APIs within same gateway", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "gateway:gw:api:a1,gateway:gw:api:a1")
+			display, err := r.ResolveResourceDisplay(ctx, "gateway:gw/api:a1,gateway:gw/api:a1")
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			assert.Len(GinkgoT(), groups[0].Items[0].Items, 1)
@@ -271,7 +275,7 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should not call BatchQueryTitles when only gateway resources present", func() {
-			display, err := realm.ResolveResourceDisplay(ctx, "gateway:gw:api:*")
+			display, err := realm.ResolveResourceDisplay(ctx, "gateway:gw/api:*")
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
@@ -283,7 +287,7 @@ var _ = Describe("bluekingRealm", func() {
 				map[string]string{"s1": "Server One"}, nil,
 			)
 
-			display, err := realm.ResolveResourceDisplay(ctx, "mcp:s1,gateway:gw:api:get_host")
+			display, err := realm.ResolveResourceDisplay(ctx, "mcp:s1,gateway:gw/api:get_host")
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 2)

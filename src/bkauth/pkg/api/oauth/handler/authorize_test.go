@@ -65,7 +65,7 @@ var _ = Describe("AuthorizeRequest.Validate", func() {
 			State:               "random-state",
 			CodeChallenge:       "challenge123",
 			CodeChallengeMethod: oauth.CodeChallengeMethodS256,
-			Resource:            "gateway:bk-paas:api:get_users",
+			Resource:            "gateway:bk-paas/api:get_users",
 		}
 	})
 
