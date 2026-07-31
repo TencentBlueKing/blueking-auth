@@ -90,15 +90,11 @@ func parseBluekingResource(item string) (resType, name, apiName string, err erro
 		return "mcp", n, "", nil
 	}
 
-	if strings.HasPrefix(item, "gateway:") {
-		rest := strings.TrimPrefix(item, "gateway:")
-		apiIdx := strings.Index(rest, ":api:")
-		if apiIdx < 0 {
-			return "", "", "", fmt.Errorf("invalid resource: gateway item must contain :api: segment in %q", item)
+	if rest, ok := strings.CutPrefix(item, "gateway:"); ok {
+		gwName, api, found := strings.Cut(rest, "/api:")
+		if !found {
+			return "", "", "", fmt.Errorf("invalid resource: gateway item must contain /api: segment in %q", item)
 		}
-		gwName := rest[:apiIdx]
-		// len(":api:") == 5
-		api := rest[apiIdx+5:]
 		if gwName == "" {
 			return "", "", "", fmt.Errorf("invalid resource: empty gateway name in %q", item)
 		}
