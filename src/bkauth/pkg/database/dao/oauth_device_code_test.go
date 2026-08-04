@@ -169,8 +169,13 @@ func Test_oauthDeviceCodeManager_Approve(t *testing.T) {
 
 func Test_oauthDeviceCodeManager_ConsumeApproved(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		mock.ExpectExec(`^UPDATE oauth_device_code`).
-			WithArgs("device123", "client1").
+		// The expiry threshold is bound as a parameter rather than evaluated by the DB,
+		// so it must reach the driver as an argument; its value comes from the wall clock
+		// and cannot be pinned from here.
+		mock.ExpectExec(
+			`WHERE device_code = \? AND client_id = \? AND status = 'approved' AND expires_at > \?$`,
+		).
+			WithArgs("device123", "client1", sqlmock.AnyArg()).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
 		manager := &oauthDeviceCodeManager{DB: db}
@@ -181,10 +186,26 @@ func Test_oauthDeviceCodeManager_ConsumeApproved(t *testing.T) {
 	})
 }
 
+// The expiry guard lives in the WHERE clause, so a code whose expires_at has passed
+// simply matches no row. The caller distinguishes that case by rowsAffected == 0.
+func Test_oauthDeviceCodeManager_ConsumeApproved_Expired(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		mock.ExpectExec(`^UPDATE oauth_device_code`).
+			WithArgs("device123", "client1", sqlmock.AnyArg()).
+			WillReturnResult(sqlmock.NewResult(0, 0))
+
+		manager := &oauthDeviceCodeManager{DB: db}
+		affected, err := manager.ConsumeApproved(context.Background(), "device123", "client1")
+
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), affected)
+	})
+}
+
 func Test_oauthDeviceCodeManager_UpdateLastPolledAt(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		mock.ExpectExec(`^UPDATE oauth_device_code SET last_polled_at = NOW\(\) WHERE id = \?$`).
-			WithArgs(int64(1)).
+		mock.ExpectExec(`^UPDATE oauth_device_code SET last_polled_at = \? WHERE id = \?$`).
+			WithArgs(sqlmock.AnyArg(), int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
 		manager := &oauthDeviceCodeManager{DB: db}
@@ -197,8 +218,10 @@ func Test_oauthDeviceCodeManager_UpdateLastPolledAt(t *testing.T) {
 
 func Test_oauthDeviceCodeManager_SlowDown(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		mock.ExpectExec(`^UPDATE oauth_device_code SET poll_interval = poll_interval \+ \?, last_polled_at = NOW\(\) WHERE id = \?$`).
-			WithArgs(int64(5), int64(1)).
+		mock.ExpectExec(
+			`^UPDATE oauth_device_code SET poll_interval = poll_interval \+ \?, last_polled_at = \? WHERE id = \?$`,
+		).
+			WithArgs(int64(5), sqlmock.AnyArg(), int64(1)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
 		manager := &oauthDeviceCodeManager{DB: db}

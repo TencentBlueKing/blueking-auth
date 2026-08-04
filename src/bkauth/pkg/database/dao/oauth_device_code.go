@@ -196,11 +196,19 @@ func (m *oauthDeviceCodeManager) Approve(
 	return result.RowsAffected()
 }
 
+// The three methods below bind a Go-side instant instead of using the SQL NOW().
+// NOW() renders the session time zone, while these columns are DATETIME holding a UTC
+// wall clock, so the two are only comparable when the session happens to be UTC. Under
+// a non-UTC session the expiry guard in ConsumeApproved would be off by the zone offset
+// and let expired device codes through, and last_polled_at would be persisted shifted,
+// breaking the rate check on the next poll. The driver converts every bound time.Time
+// to UTC before serialising it, so binding the value removes the session dependency.
+
 func (m *oauthDeviceCodeManager) ConsumeApproved(ctx context.Context, deviceCode, clientID string) (int64, error) {
 	query := `UPDATE oauth_device_code
 	SET status = 'consumed'
-	WHERE device_code = ? AND client_id = ? AND status = 'approved' AND expires_at > NOW()`
-	result, err := m.DB.ExecContext(ctx, query, deviceCode, clientID)
+	WHERE device_code = ? AND client_id = ? AND status = 'approved' AND expires_at > ?`
+	result, err := m.DB.ExecContext(ctx, query, deviceCode, clientID, time.Now().UTC())
 	if err != nil {
 		return 0, err
 	}
@@ -208,8 +216,8 @@ func (m *oauthDeviceCodeManager) ConsumeApproved(ctx context.Context, deviceCode
 }
 
 func (m *oauthDeviceCodeManager) UpdateLastPolledAt(ctx context.Context, id int64) (int64, error) {
-	query := `UPDATE oauth_device_code SET last_polled_at = NOW() WHERE id = ?`
-	result, err := m.DB.ExecContext(ctx, query, id)
+	query := `UPDATE oauth_device_code SET last_polled_at = ? WHERE id = ?`
+	result, err := m.DB.ExecContext(ctx, query, time.Now().UTC(), id)
 	if err != nil {
 		return 0, err
 	}
@@ -217,8 +225,8 @@ func (m *oauthDeviceCodeManager) UpdateLastPolledAt(ctx context.Context, id int6
 }
 
 func (m *oauthDeviceCodeManager) SlowDown(ctx context.Context, id int64, increment int64) (int64, error) {
-	query := `UPDATE oauth_device_code SET poll_interval = poll_interval + ?, last_polled_at = NOW() WHERE id = ?`
-	result, err := m.DB.ExecContext(ctx, query, increment, id)
+	query := `UPDATE oauth_device_code SET poll_interval = poll_interval + ?, last_polled_at = ? WHERE id = ?`
+	result, err := m.DB.ExecContext(ctx, query, increment, time.Now().UTC(), id)
 	if err != nil {
 		return 0, err
 	}
