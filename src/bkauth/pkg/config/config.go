@@ -29,7 +29,7 @@ const (
 	defaultRefreshTokenTTL int64 = 2592000 // 30 days
 
 	defaultPersonalTokenDefaultTTL       int64 = 7776000  // 90 days
-	defaultPersonalTokenMaxTTL           int64 = 31536000  // 365 days
+	defaultPersonalTokenMaxTTL           int64 = 94608000 // 3 years
 	defaultPersonalTokenMaxActivePerUser       = 20
 )
 
