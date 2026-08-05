@@ -314,26 +314,26 @@ onMounted(fetchList);
   font-size: 12px;
   line-height: 20px;
   border-radius: 2px;
+}
 
-  &--normal {
-    color: #14a568;
-    background: #e4faf0;
-  }
+:deep(.pt-status--normal) {
+  color: #14a568;
+  background: #e4faf0;
+}
 
-  &--expiring {
-    color: #ff9c01;
-    background: #fff3e1;
-  }
+:deep(.pt-status--expiring) {
+  color: #ff9c01;
+  background: #fff3e1;
+}
 
-  &--expired {
-    color: #ea3636;
-    background: #ffe6e6;
-  }
+:deep(.pt-status--expired) {
+  color: #ea3636;
+  background: #ffe6e6;
+}
 
-  &--revoked {
-    color: #979ba5;
-    background: #f0f1f5;
-  }
+:deep(.pt-status--revoked) {
+  color: #979ba5;
+  background: #f0f1f5;
 }
 
 :deep(.pt-op-group) {
@@ -344,10 +344,10 @@ onMounted(fetchList);
 :deep(.pt-op) {
   color: #3a84ff;
   cursor: pointer;
+}
 
-  &--disabled {
-    color: #c4c6cc;
-    cursor: not-allowed;
-  }
+:deep(.pt-op--disabled) {
+  color: #c4c6cc;
+  cursor: not-allowed;
 }
 </style>
