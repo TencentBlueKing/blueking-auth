@@ -39,14 +39,15 @@ var (
 	// reservedAppCodes lists base words that must not appear as an
 	// app_code (exact match) or as the start of an app_code followed by '_' or '-'.
 	//
-	//   "public"  – used as PublicAppCode for dcr / cimd
-	//   "private" – personal token
-	//   "dcr"     – dynamic client registration prefix
-	//   "cimd"    – reserved for future Client Instance Metadata Document functionality
-	reservedAppCodes = []string{"public", "private", "dcr", "cimd"}
+	//   "public"   – used as PublicAppCode for dcr / cimd
+	//   "private"  – reserved
+	//   "personal" – used as PersonalAppCode for personal access tokens
+	//   "dcr"      – dynamic client registration prefix
+	//   "cimd"     – reserved for future Client Instance Metadata Document functionality
+	reservedAppCodes = []string{"public", "private", "personal", "dcr", "cimd"}
 
 	ErrReservedAppCode = errors.New(
-		"app_code must not start with 'public', 'private', 'dcr', or 'cimd' " +
+		"app_code must not start with 'public', 'private', 'personal', 'dcr', or 'cimd' " +
 			"(including forms like 'public_xxx', 'dcr-xxx'); " +
 			"these prefixes are reserved for internal use",
 	)

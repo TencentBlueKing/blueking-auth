@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -18,29 +18,8 @@
 
 package fixture
 
-import (
-	"go.uber.org/zap"
+import "bkauth/pkg/oauth"
 
-	"bkauth/pkg/config"
-	"bkauth/pkg/util"
-)
-
-func InitFixture(cfg *config.Config) {
-	var tenantMode, tenantID string
-	if cfg.EnableMultiTenantMode {
-		tenantMode = util.TenantModeGlobal
-		tenantID = ""
-		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=global, tenantID={empty}")
-	} else {
-		tenantMode = util.TenantModeSingle
-		tenantID = util.TenantIDDefault
-		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=single, tenantID=default")
-	}
-
-	for appCode, appSecret := range cfg.AccessKeys {
-		createAccessKey(appCode, appSecret, tenantMode, tenantID)
-	}
-
-	ensurePublicApp(tenantMode, tenantID)
-	ensurePersonalApp(tenantMode, tenantID)
+func ensurePersonalApp(tenantMode, tenantID string) {
+	ensureReservedApp(oauth.PersonalAppCode, "reserved for personal access tokens", tenantMode, tenantID)
 }

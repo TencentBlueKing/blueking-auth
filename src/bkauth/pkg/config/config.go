@@ -27,6 +27,10 @@ import (
 const (
 	defaultAccessTokenTTL  int64 = 7200    // 2 hours
 	defaultRefreshTokenTTL int64 = 2592000 // 30 days
+
+	defaultPersonalTokenDefaultTTL       int64 = 7776000  // 90 days
+	defaultPersonalTokenMaxTTL           int64 = 31536000  // 365 days
+	defaultPersonalTokenMaxActivePerUser       = 20
 )
 
 // Server ...
@@ -200,6 +204,21 @@ type IntrospectAllowedAppCode struct {
 	AppCode   string
 }
 
+// PersonalToken holds the policy knobs for personal access tokens (PAT).
+//
+// This phase does not gate the feature by realm on the backend: which realm the
+// PAT management API is used from is constrained purely by the frontend routing,
+// and the selectable-resource catalog is hardcoded in the frontend. Only the
+// numeric policy knobs below stay in config.
+type PersonalToken struct {
+	// DefaultTTL is preselected in the UI; MaxTTL caps both creation and renewal.
+	// Both are seconds.
+	DefaultTTL int64
+	MaxTTL     int64
+	// MaxActivePerUser bounds active tokens per (realm, sub).
+	MaxActivePerUser int
+}
+
 // OAuth holds OAuth 2.0 protocol-specific configuration.
 type OAuth struct {
 	// AccessTokenTTL is the lifetime of access token in seconds (default: 7200)
@@ -321,7 +340,8 @@ type Config struct {
 	BKLoginTokenName     string
 	BKLoginAPIViaGateway bool
 
-	OAuth OAuth
+	OAuth         OAuth
+	PersonalToken PersonalToken
 }
 
 // Load 从 viper 中读取配置文件
@@ -376,6 +396,18 @@ func Load(v *viper.Viper) (*Config, error) {
 	)
 	for _, entry := range cfg.OAuth.IntrospectAllowedAppCodes {
 		cfg.OAuth.introspectAllowedMap[entry] = struct{}{}
+	}
+
+	// 8. PersonalToken numeric-policy defaults. Feature enablement and the resource
+	// catalog are hardcoded (not config), so nothing about them is defaulted here.
+	if cfg.PersonalToken.DefaultTTL == 0 {
+		cfg.PersonalToken.DefaultTTL = defaultPersonalTokenDefaultTTL
+	}
+	if cfg.PersonalToken.MaxTTL == 0 {
+		cfg.PersonalToken.MaxTTL = defaultPersonalTokenMaxTTL
+	}
+	if cfg.PersonalToken.MaxActivePerUser == 0 {
+		cfg.PersonalToken.MaxActivePerUser = defaultPersonalTokenMaxActivePerUser
 	}
 
 	return &cfg, nil

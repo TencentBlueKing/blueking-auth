@@ -20,6 +20,19 @@ const routes: RouteRecordRaw[] = [
     name: 'DeviceAuthorize',
     component: () => import('@/views/device/Index.vue'),
   },
+  {
+    // Realm-scoped, mirroring the backend API (/realms/:realm_name/personal-tokens).
+    // Different realms are different URLs; the page reads the realm from the route.
+    path: '/realms/:realm/personal-tokens',
+    component: () => import('@/views/personal-token/Layout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'PersonalTokenList',
+        component: () => import('@/views/personal-token/List.vue'),
+      },
+    ],
+  },
   // {
   //   path: '/,
   //   name: '404',

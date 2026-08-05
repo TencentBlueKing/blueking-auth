@@ -31,11 +31,12 @@ const CacheLayer = "Cache"
 var (
 	LocalAccessAppCache memory.Cache
 
-	AppExistsCache   *redis.Cache
-	AppCache         *redis.Cache
-	AccessKeysCache  *redis.Cache
-	ConsentCache     *redis.Cache
-	AccessTokenCache *redis.Cache
+	AppExistsCache           *redis.Cache
+	AppCache                 *redis.Cache
+	AccessKeysCache          *redis.Cache
+	ConsentCache             *redis.Cache
+	AccessTokenCache         *redis.Cache
+	PersonalAccessTokenCache *redis.Cache
 )
 
 // InitCaches : Cache should only know about get/retrieve data
@@ -79,5 +80,14 @@ func InitCaches(disabled bool) {
 		// oct = oauth access token
 		"oct",
 		5*time.Minute,
+	)
+
+	PersonalAccessTokenCache = redis.NewCache(
+		bkauthredis.GetDefaultRedisClient(),
+		// pat = personal access token
+		"pat",
+		// 60s, deliberately much shorter than oct's 5min: a PAT is mutable, so a
+		// short TTL is the backstop behind active invalidation.
+		60*time.Second,
 	)
 }
