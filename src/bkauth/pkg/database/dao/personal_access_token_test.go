@@ -1,0 +1,117 @@
+/*
+ * TencentBlueKing is pleased to support the open source community by making
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
+ * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ *     http://opensource.org/licenses/MIT
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * We undertake not to change the open source license (MIT license) applicable
+ * to the current version of the project delivered to anyone in the future.
+ */
+
+package dao
+
+import (
+	"context"
+	"database/sql"
+	"testing"
+	"time"
+
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
+
+	"bkauth/pkg/database"
+)
+
+// The regexes below deliberately assert the two security-critical WHERE terms —
+// `sub = ...` (ownership) and `revoked = 0` (terminal-state guard) — are present.
+// These are safety assertions, not incidental coverage: dropping either turns a
+// write into a privilege-escalation or a resurrect-a-revoked-token bug.
+
+func Test_personalAccessTokenManager_Revoke(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		query := `UPDATE personal_access_token SET revoked = 1, revoked_at = .+ ` +
+			`WHERE id = .+ AND sub = .+ AND realm_name = .+ AND revoked = 0`
+		mock.ExpectExec(query).
+			WithArgs(sqlmock.AnyArg(), int64(1), "u-1", "blueking").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		manager := &personalAccessTokenManager{DB: db}
+		rows, err := manager.Revoke(context.Background(), "blueking", 1, "u-1")
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), rows)
+	})
+}
+
+func Test_personalAccessTokenManager_Renew(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		// Note: no `expires_at > NOW()` guard — resurrecting an expired token via
+		// renewal is confirmed product behaviour.
+		query := `UPDATE personal_access_token SET expires_at = .+ ` +
+			`WHERE id = .+ AND sub = .+ AND realm_name = .+ AND revoked = 0`
+		mock.ExpectExec(query).
+			WithArgs(sqlmock.AnyArg(), int64(1), "u-1", "blueking").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		manager := &personalAccessTokenManager{DB: db}
+		rows, err := manager.Renew(context.Background(), "blueking", 1, "u-1", time.Now().UTC())
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), rows)
+	})
+}
+
+func Test_personalAccessTokenManager_UpdateByIDAndSub(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		query := `UPDATE personal_access_token SET name = .+, description = .+, audience = .+ ` +
+			`WHERE id = .+ AND sub = .+ AND realm_name = .+ AND revoked = 0`
+		mock.ExpectExec(query).
+			WithArgs("ci", "desc", `["mcp:demo"]`, int64(1), "u-1", "blueking").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		manager := &personalAccessTokenManager{DB: db}
+		rows, err := manager.UpdateByIDAndSub(
+			context.Background(), "blueking", 1, "u-1", "ci", "desc", `["mcp:demo"]`,
+		)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), rows)
+	})
+}
+
+func Test_personalAccessTokenManager_CountActiveByOwner(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		query := `SELECT COUNT\(\*\) FROM personal_access_token ` +
+			`WHERE realm_name = .+ AND sub = .+ AND revoked = 0 AND expires_at > .+`
+		mock.ExpectQuery(query).
+			WithArgs("blueking", "u-1", sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
+
+		manager := &personalAccessTokenManager{DB: db}
+		total, err := manager.CountActiveByOwner(context.Background(), "blueking", "u-1")
+		assert.NoError(t, err)
+		assert.Equal(t, 3, total)
+	})
+}
+
+func Test_personalAccessTokenManager_GetByTokenHash_NoRows(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		query := `SELECT .+ FROM personal_access_token WHERE token_hash = .+ LIMIT 1`
+		mock.ExpectQuery(query).
+			WithArgs("missing").
+			WillReturnError(sql.ErrNoRows)
+
+		manager := &personalAccessTokenManager{DB: db}
+		token, err := manager.GetByTokenHash(context.Background(), "missing")
+		// A miss must collapse to a zero-value struct, not an error, so it stays
+		// cacheable as a negative entry.
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), token.ID)
+	})
+}

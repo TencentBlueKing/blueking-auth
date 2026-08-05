@@ -21,8 +21,10 @@ package web
 import (
 	"github.com/gin-gonic/gin"
 
+	apioauth "bkauth/pkg/api/oauth"
 	"bkauth/pkg/api/web/handler"
 	"bkauth/pkg/config"
+	"bkauth/pkg/middleware"
 )
 
 // Register registers web frontend API routes.
@@ -43,5 +45,27 @@ func Register(cfg *config.Config, r *gin.RouterGroup) {
 		oauthGroup.POST("/consent", handler.NewConsentConfirmHandler(cfg))
 		oauthGroup.POST("/device/verify", handler.NewDeviceVerifyHandler(cfg))
 		oauthGroup.POST("/device/confirm", handler.NewDeviceConfirmHandler(cfg))
+	}
+
+	// Personal Access Token management, scoped per realm.
+	//   - apioauth.RealmMiddleware reuses the same realm-validity check as the
+	//     OAuth endpoints and stores the realm name into the context.
+	//   - CSRFProtection + JSON-only binding are the two minimum CSRF defences
+	//     (design 6.2): creating a PAT is a persistent-backdoor-grade operation.
+	//   - AuditLogger records the full request body of create/edit/renew/revoke.
+	//     The plaintext appears only in the RESPONSE, not the request body, so it
+	//     never reaches this middleware; do NOT add response-body logging to web
+	//     routes for troubleshooting (that would leak the plaintext — design 13.1.1).
+	patGroup := r.Group("/realms/:realm_name/personal-tokens")
+	patGroup.Use(apioauth.RealmMiddleware())
+	patGroup.Use(CSRFProtection(cfg))
+	patGroup.Use(middleware.AuditLogger())
+	{
+		patGroup.GET("", handler.NewListPersonalTokenHandler(cfg))
+		patGroup.POST("", handler.NewCreatePersonalTokenHandler(cfg))
+		patGroup.GET("/:id", handler.NewGetPersonalTokenHandler(cfg))
+		patGroup.PUT("/:id", handler.NewUpdatePersonalTokenHandler(cfg))
+		patGroup.POST("/:id/renew", handler.NewRenewPersonalTokenHandler(cfg))
+		patGroup.POST("/:id/revoke", handler.NewRevokePersonalTokenHandler(cfg))
 	}
 }

@@ -64,7 +64,7 @@ const redirectLogin = (loginUrl: string) => {
 export default (interceptors: AxiosInterceptorManager<AxiosResponse>) => {
   interceptors.use(
     (response: AxiosResponse) => {
-      if (['application/octet-stream'].includes(response.headers['content-type'])) {
+      if (['application/octet-stream'].includes(String(response.headers['content-type']))) {
         downloadFile(response);
         return response.data;
       }

@@ -44,7 +44,7 @@
               <span
                 v-else
                 class="logo-letter"
-              >{{ (consentInfo?.client_name || '?')[0].toUpperCase() }}</span>
+              >{{ (consentInfo?.client_name || '?').charAt(0).toUpperCase() }}</span>
             </div>
             <div class="subject-name">
               {{ consentInfo?.client_name || '--' }}
