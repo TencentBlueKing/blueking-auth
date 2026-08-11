@@ -34,10 +34,12 @@ import (
 )
 
 const (
-	bkTokenGatewaySVC        = "bklogin.BKTokenGatewayVerifier"
-	bkTokenGatewayName       = "bk-login"
-	bkTokenGatewayStage      = "prod"
-	bkTokenGatewayVerifyPath = "login/api/v3/open/bk-tokens/verify/"
+	bkTokenGatewaySVC   = "bklogin.BKTokenGatewayVerifier"
+	bkTokenGatewayName  = "bk-login"
+	bkTokenGatewayStage = "prod"
+	// userinfo returns login_name/display_name in addition to bk_username/tenant_id, while the
+	// sibling verify endpoint only returns bk_username/tenant_id.
+	bkTokenGatewayUserInfoPath = "login/api/v3/open/bk-tokens/userinfo/"
 )
 
 type bkGatewayResponse struct {
@@ -76,7 +78,7 @@ func (v *BKTokenGatewayVerifier) Verify(ctx context.Context, token string) (Veri
 	logger := logging.GetWebLogger()
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(bkTokenGatewaySVC, "")
 
-	api := util.URLJoin(v.baseURL, bkTokenGatewayVerifyPath)
+	api := util.URLJoin(v.baseURL, bkTokenGatewayUserInfoPath)
 	checkURL := util.URLSetQuery(api, url.Values{"bk_token": {token}})
 
 	tokenPreview := token
@@ -157,21 +159,23 @@ func (v *BKTokenGatewayVerifier) Verify(ctx context.Context, token string) (Veri
 		return VerifyResult{Message: "empty bk_username in login response"}, nil
 	}
 
-	if gatewayResp.Data.LoginName == "" {
-		logger.Warn("gateway verify: empty login_name in response")
-		return VerifyResult{Message: "empty login_name in login response"}, nil
+	// bk_username is the stable identity, login_name is only a human-readable alias, so an
+	// absent login_name must not fail the login.
+	username := gatewayResp.Data.LoginName
+	if username == "" {
+		username = gatewayResp.Data.BKUsername
 	}
 
 	logger.Info("gateway verify: login verified successfully",
 		zap.String("sub", gatewayResp.Data.BKUsername),
-		zap.String("username", gatewayResp.Data.LoginName),
+		zap.String("username", username),
 		zap.String("tenant_id", gatewayResp.Data.TenantID),
 	)
 
 	return VerifyResult{
 		Success:  true,
 		Sub:      gatewayResp.Data.BKUsername,
-		Username: gatewayResp.Data.LoginName,
+		Username: username,
 		TenantID: gatewayResp.Data.TenantID,
 	}, nil
 }
