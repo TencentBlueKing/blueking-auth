@@ -28,35 +28,40 @@ import (
 )
 
 var _ = Describe("BKTokenGatewayVerifier", func() {
-	It("should map bk_username to sub and login_name to username", func() {
+	newVerifier := func(body string) *BKTokenGatewayVerifier {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			Expect(r.URL.Path).To(HaveSuffix("/login/api/v3/open/bk-tokens/userinfo/"))
 			Expect(r.URL.Query().Get("bk_token")).To(Equal("token-1"))
 			Expect(r.Header.Get("X-Bk-Tenant-Id")).To(Equal("system"))
 
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{
-				"data": {
-					"bk_username": "nteuuhzxlh0jcanw",
-					"tenant_id": "system",
-					"login_name": "admin",
-					"display_name": "admin",
-					"language": "zh-cn",
-					"time_zone": "Asia/Shanghai"
-				}
-			}`))
+			_, _ = w.Write([]byte(body))
 		}))
-		defer server.Close()
 
 		oldHTTPClient := defaultHTTPClient
 		defaultHTTPClient = server.Client()
 		DeferCleanup(func() {
 			defaultHTTPClient = oldHTTPClient
+			server.Close()
 		})
 
-		verifier := &BKTokenGatewayVerifier{
+		return &BKTokenGatewayVerifier{
 			baseURL:         server.URL,
 			authCredentials: `{"bk_app_code":"app","bk_app_secret":"secret"}`,
 		}
+	}
+
+	It("should map bk_username to sub and login_name to username", func() {
+		verifier := newVerifier(`{
+			"data": {
+				"bk_username": "nteuuhzxlh0jcanw",
+				"tenant_id": "system",
+				"login_name": "admin",
+				"display_name": "admin",
+				"language": "zh-cn",
+				"time_zone": "Asia/Shanghai"
+			}
+		}`)
 
 		result, err := verifier.Verify(context.Background(), "token-1")
 		Expect(err).NotTo(HaveOccurred())
@@ -64,5 +69,30 @@ var _ = Describe("BKTokenGatewayVerifier", func() {
 		Expect(result.Sub).To(Equal("nteuuhzxlh0jcanw"))
 		Expect(result.Username).To(Equal("admin"))
 		Expect(result.TenantID).To(Equal("system"))
+	})
+
+	It("should fall back to bk_username when login_name is absent", func() {
+		verifier := newVerifier(`{
+			"data": {
+				"bk_username": "nteuuhzxlh0jcanw",
+				"tenant_id": "tencent"
+			}
+		}`)
+
+		result, err := verifier.Verify(context.Background(), "token-1")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.Success).To(BeTrue())
+		Expect(result.Sub).To(Equal("nteuuhzxlh0jcanw"))
+		Expect(result.Username).To(Equal("nteuuhzxlh0jcanw"))
+		Expect(result.TenantID).To(Equal("tencent"))
+	})
+
+	It("should fail when bk_username is absent", func() {
+		verifier := newVerifier(`{"data": {"tenant_id": "tencent"}}`)
+
+		result, err := verifier.Verify(context.Background(), "token-1")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(result.Success).To(BeFalse())
+		Expect(result.Message).To(ContainSubstring("bk_username"))
 	})
 })
