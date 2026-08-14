@@ -1,7 +1,7 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - BkAuth available.
- * Copyright (C) 2025 Tencent. All rights reserved.
+ * 蓝鲸智云 - API 网关(BlueKing - APIGateway) available.
+ * Copyright (C) 2026 Tencent. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
  *
@@ -16,29 +16,18 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-<template>
-  <BkButton
-    v-bind="$attrs"
-  >
-    <CommonIcon
-      v-if="icon"
-      :name="icon"
-      :size="size"
-      :svg="svg"
-      class="mr-4px"
-    />
-    <span>
-      <slot />
-    </span>
-  </BkButton>
-</template>
+import { isEmpty, isNull, isObject, isUndefined, omitBy } from 'lodash-es';
 
-<script setup lang="ts">
-interface IProps {
-  icon?: string
-  size?: string
-  svg?: boolean
-}
-
-const { icon = '', size = '14', svg = false } = defineProps<IProps>();
-</script>
+// 过滤：null / undefined / isNaN / 空字符串 / 空数组 / 空对象
+export const filterSimpleEmpty = (obj: Record<string, any>) => {
+  return omitBy(obj, (value) => {
+    return (
+      isNull(value)
+      || isUndefined(value)
+      || Number.isNaN(value)
+      || value === ''
+      || (isObject(value) && !Array.isArray(value) && isEmpty(value))
+      || (Array.isArray(value) && isEmpty(value))
+    );
+  });
+};

@@ -54,7 +54,7 @@
               >（公开客户端）</span>
             </div>
           </div>
-          <AgIcon
+          <CommonIcon
             class="rotate-180"
             name="return-small"
             color="#3A84FF"
@@ -98,7 +98,7 @@
         <div class="info-row">
           <span class="info-label">当前用户</span>
           <span class="info-value">
-            <AgIcon
+            <CommonIcon
               name="user-circle"
               size="16"
               color="#979BA5"
