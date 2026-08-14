@@ -45,6 +45,11 @@
 </template>
 
 <script setup lang="ts">
+import {
+  DEFAULT_PERSONAL_TOKEN_REALM,
+  isPersonalTokenRealm,
+} from '@/constants/personal-token';
+
 const route = useRoute();
 const router = useRouter();
 
@@ -69,6 +74,12 @@ const routerViewWrapperClass = computed(() => {
   return `${initClass}`;
 });
 
+const currentRealm = computed(() => (
+  isPersonalTokenRealm(route.params.realm)
+    ? route.params.realm
+    : DEFAULT_PERSONAL_TOKEN_REALM
+));
+
 // 监听当前路由
 watch(
   () => route.meta,
@@ -83,7 +94,12 @@ watch(
 );
 
 const handleGoPage = (routeName: string) => {
-  router.push({ name: routeName });
+  router.push({
+    name: routeName,
+    params: routeName === 'PersonalToken'
+      ? { realm: currentRealm.value }
+      : undefined,
+  });
 };
 
 const handleBack = () => {

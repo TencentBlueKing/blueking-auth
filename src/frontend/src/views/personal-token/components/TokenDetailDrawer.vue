@@ -56,107 +56,71 @@
       <div class="info-row is-top">
         <span class="info-label">授权资源：</span>
         <div class="resource-panels">
-          <!-- MCP 面板 -->
-          <div class="resource-panel">
+          <div
+            v-for="panel in resourcePanels"
+            :key="panel.type"
+            class="resource-panel"
+          >
             <div
               class="panel-header"
-              @click="mcpExpanded = !mcpExpanded"
+              @click="toggleResourcePanel(panel.type)"
             >
               <span
                 class="panel-arrow"
-                :class="{ 'is-collapsed': !mcpExpanded }"
+                :class="{ 'is-collapsed': !resourceExpanded[panel.type] }"
               />
-              <span class="panel-title">MCP ( {{ mcpResources.length }} )</span>
+              <span class="panel-title">{{ panel.displayName }} ( {{ panel.count }} )</span>
             </div>
             <div
-              v-show="mcpExpanded"
+              v-show="resourceExpanded[panel.type]"
               class="panel-body"
             >
-              <div class="group-title">
-                【MCP】- 共 <em>{{ mcpResources.length }}</em> 个
-              </div>
               <div
-                v-for="(item, index) in mcpResources"
-                :key="index"
-                class="resource-item"
+                v-for="(group, groupIndex) in panel.groups"
+                :key="group.level"
+                class="resource-group"
               >
-                <BkTag
-                  class="item-tag"
-                  size="small"
+                <div
+                  v-if="group.displayName"
+                  class="group-title"
+                  :class="{ 'mt-16px': groupIndex > 0 }"
                 >
-                  MCP
-                </BkTag>
-                <span class="item-text">{{ item.name }} ( {{ item.id }} )</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- API 面板 -->
-          <div class="resource-panel">
-            <div
-              class="panel-header"
-              @click="apiExpanded = !apiExpanded"
-            >
-              <span
-                class="panel-arrow"
-                :class="{ 'is-collapsed': !apiExpanded }"
-              />
-              <span class="panel-title">API ( {{ gatewayResources.length + apiResources.length }} )</span>
-            </div>
-            <div
-              v-show="apiExpanded"
-              class="panel-body"
-            >
-              <div class="group-title">
-                【网关】- 共 <em>{{ gatewayResources.length }}</em> 个
-              </div>
-              <div
-                v-for="(item, index) in gatewayResources"
-                :key="`gw-${index}`"
-                class="resource-item"
-              >
-                <BkTag
-                  class="item-tag"
-                  size="small"
-                  theme="warning"
+                  【{{ group.displayName }}】- 共 <em>{{ group.items.length }}</em> 个
+                </div>
+                <div
+                  v-for="item in group.items"
+                  :key="item.audience"
+                  class="resource-item"
                 >
-                  网关
-                </BkTag>
-                <BkTag
-                  v-if="item.is_official"
-                  class="item-tag"
-                  size="small"
-                  theme="info"
-                >
-                  官方
-                </BkTag>
-                <span class="item-text">{{ item.name }}</span>
-              </div>
-
-              <div class="group-title mt-16px">
-                【API】- 共 <em>{{ apiResources.length }}</em> 个
-              </div>
-              <div
-                v-for="(item, index) in apiResources"
-                :key="`api-${index}`"
-                class="resource-item"
-              >
-                <BkTag
-                  class="item-tag"
-                  size="small"
-                  theme="info"
-                >
-                  API
-                </BkTag>
-                <BkTag
-                  v-if="!item.is_public"
-                  class="item-tag"
-                  size="small"
-                  theme="danger"
-                >
-                  非公开
-                </BkTag>
-                <span class="item-text">{{ item.name }} ( {{ item.action }} )</span>
+                  <BkTag
+                    v-if="group.displayName"
+                    class="item-tag"
+                    size="small"
+                    :theme="getLevelTheme(group.level)"
+                  >
+                    {{ group.displayName }}
+                  </BkTag>
+                  <BkTag
+                    v-if="item.extras?.is_official === true"
+                    class="item-tag"
+                    size="small"
+                    theme="info"
+                  >
+                    官方
+                  </BkTag>
+                  <BkTag
+                    v-if="isNonPublicResource(item)"
+                    class="item-tag"
+                    size="small"
+                    theme="danger"
+                  >
+                    非公开
+                  </BkTag>
+                  <span
+                    v-bk-ellipsis
+                    class="item-text"
+                  >{{ item.display_name }} ( {{ item.name }} )</span>
+                </div>
               </div>
             </div>
           </div>
@@ -180,20 +144,21 @@
       <!-- 最近使用 -->
       <div class="info-row">
         <span class="info-label">最近使用：</span>
-        <span class="info-value">{{ detail?.last_used_at || '--' }}</span>
+        <span class="info-value">--</span>
       </div>
 
       <!-- 创建时间 -->
       <div class="info-row">
         <span class="info-label">创建时间：</span>
-        <span class="info-value">{{ detail?.created_at || '--' }}</span>
+        <span class="info-value">{{ createdAtText }}</span>
       </div>
     </div>
 
     <!-- 续期弹窗 -->
     <RenewDialog
       v-model:is-show="renewDialogShow"
-      :token="token"
+      :realm="realm"
+      :token="detail || token"
       @success="handleRenewSuccess"
     />
   </BkSideslider>
@@ -201,24 +166,57 @@
 
 <script setup lang="ts">
 import RenewDialog from './RenewDialog.vue';
+import type { PersonalTokenRealm } from '@/constants/personal-token';
 import { messageSuccess } from '@/utils';
 import { usePopInfoBox } from '@/hooks';
 import {
-  type PersonalTokenDetail,
-  type PersonalTokenItem,
-  type TokenStatus,
+  type IGrantableResourceType,
+  type IPersonalToken,
+  type IPersonalTokenResource,
+  getGrantableResourceTypes,
   getPersonalTokenDetail,
   revokePersonalToken,
 } from '@/services/source/personal-token';
+import {
+  type TokenStatus,
+  formatUnixSeconds,
+  getPersonalTokenStatus,
+  getRemainDays,
+} from '../utils';
+
+type TagTheme = 'info' | 'warning' | undefined;
+
+interface IProps {
+  realm: PersonalTokenRealm
+  token?: IPersonalToken | null
+}
+
+interface IEmits {
+  edit: [token: IPersonalToken]
+  updated: []
+}
+
+interface IResourceGroup {
+  level: string
+  displayName: string
+  items: IPersonalTokenResource[]
+}
+
+interface IResourcePanel {
+  type: string
+  displayName: string
+  count: number
+  groups: IResourceGroup[]
+}
 
 const isShow = defineModel<boolean>('isShow', { default: false });
 
-const { token = null } = defineProps<{ token?: PersonalTokenItem | null }>();
+const {
+  realm,
+  token = null,
+} = defineProps<IProps>();
 
-const emit = defineEmits<{
-  edit: [token: PersonalTokenItem]
-  updated: []
-}>();
+const emit = defineEmits<IEmits>();
 
 // 临期阈值（天）
 const EXPIRING_THRESHOLD_DAYS = 7;
@@ -241,41 +239,110 @@ const statusConfig: Record<TokenStatus, {
   },
 };
 
-const detail = ref<PersonalTokenDetail | null>(null);
+const detail = ref<IPersonalToken | null>(null);
+const resourceTypes = ref<IGrantableResourceType[]>([]);
+const resourceExpanded = ref<Record<string, boolean>>({});
 const loading = ref(false);
-const mcpExpanded = ref(true);
-const apiExpanded = ref(true);
 const renewDialogShow = ref(false);
+// 标识最新详情请求，防止旧响应覆盖当前令牌
+let detailRequestId = 0;
 
 const displayName = computed(() => detail.value?.name ?? token?.name ?? '');
-const currentStatus = computed(() => detail.value?.status ?? token?.status);
+
+const currentStatus = computed(() => {
+  const currentToken = detail.value ?? token;
+  return currentToken ? getPersonalTokenStatus(currentToken) : undefined;
+});
+
 const statusInfo = computed(() => (currentStatus.value ? statusConfig[currentStatus.value] : null));
 
-const mcpResources = computed(() => detail.value?.mcp_resources ?? []);
-const gatewayResources = computed(() => detail.value?.gateway_resources ?? []);
-const apiResources = computed(() => detail.value?.api_resources ?? []);
+// 将详情资源按类型和层级整理为折叠面板数据
+const resourcePanels = computed<IResourcePanel[]>(() => {
+  const data = detail.value;
+  if (!data) {
+    return [];
+  }
+  if (data.resources === null) {
+    return [{
+      type: 'raw-audience',
+      displayName: '授权资源',
+      count: data.audience.length,
+      groups: [{
+        level: '',
+        displayName: '',
+        items: data.audience.map(audience => ({
+          type: '',
+          level: '',
+          name: audience,
+          display_name: audience,
+          audience,
+        })),
+      }],
+    }];
+  }
 
-const editDisabled = computed(() => currentStatus.value === 'expired' || currentStatus.value === 'revoked');
-const renewDisabled = computed(() => currentStatus.value === 'expired' || currentStatus.value === 'revoked');
+  const typeNames = [
+    ...resourceTypes.value
+      .map(item => item.name)
+      .filter(typeName => data.resources?.some(resource => resource.type === typeName)),
+    ...data.resources
+      .map(resource => resource.type)
+      .filter(typeName => !resourceTypes.value.some(item => item.name === typeName)),
+  ];
+  return [...new Set(typeNames)].map((typeName) => {
+    const items = data.resources?.filter(resource => resource.type === typeName) ?? [];
+    const resourceType = resourceTypes.value.find(item => item.name === typeName);
+    const knownLevels = resourceType?.levels ?? [];
+    const unknownLevels = [...new Set(items.map(item => item.level).filter(Boolean))]
+      .filter(level => !knownLevels.some(item => item.name === level))
+      .map(level => ({
+        name: level,
+        display_name: level,
+      }));
+    const levels = [
+      {
+        name: '',
+        display_name: 'ALL',
+      },
+      ...knownLevels,
+      ...unknownLevels,
+    ];
+    return {
+      type: typeName,
+      displayName: resourceType?.display_name ?? typeName,
+      count: items.length,
+      groups: levels
+        .map(level => ({
+          level: level.name,
+          displayName: level.display_name,
+          items: items.filter(item => item.level === level.name),
+        }))
+        .filter(group => group.items.length > 0),
+    };
+  });
+});
+
+const editDisabled = computed(() => currentStatus.value === 'revoked');
+
+const renewDisabled = computed(() => currentStatus.value === 'revoked');
+
 const revokeDisabled = computed(() => currentStatus.value === 'revoked');
 
-const getRemainDays = (expiredAt: string) => {
-  const diff = new Date(expiredAt.replace(/-/g, '/')).getTime() - Date.now();
-  return Math.ceil(diff / (24 * 60 * 60 * 1000));
-};
+const createdAtText = computed(() => formatUnixSeconds(detail.value?.created_at));
 
 const expiredText = computed(() => {
   const data = detail.value;
   if (!data) {
     return '--';
   }
-  if (data.status === 'valid') {
-    const remainDays = getRemainDays(data.expired_at);
+  const expiredAtText = formatUnixSeconds(data.expires_at);
+  if (currentStatus.value === 'valid') {
+    const remainDays = getRemainDays(data.expires_at);
     if (remainDays >= 0 && remainDays <= EXPIRING_THRESHOLD_DAYS) {
-      return `${data.expired_at}（${remainDays} 天后过期）`;
+      return expiredAtText + '（' + remainDays + ' 天后过期）';
     }
   }
-  return data.expired_at;
+  return expiredAtText;
 });
 
 const expiredClass = computed(() => {
@@ -283,11 +350,11 @@ const expiredClass = computed(() => {
   if (!data) {
     return 'info-value';
   }
-  if (data.status === 'expired') {
+  if (currentStatus.value === 'expired') {
     return 'text-expired';
   }
-  if (data.status === 'valid') {
-    const remainDays = getRemainDays(data.expired_at);
+  if (currentStatus.value === 'valid') {
+    const remainDays = getRemainDays(data.expires_at);
     if (remainDays >= 0 && remainDays <= EXPIRING_THRESHOLD_DAYS) {
       return 'text-expiring';
     }
@@ -295,24 +362,62 @@ const expiredClass = computed(() => {
   return 'info-value';
 });
 
+// 并行加载令牌详情和资源元数据，仅接收当前抽屉的最新请求
 const fetchDetail = async () => {
   if (!token?.id) {
     return;
   }
+  const tokenId = token.id;
+  const currentRealm = realm;
+  const requestId = detailRequestId + 1;
+  detailRequestId = requestId;
   loading.value = true;
   try {
-    detail.value = await getPersonalTokenDetail(token.id);
+    const [tokenDetail, types] = await Promise.all([
+      getPersonalTokenDetail(currentRealm, tokenId),
+      getGrantableResourceTypes(currentRealm),
+    ]);
+    if (
+      detailRequestId === requestId
+      && isShow.value
+      && token?.id === tokenId
+      && realm === currentRealm
+    ) {
+      detail.value = tokenDetail;
+      resourceTypes.value = types;
+      resourceExpanded.value = Object.fromEntries(
+        resourcePanels.value.map(panel => [panel.type, true]),
+      );
+    }
   }
   finally {
-    loading.value = false;
+    if (detailRequestId === requestId) {
+      loading.value = false;
+    }
   }
 };
 
 const handleEdit = () => {
-  if (token) {
-    emit('edit', token);
+  const currentToken = detail.value ?? token;
+  if (currentToken) {
+    emit('edit', currentToken);
   }
 };
+
+const toggleResourcePanel = (type: string) => {
+  resourceExpanded.value[type] = !resourceExpanded.value[type];
+};
+
+const getLevelTheme = (level: string): TagTheme => {
+  if (level === 'gateway') {
+    return 'warning';
+  }
+  return level ? 'info' : undefined;
+};
+
+const isNonPublicResource = (resource: IPersonalTokenResource) =>
+  Object.prototype.hasOwnProperty.call(resource.extras ?? {}, 'is_public')
+  && resource.extras?.is_public === false;
 
 const handleRenew = () => {
   renewDialogShow.value = true;
@@ -335,7 +440,7 @@ const handleRevoke = () => {
     confirmText: '撤销',
     cancelText: '取消',
     onConfirm: async () => {
-      await revokePersonalToken(token.id);
+      await revokePersonalToken(realm, token.id);
       messageSuccess('撤销成功');
       emit('updated');
       isShow.value = false;
@@ -344,17 +449,25 @@ const handleRevoke = () => {
 };
 
 const handleClosed = () => {
+  // 使抽屉关闭前尚未完成的请求失效
+  detailRequestId += 1;
+  loading.value = false;
   detail.value = null;
+  resourceTypes.value = [];
+  resourceExpanded.value = {};
 };
 
-watch(isShow, (val) => {
-  if (val) {
-    detail.value = null;
-    mcpExpanded.value = true;
-    apiExpanded.value = true;
-    fetchDetail();
-  }
-});
+watch(
+  [isShow, () => realm],
+  ([visible]) => {
+    if (visible) {
+      detail.value = null;
+      resourceTypes.value = [];
+      resourceExpanded.value = {};
+      fetchDetail();
+    }
+  },
+);
 
 defineExpose({ refresh: fetchDetail });
 </script>
@@ -509,6 +622,7 @@ defineExpose({ refresh: fetchDetail });
             color: #63656e;
             text-overflow: ellipsis;
             white-space: nowrap;
+            cursor: pointer;
           }
         }
       }

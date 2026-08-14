@@ -55,4 +55,8 @@ import LogoWithoutTitle from '@/assets/APIgateway-logo.png';
     }
   }
 }
+
+.content {
+  height: 100%;
+}
 </style>

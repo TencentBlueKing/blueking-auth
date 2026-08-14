@@ -25,7 +25,8 @@
           class="status-select"
           placeholder="状态"
           clearable
-          @change="handleSearch"
+          multiple
+          @change="handleToolbarStatusChange"
         >
           <BkOption
             v-for="option in statusOptions"
@@ -49,13 +50,19 @@
     <!-- 表格 -->
     <CommonTable
       ref="tableRef"
-      :api-method="getPersonalTokenList"
+      :api-method="fetchPersonalTokenTableData"
       :columns="columns"
+      :filter-value="tableFilterValue"
+      :sort="tableSort"
+      @filter-change="handleTableFilterChange"
+      @sort-change="handleTableSortChange"
+      @clear-filter="handleClearFilter"
     />
 
     <!-- 新建/编辑令牌侧滑 -->
     <TokenCreateDrawer
       v-model:is-show="createDrawerShow"
+      :realm="realm"
       :token="currentRow"
       @success="handleTokenUpdated"
     />
@@ -63,6 +70,7 @@
     <!-- 令牌详情侧滑 -->
     <TokenDetailDrawer
       v-model:is-show="detailDrawerShow"
+      :realm="realm"
       :token="currentRow"
       @edit="handleEdit"
       @updated="handleTokenUpdated"
@@ -71,6 +79,7 @@
     <!-- 续期弹窗 -->
     <RenewDialog
       v-model:is-show="renewDialogShow"
+      :realm="realm"
       :token="currentRow"
       @success="handleTokenUpdated"
     />
@@ -86,21 +95,59 @@ import CommonTable from '@/components/common-table/Index.vue';
 import RenewDialog from './components/RenewDialog.vue';
 import TokenCreateDrawer from './components/TokenCreateDrawer.vue';
 import TokenDetailDrawer from './components/TokenDetailDrawer.vue';
+import {
+  DEFAULT_PERSONAL_TOKEN_REALM,
+  type PersonalTokenRealm,
+  isPersonalTokenRealm,
+} from '@/constants/personal-token';
 import { messageSuccess } from '@/utils';
 import {
-  type PersonalTokenItem,
-  type TokenStatus,
+  type IGrantableResourceType,
+  type IPersonalToken,
+  getGrantableResourceTypes,
   getPersonalTokenList,
   revokePersonalToken,
 } from '@/services/source/personal-token';
 import { usePopInfoBox } from '@/hooks';
+import {
+  type TokenStatus,
+  formatUnixSeconds,
+  getPersonalTokenStatus,
+  getRemainDays,
+} from './utils';
 
 type TableInstance = InstanceType<typeof CommonTable>;
 
-const tableRef = useTemplateRef<TableInstance>('tableRef');
+interface IPersonalTokenTableItem extends IPersonalToken { status: TokenStatus }
+
+interface ITableQuery {
+  offset?: number
+  limit?: number
+  statuses?: TokenStatus[]
+  keyword?: string
+}
+
+interface ITableSort {
+  sortBy: string
+  descending: boolean
+}
+
+interface ITableFilterValue {
+  status?: unknown
+  [key: string]: unknown
+}
+
+type TableSortValue = ITableSort | ITableSort[] | undefined;
+
+const route = useRoute();
 
 const searchKey = ref('');
-const filterStatus = ref<TokenStatus | ''>('');
+const filterStatus = ref<TokenStatus[]>([]);
+// 表头和工具栏筛选最终同步到该查询状态
+const tableFilterStatuses = ref<TokenStatus[]>([]);
+const tableSort = ref<ITableSort>();
+// 资源类型元数据用于控制授权资源的展示顺序和名称
+const resourceTypes = ref<IGrantableResourceType[]>([]);
 
 // 新建/编辑侧滑
 const createDrawerShow = ref(false);
@@ -110,12 +157,22 @@ const detailDrawerShow = ref(false);
 
 // 续期弹窗
 const renewDialogShow = ref(false);
-const currentRow = ref<PersonalTokenItem | null>(null);
+// 三类弹窗共用当前操作的令牌上下文
+const currentRow = ref<IPersonalToken | null>(null);
+
+const tableRef = useTemplateRef<TableInstance>('tableRef');
+
+const realm = computed<PersonalTokenRealm>(() => (
+  isPersonalTokenRealm(route.params.realm)
+    ? route.params.realm
+    : DEFAULT_PERSONAL_TOKEN_REALM
+));
+const tableFilterValue = computed<ITableFilterValue>(() => ({ status: tableFilterStatuses.value }));
 
 const handleTokenUpdated = () => {
   tableRef.value?.fetchData(
     {
-      status: filterStatus.value,
+      statuses: tableFilterStatuses.value,
       keyword: searchKey.value,
     },
     { resetPage: false },
@@ -162,57 +219,149 @@ const statusConfig: Record<TokenStatus, {
   },
 };
 
-// 计算距离过期的天数
-const getRemainDays = (expiredAt: string) => {
-  const diff = new Date(expiredAt).getTime() - Date.now();
-  return Math.ceil(diff / (24 * 60 * 60 * 1000));
+// 将接口全量数据按当前条件筛选、排序并分页为表格数据
+const fetchPersonalTokenTableData = async (params: ITableQuery = {}) => {
+  const currentRealm = realm.value;
+  const {
+    offset = 0,
+    limit = 10,
+    statuses = [],
+    keyword = '',
+  } = params;
+  const tokens = await getPersonalTokenList(currentRealm);
+  const normalizedKeyword = keyword.trim().toLowerCase();
+  const filteredTokens = tokens
+    .map<IPersonalTokenTableItem>(token => ({
+      ...token,
+      status: getPersonalTokenStatus(token),
+    }))
+    .filter(token => !statuses.length || statuses.includes(token.status))
+    .filter((token) => {
+      if (!normalizedKeyword) {
+        return true;
+      }
+      const resourceTexts = token.resources?.flatMap(resource => [
+        resource.name,
+        resource.display_name,
+        resource.audience,
+      ]) ?? [];
+      return [
+        token.name,
+        token.description,
+        token.token_mask,
+        ...token.audience,
+        ...resourceTexts,
+      ].some(text => text.toLowerCase().includes(normalizedKeyword));
+    });
+  const sortedTokens = [...filteredTokens];
+  if (tableSort.value?.sortBy === 'expires_at') {
+    const direction = tableSort.value.descending ? -1 : 1;
+    sortedTokens.sort((first, second) =>
+      (first.expires_at - second.expires_at) * direction || second.id - first.id);
+  }
+
+  return {
+    count: sortedTokens.length,
+    results: sortedTokens.slice(offset, offset + limit),
+  };
 };
 
-// 渲染授权资源单元格
-const renderResource = (resource: PersonalTokenItem['resource']) => {
-  const mcpTag = resource?.mcp?.all
-    ? <BkTag class="resource-count-tag" theme="info">全部 MCP</BkTag>
-    : <BkTag class="resource-count-tag">{ `MCP ( ${resource?.mcp?.count ?? 0} )` }</BkTag>;
+const fetchResourceTypeMetadata = async (currentRealm: PersonalTokenRealm) => {
+  const result = await getGrantableResourceTypes(currentRealm);
+  if (realm.value === currentRealm) {
+    resourceTypes.value = result;
+  }
+};
+
+// 按资源类型和层级聚合授权资源标签
+const renderResource = (token: IPersonalToken) => {
+  if (token.resources === null) {
+    return (
+      <div class="resource-cell">
+        { token.audience.map(audience => (
+          <div key={audience} class="resource-row">
+            <BkTag class="resource-count-tag">{ audience }</BkTag>
+          </div>
+        )) }
+      </div>
+    );
+  }
+
+  const resourceTypeNames = [
+    ...resourceTypes.value
+      .map(item => item.name)
+      .filter(typeName => token.resources?.some(resource => resource.type === typeName)),
+    ...token.resources
+      .map(resource => resource.type)
+      .filter(typeName => !resourceTypes.value.some(item => item.name === typeName)),
+  ];
 
   return (
     <div class="resource-cell">
-      <div class="resource-row">
-        <span class="resource-label">MCP</span>
-        <span class="resource-colon">：</span>
-        { mcpTag }
-      </div>
-      <div class="resource-row">
-        <span class="resource-label">API</span>
-        <span class="resource-colon">：</span>
-        <BkTag theme="warning" class="resource-count-tag mr-4px">{ `网关 ( ${resource?.api?.gateway_count ?? 0} )` }</BkTag>
-        <BkTag class="resource-count-tag">{ `API ( ${resource?.api?.api_count ?? 0} )` }</BkTag>
-      </div>
+      { [...new Set(resourceTypeNames)].map((typeName) => {
+        const typeResources = token.resources?.filter(resource => resource.type === typeName) ?? [];
+        const resourceType = resourceTypes.value.find(item => item.name === typeName);
+        const typeDisplayName = resourceType?.display_name ?? typeName;
+        const fallbackLevels = [...new Set(typeResources.map(item => item.level).filter(Boolean))]
+          .map(level => ({
+            name: level,
+            display_name: level,
+          }));
+        const levels = resourceType?.levels ?? fallbackLevels;
+        const allCount = typeResources.filter(resource => !resource.level).length;
+
+        return (
+          <div key={typeName} class="resource-row">
+            <span class="resource-label">{ typeDisplayName }</span>
+            <span class="resource-colon">：</span>
+            { allCount > 0 && (
+              <BkTag class="resource-count-tag mr-4px" theme="info">
+                { '全部 ' + typeDisplayName }
+              </BkTag>
+            ) }
+            { levels.map((level) => {
+              const count = typeResources.filter(resource => resource.level === level.name).length;
+              return count > 0 && (
+                <BkTag
+                  key={level.name}
+                  class="resource-count-tag mr-4px"
+                  theme={level.name === 'gateway' ? 'warning' : undefined}
+                >
+                  { level.display_name + ' ( ' + count + ' )' }
+                </BkTag>
+              );
+            }) }
+          </div>
+        );
+      }) }
     </div>
   );
 };
 
 // 渲染过期时间单元格
-const renderExpiredAt = (row: PersonalTokenItem) => {
+const renderExpiredAt = (row: IPersonalTokenTableItem) => {
+  const expiredAtText = formatUnixSeconds(row.expires_at);
   if (row.status === 'expired') {
-    return <span class="expired-text">{ row.expired_at }</span>;
+    return <span class="expired-text">{ expiredAtText }</span>;
   }
   if (row.status === 'valid') {
-    const remainDays = getRemainDays(row.expired_at);
+    const remainDays = getRemainDays(row.expires_at);
     if (remainDays >= 0 && remainDays <= EXPIRING_THRESHOLD_DAYS) {
       return (
-        <span class="expiring-text">{ `${row.expired_at}（${remainDays}天后过期）` }</span>
+        <span class="expiring-text">{ expiredAtText + '（' + remainDays + '天后过期）' }</span>
       );
     }
   }
-  return <span>{ row.expired_at }</span>;
+  return <span>{ expiredAtText }</span>;
 };
 
+// 表格列及自定义单元格配置
 const columns: any[] = [
   {
     title: '名称/备注',
     colKey: 'name',
     minWidth: 160,
-    cell: (_h: any, { row }: { row: PersonalTokenItem }) => (
+    cell: (_h: any, { row }: { row: IPersonalTokenTableItem }) => (
       <div
         class={{
           'name-cell': true,
@@ -231,34 +380,42 @@ const columns: any[] = [
   },
   {
     title: '授权资源',
-    colKey: 'resource',
+    colKey: 'resources',
     minWidth: 200,
-    cell: (_h: any, { row }: { row: PersonalTokenItem }) => renderResource(row.resource),
+    cell: (_h: any, { row }: { row: IPersonalTokenTableItem }) => renderResource(row),
   },
   {
     title: 'Token',
-    colKey: 'token',
+    colKey: 'token_mask',
     minWidth: 160,
   },
   {
     title: '过期时间',
-    colKey: 'expired_at',
+    colKey: 'expires_at',
     minWidth: 200,
     sorter: true,
-    cell: (_h: any, { row }: { row: PersonalTokenItem }) => renderExpiredAt(row),
+    cell: (_h: any, { row }: { row: IPersonalTokenTableItem }) => renderExpiredAt(row),
   },
   {
     title: '状态',
     colKey: 'status',
     width: 120,
     filter: {
-      type: 'single',
+      type: 'multiple',
       list: statusOptions.map(item => ({
         label: item.label,
         value: item.value,
       })),
+      popupProps: {
+        overlayClassName: [
+          't-table__filter-pop',
+          'personal-token-status-filter',
+        ],
+      },
+      resetValue: [],
+      showConfirmAndReset: true,
     },
-    cell: (_h: any, { row }: { row: PersonalTokenItem }) => {
+    cell: (_h: any, { row }: { row: IPersonalTokenTableItem }) => {
       const config = statusConfig[row.status];
       return <BkTag theme={config.theme || undefined}>{ config.text }</BkTag>;
     },
@@ -267,7 +424,7 @@ const columns: any[] = [
     title: '操作',
     colKey: 'operation',
     width: 160,
-    cell: (_h: any, { row }: { row: PersonalTokenItem }) => {
+    cell: (_h: any, { row }: { row: IPersonalTokenTableItem }) => {
       // 已撤销：仅查看
       if (row.status === 'revoked') {
         return (
@@ -280,8 +437,6 @@ const columns: any[] = [
           </BkButton>
         );
       }
-      // 已过期：编辑、续期置灰
-      const disabled = row.status === 'expired';
       return (
         <div class="operation-cell">
           <BkButton
@@ -294,7 +449,6 @@ const columns: any[] = [
           <BkButton
             theme="primary"
             text
-            disabled={disabled}
             onClick={() => handleEdit(row)}
           >
             编辑
@@ -302,7 +456,6 @@ const columns: any[] = [
           <BkButton
             theme="primary"
             text
-            disabled={disabled}
             onClick={() => handleRenew(row)}
           >
             续期
@@ -323,14 +476,69 @@ const columns: any[] = [
 const fetchList = (options: { resetPage?: boolean } = {}) => {
   tableRef.value?.fetchData(
     {
-      status: filterStatus.value,
+      statuses: tableFilterStatuses.value,
       keyword: searchKey.value,
     },
     { resetPage: options.resetPage ?? true },
   );
 };
 
+// 切换 realm 时清空弹窗上下文并重新加载资源元数据
+watch(
+  realm,
+  (value, oldValue) => {
+    resourceTypes.value = [];
+    currentRow.value = null;
+    createDrawerShow.value = false;
+    detailDrawerShow.value = false;
+    renewDialogShow.value = false;
+    fetchResourceTypeMetadata(value);
+    if (oldValue) {
+      nextTick(() => {
+        fetchList({ resetPage: true });
+      });
+    }
+  },
+  { immediate: true },
+);
+
 const handleSearch = () => {
+  fetchList({ resetPage: true });
+};
+
+const handleToolbarStatusChange = () => {
+  tableFilterStatuses.value = filterStatus.value.length ? [...filterStatus.value] : [];
+  fetchList({ resetPage: true });
+};
+
+// 兼容单列和多列排序事件，仅保留过期时间排序
+const handleTableSortChange = (sort: TableSortValue) => {
+  const currentSort = Array.isArray(sort)
+    ? sort.find(item => item.sortBy === 'expires_at')
+    : sort;
+  tableSort.value = currentSort?.sortBy === 'expires_at'
+    ? {
+      sortBy: currentSort.sortBy,
+      descending: currentSort.descending,
+    }
+    : undefined;
+  fetchList({ resetPage: true });
+};
+
+// 将表头筛选结果同步回工具栏状态选择器
+const handleTableFilterChange = (value: ITableFilterValue) => {
+  tableFilterStatuses.value = Array.isArray(value.status)
+    ? value.status.filter((item): item is TokenStatus =>
+      statusOptions.some(option => option.value === item))
+    : [];
+  filterStatus.value = tableFilterStatuses.value.length ? [...tableFilterStatuses.value] : [];
+  fetchList({ resetPage: true });
+};
+
+const handleClearFilter = () => {
+  filterStatus.value = [];
+  searchKey.value = '';
+  tableFilterStatuses.value = [];
   fetchList({ resetPage: true });
 };
 
@@ -339,23 +547,23 @@ const handleCreate = () => {
   createDrawerShow.value = true;
 };
 
-const handleView = (row: PersonalTokenItem) => {
+const handleView = (row: IPersonalTokenTableItem) => {
   currentRow.value = row;
   detailDrawerShow.value = true;
 };
 
-const handleEdit = (row: PersonalTokenItem) => {
+const handleEdit = (row: IPersonalToken) => {
   currentRow.value = row;
   detailDrawerShow.value = false;
   createDrawerShow.value = true;
 };
 
-const handleRenew = (row: PersonalTokenItem) => {
+const handleRenew = (row: IPersonalTokenTableItem) => {
   currentRow.value = row;
   renewDialogShow.value = true;
 };
 
-const handleRevoke = (row: PersonalTokenItem) => {
+const handleRevoke = (row: IPersonalTokenTableItem) => {
   usePopInfoBox({
     type: 'warning',
     isShow: true,
@@ -364,22 +572,11 @@ const handleRevoke = (row: PersonalTokenItem) => {
     confirmText: '撤销',
     cancelText: '取消',
     onConfirm: async () => {
-      await revokePersonalToken(row.id);
+      await revokePersonalToken(realm.value, row.id);
       messageSuccess('撤销成功');
       fetchList({ resetPage: false });
     },
   });
-  // InfoBox({
-  //   title: '确认撤销该个人令牌？',
-  //   subTitle: `撤销后令牌 ${row.name} 将立即失效且无法恢复。`,
-  //   confirmText: '撤销',
-  //   // theme: 'warning',
-  //   onConfirm: async () => {
-  //     await revokePersonalToken(row.id);
-  //     messageSuccess('撤销成功');
-  //     fetchList({ resetPage: false });
-  //   },
-  // });
 };
 </script>
 
@@ -432,9 +629,9 @@ const handleRevoke = (row: PersonalTokenItem) => {
       .name-text, .desc-text {
         color: #c4c6cc;
 
-      &:hover {
-        color: #c4c6cc;
-      }
+        &:hover {
+          color: #c4c6cc;
+        }
       }
     }
   }
@@ -480,6 +677,16 @@ const handleRevoke = (row: PersonalTokenItem) => {
     display: flex;
     align-items: center;
     gap: 12px;
+  }
+}
+
+</style>
+
+<style lang="scss">
+.personal-token-status-filter {
+
+  .t-table__filter-pop-search {
+    display: none;
   }
 }
 </style>

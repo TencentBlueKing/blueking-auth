@@ -16,6 +16,7 @@
     </template>
 
     <div class="renew-dialog-body">
+      <!-- 续期方式 -->
       <div class="field-label">
         续期时间
       </div>
@@ -31,6 +32,7 @@
         </div>
       </div>
 
+      <!-- 自定义过期时间 -->
       <BkDatePicker
         v-if="selectedType === 'custom'"
         v-model="customDate"
@@ -42,9 +44,10 @@
         :disabled-date="disabledDate"
       />
 
+      <!-- 续期前后时间对比 -->
       <div class="expired-info mt-12px">
         <span class="info-label">当前过期时间：</span>
-        <span class="info-value">{{ token?.expired_at || '--' }}</span>
+        <span class="info-value">{{ currentExpiredAtText }}</span>
         <span class="info-arrow">→</span>
         <span class="info-label">续期后过期时间：</span>
         <span class="info-value">{{ newExpiredAtText }}</span>
@@ -72,12 +75,19 @@
 
 <script setup lang="ts">
 import { messageSuccess } from '@/utils';
+import type { PersonalTokenRealm } from '@/constants/personal-token';
 import {
-  type PersonalTokenItem,
+  type IPersonalToken,
   renewPersonalToken,
 } from '@/services/source/personal-token';
+import {
+  dateToUnixSeconds,
+  formatUnixSeconds,
+  getEstimatedMaxExpiresAt,
+  unixSecondsToDate,
+} from '../utils';
 
-type PresetValue = 'days30' | 'days90' | 'permanent' | 'custom';
+type PresetValue = 'days30' | 'days90' | 'custom';
 
 interface PresetOption {
   label: string
@@ -86,9 +96,17 @@ interface PresetOption {
   days?: number
 }
 
+interface IProps {
+  realm: PersonalTokenRealm
+  token?: IPersonalToken | null
+}
+
 const isShow = defineModel<boolean>('isShow', { default: false });
 
-const { token = null } = defineProps<{ token?: PersonalTokenItem | null }>();
+const {
+  realm,
+  token = null,
+} = defineProps<IProps>();
 
 const emit = defineEmits<{ success: [] }>();
 
@@ -103,10 +121,6 @@ const presets: PresetOption[] = [
     value: 'days90',
     days: 90,
   },
-  // {
-  //   label: '永久有效',
-  //   value: 'permanent',
-  // },
   {
     label: '自定义',
     value: 'custom',
@@ -117,43 +131,40 @@ const selectedType = ref<PresetValue>('days30');
 const customDate = ref<Date | string>('');
 const submitting = ref(false);
 
-// 将 "YYYY-MM-DD HH:mm:ss" 解析为 Date（用 / 分隔以兼容所有浏览器的本地时间解析）
-const parseDate = (str: string) => new Date(str.replace(/-/g, '/'));
-
-const toDate = (val: Date | string) => (val instanceof Date ? val : parseDate(String(val)));
-
 const formatDate = (date: Date) => {
   const pad = (num: number) => String(num).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
     + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 };
 
-// 计算续期后的过期时间（永久有效返回 null）
+// 预设时长从令牌当前过期时间起算，自定义模式直接使用所选时间
 const computedExpiredAt = computed<Date | null>(() => {
-  if (!token || selectedType.value === 'permanent') {
+  if (!token) {
     return null;
   }
   if (selectedType.value === 'custom') {
-    return customDate.value ? toDate(customDate.value) : null;
+    return customDate.value ? new Date(dateToUnixSeconds(customDate.value) * 1000) : null;
   }
   const preset = presets.find(item => item.value === selectedType.value);
-  const base = parseDate(token.expired_at);
+  const base = unixSecondsToDate(token.expires_at);
   base.setDate(base.getDate() + (preset?.days ?? 0));
   return base;
 });
 
 const newExpiredAtText = computed(() => {
-  if (selectedType.value === 'permanent') {
-    return '永久有效';
-  }
   return computedExpiredAt.value ? formatDate(computedExpiredAt.value) : '--';
 });
+const currentExpiredAtText = computed(() => formatUnixSeconds(token?.expires_at));
 
 // 自定义模式下未选择时间时禁用确定按钮
 const confirmDisabled = computed(() => selectedType.value === 'custom' && !customDate.value);
 
-// 不允许选择今天之前的日期
-const disabledDate = (date: Date) => date.getTime() < Date.now() - 24 * 60 * 60 * 1000;
+// 自定义时间限制在今天至后端允许的最大时间内
+const disabledDate = (date: Date) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date.getTime() < today.getTime() || date.getTime() > getEstimatedMaxExpiresAt().getTime();
+};
 
 const handleSelectPreset = (value: PresetValue) => {
   selectedType.value = value;
@@ -168,19 +179,14 @@ const handleConfirm = async () => {
   if (!token || confirmDisabled.value) {
     return;
   }
-  const payload = selectedType.value === 'permanent'
-    ? {
-      permanent: true,
-      expired_at: null,
-    }
-    : {
-      permanent: false,
-      expired_at: newExpiredAtText.value,
-    };
+  const expiresAt = computedExpiredAt.value;
+  if (!expiresAt) {
+    return;
+  }
 
   submitting.value = true;
   try {
-    await renewPersonalToken(token.id, payload);
+    await renewPersonalToken(realm, token.id, { expires_at: dateToUnixSeconds(expiresAt) });
     messageSuccess('续期成功');
     isShow.value = false;
     emit('success');

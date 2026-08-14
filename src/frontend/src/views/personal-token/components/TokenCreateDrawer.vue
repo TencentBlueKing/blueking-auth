@@ -3,7 +3,7 @@
     v-model:is-show="isShow"
     class="token-create-drawer"
     :width="960"
-    :quick-close="false"
+    quick-close
     @closed="handleClosed"
   >
     <template #header>
@@ -14,6 +14,7 @@
       v-bkloading="{ loading: initializing }"
       class="drawer-body"
     >
+      <!-- 基础信息 -->
       <BkForm
         ref="formRef"
         form-type="vertical"
@@ -31,22 +32,20 @@
             :placeholder="t('例如：Cursor 日常开发')"
           />
         </BkFormItem>
-
         <BkFormItem
           property="description"
           :label="t('备注')"
         >
           <BkInput
             v-model="formData.description"
-            :maxlength="200"
+            :maxlength="255"
             :placeholder="t('用于说明令牌用途')"
           />
         </BkFormItem>
-
         <BkFormItem
           property="expiredAt"
+          required
           :label="t('过期时间')"
-          :required="!formData.permanent"
         >
           <div class="expired-field">
             <BkDatePicker
@@ -55,7 +54,6 @@
               type="datetime"
               append-to-body
               :clearable="false"
-              :disabled="formData.permanent"
               :disabled-date="disabledDate"
               :placeholder="t('请选择过期时间')"
             >
@@ -73,12 +71,10 @@
                 </div>
               </template>
             </BkDatePicker>
-
             <BkCheckbox
               v-model="formData.permanent"
-              v-bk-tooltips="{ content: '暂未支持'}"
+              v-bk-tooltips="{ content: '暂未支持' }"
               disabled
-              @change="handlePermanentChange"
             >
               {{ t('永久有效') }}
             </BkCheckbox>
@@ -86,11 +82,11 @@
         </BkFormItem>
       </BkForm>
 
+      <!-- 授权范围 -->
       <section class="scope-section">
         <div class="section-title">
           {{ t('授权范围') }}
         </div>
-
         <div
           v-if="resourceError"
           class="scope-error"
@@ -98,100 +94,128 @@
           {{ t('请选择至少一项授权资源') }}
         </div>
 
-        <div class="scope-card">
+        <!-- 资源类型分组 -->
+        <div
+          v-for="card in resourceCards"
+          :key="card.resourceType.name"
+          class="scope-card"
+        >
           <div class="scope-card-header">
             <div
               class="scope-card-title"
-              @click="mcpSectionExpanded = !mcpSectionExpanded"
+              @click="card.state.expanded = !card.state.expanded"
             >
               <CommonIcon
                 class="scope-arrow"
-                :class="{ 'is-collapsed': !mcpSectionExpanded }"
+                :class="{ 'is-collapsed': !card.state.expanded }"
                 name="down-shape"
                 color="#63656E"
                 size="10"
               />
-              <span>{{ t('MCP（共 {count} 个）', { count: mcpTotalCount }) }}</span>
+              <span>{{ card.resourceType.display_name }}（共 {{ card.state.count }} 个）</span>
             </div>
-
             <div
-              v-bk-tooltips="t('勾选后将自动包含后续新增的 MCP')"
+              v-if="card.resourceType.audience"
+              v-bk-tooltips="getSelectAllTooltip(card.resourceType)"
               class="scope-select-all"
               @click.stop
             >
               <BkCheckbox
-                v-model="mcpSelectAll"
-                @change="handleMcpSelectAll"
+                :model-value="isAudienceSelected(card.resourceType.audience)"
+                @change="(value: CheckboxValue) => handleAudienceChange(card.resourceType.audience, value)"
               >
-                <strong class="select-all-text">{{ t('全选') }}</strong>{{ t('，包括后续新增的 MCP 也生效') }}
+                <strong class="select-all-text">{{ t('全选') }}</strong>{{ getSelectAllDescription(card.resourceType) }}
               </BkCheckbox>
             </div>
           </div>
 
           <div
-            v-show="mcpSectionExpanded"
+            v-show="card.state.expanded"
             class="scope-card-content"
           >
             <div class="resource-browser">
+              <!-- 可授权资源列表 -->
               <div class="resource-list-pane">
                 <BkInput
-                  v-model="mcpSearchKey"
                   class="resource-search"
                   clearable
-                  :placeholder="t('搜索网关、MCP 名称')"
+                  :model-value="card.state.keyword"
+                  :placeholder="getSearchPlaceholder(card.resourceType)"
                   type="search"
+                  @update:model-value="(value: CheckboxValue) => handleKeywordChange(
+                    card.resourceType,
+                    String(value ?? ''),
+                  )"
+                  @enter="() => handleSearch(card.resourceType)"
+                  @clear="() => handleSearch(card.resourceType)"
                 />
 
-                <div class="resource-group-list">
-                  <CheckboxCollapse
-                    v-for="group in pagedMcpGroups"
-                    :key="group.id"
-                    v-model:collapsed="mcpCollapsed[group.id]"
-                    arrow-position="left"
-                    compact
-                    :auto-expand-on-check="false"
-                    :checkbox-disabled="mcpSelectAll"
-                    :disabled-tips="t('取消全选后可单独选择网关')"
-                    :model-value="isMcpGroupSelected(group)"
-                    @update:model-value="value => handleMcpGroupSelect(group, value)"
+                <div
+                  v-bkloading="{ loading: card.state.loading }"
+                  class="resource-group-list"
+                >
+                  <template
+                    v-for="resource in card.state.results"
+                    :key="resource.name"
                   >
-                    <template #title>
-                      <div class="group-title">
-                        <span>{{ group.name }}</span>
-                        <span class="group-count">
-                          {{ t('共 {total} 个，已选 {selected} 个', {
-                            total: group.items.length,
-                            selected: getMcpSelectedCount(group),
-                          }) }}
-                        </span>
-                        <BkTag
-                          v-if="group.official"
+                    <CheckboxCollapse
+                      v-if="resource.items"
+                      v-model:collapsed="card.state.collapsed[resource.name]"
+                      arrow-position="left"
+                      compact
+                      :auto-expand-on-check="false"
+                      :checkbox-disabled="isResourceLocked(card.resourceType, resource)"
+                      :model-value="isGrantableResourceSelected(resource)"
+                      :show-checkbox="hasSelectableResource(resource)"
+                      @update:model-value="(value: boolean) => handleGrantableResourceChange(resource, value)"
+                    >
+                      <template #title>
+                        <div class="group-title">
+                          <span>{{ resource.display_name }}</span>
+                          <span class="group-count">
+                            {{ t('共 {total} 个，已选 {selected} 个', {
+                              total: resource.items.length,
+                              selected: getGrantableResourceSelectedCount(resource),
+                            }) }}
+                          </span>
+                          <BkTag
+                            v-if="resource.extras?.is_official === true"
+                            size="small"
+                            theme="info"
+                          >
+                            {{ t('官方') }}
+                          </BkTag>
+                        </div>
+                      </template>
+                      <div class="resource-checkbox-list">
+                        <BkCheckbox
+                          v-for="item in resource.items"
+                          :key="item.audience"
+                          :disabled="isAudienceLocked(card.resourceType, item.audience)"
+                          :model-value="isAudienceSelected(item.audience)"
                           size="small"
-                          theme="info"
+                          @change="(value: CheckboxValue) => handleAudienceChange(item.audience, value)"
                         >
-                          {{ t('官方') }}
-                        </BkTag>
+                          {{ item.display_name }}（{{ item.name }}）
+                        </BkCheckbox>
                       </div>
-                    </template>
-
-                    <BkCheckboxGroup
-                      v-model="selectedMcpIds"
-                      class="resource-checkbox-list"
-                      :disabled="mcpSelectAll || isMcpGroupSelected(group)"
+                    </CheckboxCollapse>
+                    <div
+                      v-else
+                      class="flat-resource-list resource-checkbox-list"
                     >
                       <BkCheckbox
-                        v-for="item in group.items"
-                        :key="item.id"
-                        :label="item.id"
+                        :disabled="isAudienceLocked(card.resourceType, resource.audience)"
+                        :model-value="isAudienceSelected(resource.audience)"
                         size="small"
+                        @change="(value: CheckboxValue) => handleAudienceChange(resource.audience, value)"
                       >
-                        {{ item.name }}（{{ item.id }}）
+                        {{ resource.display_name }}（{{ resource.name }}）
                       </BkCheckbox>
-                    </BkCheckboxGroup>
-                  </CheckboxCollapse>
-
+                    </div>
+                  </template>
                   <BkException
-                    v-if="!filteredMcpGroups.length"
+                    v-if="!card.state.results.length && !card.state.loading"
                     class="resource-empty"
                     type="empty"
                     scene="part"
@@ -200,374 +224,99 @@
                 </div>
 
                 <BkPagination
-                  v-model="mcpPage"
-                  v-model:limit="mcpPageSize"
                   class="resource-pagination"
-                  :count="filteredMcpGroups.length"
+                  :count="card.state.count"
+                  :limit="card.state.pageSize"
                   :limit-list="pageSizeOptions"
+                  :model-value="card.state.page"
                   small
                   show-total-count
+                  @update:limit="(value: CheckboxValue) => handlePageSizeChange(card.resourceType, Number(value))"
+                  @update:model-value="(value: CheckboxValue) => handlePageChange(card.resourceType, Number(value))"
                 />
-
-                <div class="custom-resource-area">
+                <div
+                  v-if="card.resourceType.name === 'mcp' || card.resourceType.name === 'api'"
+                  class="custom-resource-area"
+                >
                   <BkButton
                     class="add-custom-button"
+                    disabled
                     theme="primary"
                     text
-                    @click="handleAddCustomMcp"
                   >
                     <CommonIcon
                       name="plus-circle-shape"
                       class="mr-4px"
                     />
-                    {{ t('添加非公开 MCP') }}
+                    {{ card.resourceType.name === 'mcp' ? t('添加非公开 MCP') : t('添加非公开 API') }}
                   </BkButton>
-
-                  <div
-                    v-for="item in customMcpResources"
-                    :key="item.uid"
-                    class="custom-resource-row"
-                  >
-                    <BkInput
-                      v-model="item.serverUrl"
-                      :placeholder="t('请输入 MCP 服务地址')"
-                    />
-                    <BkInput
-                      v-model="item.name"
-                      :placeholder="t('请输入 MCP 名称')"
-                    />
-                    <BkButton
-                      class="delete-custom-button"
-                      text
-                      @click="() => handleDeleteCustomMcp(item.uid)"
-                    >
-                      <Del />
-                    </BkButton>
-                  </div>
                 </div>
               </div>
 
+              <!-- 已选资源预览 -->
               <div class="selection-preview">
                 <div class="preview-header">
-                  <span class="font-bold">{{ t('选择结果预览（{count}）', { count: mcpPreviewItems.length }) }}</span>
+                  <span class="font-bold">
+                    {{ t('选择结果预览（{count}）', { count: getTypeSelectedCount(card.resourceType) }) }}
+                  </span>
                   <BkButton
-                    v-if="mcpPreviewItems.length"
+                    v-if="hasRemovableSelection(card.resourceType)"
                     theme="primary"
                     text
-                    @click="handleClearMcp"
+                    @click="() => handleClearType(card.resourceType)"
                   >
                     {{ t('清空') }}
                   </BkButton>
                 </div>
-
                 <div class="preview-content">
-                  <div
-                    v-if="mcpPreviewItems.length"
-                    class="preview-group"
-                  >
-                    <div class="preview-group-title">
-                      【MCP】- {{ t('共 {count} 个', { count: mcpPreviewItems.length }) }}
-                    </div>
+                  <template v-if="getPreviewGroups(card.resourceType).length">
                     <div
-                      v-for="item in mcpPreviewItems"
-                      :key="item.key"
-                      class="preview-item"
+                      v-for="group in getPreviewGroups(card.resourceType)"
+                      :key="group.level"
+                      class="preview-group"
                     >
-                      <div class="preview-item-main">
-                        <BkTag
-                          v-for="tag in item.tags"
-                          :key="tag.text"
-                          size="small"
-                          :theme="tag.theme || undefined"
-                        >
-                          {{ tag.text }}
-                        </BkTag>
-                        <span class="preview-item-name">{{ item.name }}</span>
-                      </div>
-                      <BkButton
-                        class="remove-preview-button"
-                        text
-                        @click="() => handleRemoveMcpPreview(item)"
+                      <div
+                        v-if="group.displayName"
+                        class="preview-group-title"
                       >
-                        <CloseLine />
-                      </BkButton>
-                    </div>
-                  </div>
-
-                  <BkException
-                    v-else
-                    class="preview-empty"
-                    type="empty"
-                    scene="part"
-                    :description="t('暂无选择结果')"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="scope-card">
-          <div class="scope-card-header">
-            <div
-              class="scope-card-title"
-              @click="apiSectionExpanded = !apiSectionExpanded"
-            >
-              <CommonIcon
-                class="scope-arrow"
-                :class="{ 'is-collapsed': !apiSectionExpanded }"
-                name="down-shape"
-                color="#63656E"
-                size="10"
-              />
-              <span>{{ t('API（共 {count} 个）', { count: apiTotalCount }) }}</span>
-            </div>
-
-            <div
-              v-bk-tooltips="t('勾选后将自动包含后续新增的 API')"
-              class="scope-select-all"
-              @click.stop
-            >
-              <BkCheckbox
-                v-model="apiSelectAll"
-                @change="handleApiSelectAll"
-              >
-                <strong class="select-all-text">{{ t('全选') }}</strong>{{ t('，包括后续新增的 API 也生效') }}
-              </BkCheckbox>
-            </div>
-          </div>
-
-          <div
-            v-show="apiSectionExpanded"
-            class="scope-card-content"
-          >
-            <div class="resource-browser">
-              <div class="resource-list-pane">
-                <BkInput
-                  v-model="apiSearchKey"
-                  class="resource-search"
-                  clearable
-                  :placeholder="t('搜索网关、API 名称')"
-                  type="search"
-                />
-
-                <div class="resource-group-list">
-                  <CheckboxCollapse
-                    v-for="group in pagedApiGroups"
-                    :key="group.id"
-                    v-model:collapsed="apiCollapsed[group.id]"
-                    arrow-position="left"
-                    compact
-                    :auto-expand-on-check="false"
-                    :checkbox-disabled="apiSelectAll"
-                    :disabled-tips="t('取消全选后可单独选择网关')"
-                    :model-value="selectedGatewayIds.includes(group.id)"
-                    @update:model-value="value => handleGatewaySelect(group, value)"
-                  >
-                    <template #title>
-                      <div class="group-title">
-                        <span>{{ group.name }}</span>
-                        <span class="group-count">
-                          {{ t('共 {total} 个，已选 {selected} 个', {
-                            total: group.items.length,
-                            selected: getApiSelectedCount(group),
-                          }) }}
-                        </span>
-                        <BkTag
-                          v-if="group.official"
-                          size="small"
-                          theme="info"
-                        >
-                          {{ t('官方') }}
-                        </BkTag>
+                        【{{ group.displayName }}】- {{ t('共 {count} 个', { count: group.items.length }) }}
                       </div>
-                    </template>
-
-                    <BkCheckboxGroup
-                      v-model="selectedApiIds"
-                      class="resource-checkbox-list"
-                      :disabled="apiSelectAll || selectedGatewayIds.includes(group.id)"
-                    >
-                      <BkCheckbox
+                      <div
                         v-for="item in group.items"
-                        :key="item.id"
-                        :label="item.id"
-                        size="small"
-                      >
-                        {{ item.name }}（{{ item.action }}）
-                      </BkCheckbox>
-                    </BkCheckboxGroup>
-                  </CheckboxCollapse>
-
-                  <BkException
-                    v-if="!filteredApiGroups.length"
-                    class="resource-empty"
-                    type="empty"
-                    scene="part"
-                    :description="t('暂无匹配资源')"
-                  />
-                </div>
-
-                <BkPagination
-                  v-model="apiPage"
-                  v-model:limit="apiPageSize"
-                  class="resource-pagination"
-                  :count="filteredApiGroups.length"
-                  :limit-list="pageSizeOptions"
-                  small
-                  show-total-count
-                />
-
-                <div class="custom-resource-area">
-                  <BkButton
-                    class="add-custom-button"
-                    theme="primary"
-                    text
-                    @click="handleAddCustomApi"
-                  >
-                    <CommonIcon
-                      name="plus-circle-shape"
-                      class="mr-4px"
-                    />
-                    {{ t('添加非公开 API') }}
-                  </BkButton>
-
-                  <div
-                    v-for="item in customApiResources"
-                    :key="item.uid"
-                    class="custom-resource-row"
-                  >
-                    <BkInput
-                      v-model="item.gatewayName"
-                      :placeholder="t('请输入网关名称')"
-                    />
-                    <BkInput
-                      v-model="item.name"
-                      :placeholder="t('请输入 API 资源名称')"
-                    />
-                    <BkButton
-                      class="delete-custom-button"
-                      text
-                      @click="() => handleDeleteCustomApi(item.uid)"
-                    >
-                      <Del />
-                    </BkButton>
-                  </div>
-                </div>
-              </div>
-
-              <div class="selection-preview">
-                <div class="preview-header">
-                  <span class="font-bold">{{ t('选择结果预览（{count}）', { count: apiPreviewCount }) }}</span>
-                  <BkButton
-                    v-if="apiPreviewCount"
-                    theme="primary"
-                    text
-                    @click="handleClearApi"
-                  >
-                    {{ t('清空') }}
-                  </BkButton>
-                </div>
-
-                <div class="preview-content">
-                  <div
-                    v-if="apiSelectAll"
-                    class="preview-group"
-                  >
-                    <div
-                      v-for="item in apiAllPreviewItems"
-                      :key="item.key"
-                      class="preview-item"
-                    >
-                      <div class="preview-item-main">
-                        <BkTag
-                          v-for="tag in item.tags"
-                          :key="tag.text"
-                          size="small"
-                          :theme="tag.theme || undefined"
-                        >
-                          {{ tag.text }}
-                        </BkTag>
-                        <span class="preview-item-name">{{ item.name }}</span>
-                      </div>
-                      <BkButton
-                        class="remove-preview-button"
-                        text
-                        @click="() => handleRemoveApiAllPreview(item)"
-                      >
-                        <CloseLine />
-                      </BkButton>
-                    </div>
-                  </div>
-
-                  <template v-else-if="apiPreviewCount">
-                    <div
-                      v-if="apiGatewayPreviewItems.length"
-                      class="preview-group"
-                    >
-                      <div class="preview-group-title">
-                        【{{ t('网关') }}】- {{ t('共 {count} 个', { count: apiGatewayPreviewItems.length }) }}
-                      </div>
-                      <div
-                        v-for="item in apiGatewayPreviewItems"
-                        :key="item.key"
+                        :key="item.audience"
                         class="preview-item"
                       >
                         <div class="preview-item-main">
                           <BkTag
-                            v-for="tag in item.tags"
-                            :key="tag.text"
+                            v-if="group.displayName"
                             size="small"
-                            :theme="tag.theme || undefined"
+                            :theme="group.level === 'gateway' ? 'warning' : undefined"
                           >
-                            {{ tag.text }}
+                            {{ group.displayName }}
                           </BkTag>
-                          <span class="preview-item-name">{{ item.name }}</span>
-                        </div>
-                        <BkButton
-                          class="remove-preview-button"
-                          text
-                          @click="() => handleRemoveApiPreview(item)"
-                        >
-                          <CloseLine />
-                        </BkButton>
-                      </div>
-                    </div>
-
-                    <div
-                      v-if="apiResourcePreviewItems.length"
-                      class="preview-group"
-                    >
-                      <div class="preview-group-title">
-                        【API】- {{ t('共 {count} 个', { count: apiResourcePreviewItems.length }) }}
-                      </div>
-                      <div
-                        v-for="item in apiResourcePreviewItems"
-                        :key="item.key"
-                        class="preview-item"
-                      >
-                        <div class="preview-item-main">
                           <BkTag
-                            v-for="tag in item.tags"
-                            :key="tag.text"
+                            v-if="isNonPublicResource(item)"
                             size="small"
-                            :theme="tag.theme || undefined"
+                            theme="danger"
                           >
-                            {{ tag.text }}
+                            {{ t('非公开') }}
                           </BkTag>
-                          <span class="preview-item-name">{{ item.name }}</span>
+                          <span
+                            v-bk-ellipsis
+                            class="preview-item-name"
+                          >{{ getPreviewItemName(item) }}</span>
                         </div>
                         <BkButton
                           class="remove-preview-button"
+                          :disabled="isAudienceLocked(card.resourceType, item.audience)"
                           text
-                          @click="() => handleRemoveApiPreview(item)"
+                          @click="() => handleRemoveAudience(card.resourceType, item.audience)"
                         >
                           <CloseLine />
                         </BkButton>
                       </div>
                     </div>
                   </template>
-
                   <BkException
                     v-else
                     class="preview-empty"
@@ -600,6 +349,7 @@
     </template>
   </BkSideslider>
 
+  <!-- 创建结果中的令牌明文仅展示一次 -->
   <BkDialog
     v-model:is-show="createdDialogShow"
     class="token-created-dialog"
@@ -609,7 +359,9 @@
     @closed="handleCreatedDialogClosed"
   >
     <div class="created-dialog-body">
-      <Success class="created-success-icon" />
+      <div class="flex items-center justify-center">
+        <Success class="created-success-icon" />
+      </div>
       <div class="created-dialog-title">
         {{ t('令牌创建成功') }}
       </div>
@@ -623,7 +375,7 @@
           {{ t('令牌名称') }}
         </div>
         <div class="created-info-value">
-          {{ createdResult?.name || '--' }}
+          {{ createdTokenName || '--' }}
         </div>
         <div class="created-info-label mt-12px">
           {{ t('令牌（access_token）') }}
@@ -641,7 +393,6 @@
         </div>
       </div>
     </div>
-
     <template #footer>
       <BkButton @click="createdDialogShow = false">
         {{ t('关闭') }}
@@ -654,17 +405,21 @@
 import {
   CloseLine,
   Copy,
-  Del,
   Success,
 } from 'bkui-vue/lib/icon';
 
 import CheckboxCollapse from '@/components/checkbox-collapse/Index.vue';
+import type { PersonalTokenRealm } from '@/constants/personal-token';
 import {
-  type PersonalTokenCreateResult,
-  type PersonalTokenDetail,
-  type PersonalTokenItem,
-  type PersonalTokenPayload,
+  type IGrantableResource,
+  type IGrantableResourceType,
+  type IPersonalToken,
+  type IPersonalTokenCreateResult,
+  type IPersonalTokenPayload,
+  type IPersonalTokenResource,
   createPersonalToken,
+  getGrantableResourceList,
+  getGrantableResourceTypes,
   getPersonalTokenDetail,
   updatePersonalToken,
 } from '@/services/source/personal-token';
@@ -673,12 +428,19 @@ import {
   messageSuccess,
   messageWarn,
 } from '@/utils';
+import {
+  dateToUnixSeconds,
+  getEstimatedMaxExpiresAt,
+  unixSecondsToDate,
+} from '../utils';
 
-type PreviewKind = 'all' | 'mcp' | 'gateway' | 'api' | 'custom-mcp' | 'custom-api';
-type TagTheme = 'danger' | 'info' | 'success' | 'warning';
 type DateShortcutChange = (date: Date, visible?: boolean) => void;
+type CheckboxValue = boolean | number | string;
 
-interface IProps { token?: PersonalTokenItem | null }
+interface IProps {
+  realm: PersonalTokenRealm
+  token?: IPersonalToken | null
+}
 
 interface IEmits { success: [] }
 
@@ -694,53 +456,35 @@ interface IFormData {
   permanent: boolean
 }
 
-interface IMcpResource {
-  id: string
-  name: string
+interface IResourceState {
+  expanded: boolean
+  loading: boolean
+  keyword: string
+  page: number
+  pageSize: number
+  count: number
+  results: IGrantableResource[]
+  collapsed: Record<string, boolean>
+  requestId: number
 }
 
-interface IApiResource {
-  id: string
-  name: string
-  action: string
-  isPublic: boolean
+interface IResourceCard {
+  resourceType: IGrantableResourceType
+  state: IResourceState
 }
 
-interface IResourceGroup<T> {
-  id: string
-  name: string
-  official: boolean
-  items: T[]
-}
-
-interface ICustomMcpResource {
-  uid: number
-  serverUrl: string
-  name: string
-}
-
-interface ICustomApiResource {
-  uid: number
-  gatewayName: string
-  name: string
-}
-
-interface IPreviewTag {
-  text: string
-  theme?: TagTheme
-}
-
-interface IPreviewItem {
-  key: string
-  id: string
-  kind: PreviewKind
-  name: string
-  tags: IPreviewTag[]
+interface IPreviewGroup {
+  level: string
+  displayName: string
+  items: IPersonalTokenResource[]
 }
 
 const isShow = defineModel<boolean>('isShow', { default: false });
 
-const { token = null } = defineProps<IProps>();
+const {
+  realm,
+  token = null,
+} = defineProps<IProps>();
 
 const emit = defineEmits<IEmits>();
 
@@ -755,65 +499,32 @@ const formData = ref<IFormData>({
 const initializing = ref(false);
 const submitting = ref(false);
 const createdDialogShow = ref(false);
-const createdResult = ref<PersonalTokenCreateResult | null>(null);
-const mcpSectionExpanded = ref(true);
-const apiSectionExpanded = ref(true);
-const mcpSelectAll = ref(false);
-const apiSelectAll = ref(false);
-const selectedMcpIds = ref<string[]>([]);
-const selectedGatewayIds = ref<string[]>([]);
-const selectedApiIds = ref<string[]>([]);
-const mcpSearchKey = ref('');
-const apiSearchKey = ref('');
-const mcpPage = ref(1);
-const apiPage = ref(1);
-const mcpPageSize = ref(10);
-const apiPageSize = ref(10);
-const mcpCollapsed = ref<Record<string, boolean>>({});
-const apiCollapsed = ref<Record<string, boolean>>({});
-const customMcpResources = ref<ICustomMcpResource[]>([]);
-const customApiResources = ref<ICustomApiResource[]>([]);
+const createdResult = ref<IPersonalTokenCreateResult | null>(null);
+const createdTokenName = ref('');
+const resourceTypes = ref<IGrantableResourceType[]>([]);
+// 各资源类型独立维护搜索、分页、折叠和请求状态
+const resourceStates = ref<Record<string, IResourceState>>({});
+// audience 是提交标识，映射表用于补齐已选资源的预览信息
+const selectedAudience = ref<string[]>([]);
+const selectedResourceMap = ref<Record<string, IPersonalTokenResource>>({});
+// 编辑时保留原始秒级时间，避免无改动时重复转换
+const originalExpiresAt = ref<number | null>(null);
 const resourceError = ref(false);
 
 const formRef = useTemplateRef<IFormInstance>('formRef');
 
-let customResourceSeed = 0;
-
 const pageSizeOptions = [5, 10, 20];
-
-const mcpGroups: IResourceGroup<IMcpResource>[] = Array.from({ length: 20 }, (_, groupIndex) => {
-  const groupNo = String(groupIndex + 1).padStart(2, '0');
-  const itemCount = groupIndex % 3 + 2;
-  return {
-    id: 'mcp-group-' + groupNo,
-    name: groupIndex === 0 ? '蓝鲸监控' : '业务网关' + groupNo,
-    official: groupIndex < 2,
-    items: Array.from({ length: itemCount }, (_, itemIndex) => ({
-      id: groupIndex === 0 ? 'mcp-id' + (itemIndex + 1) : 'mcp-' + groupNo + '-' + (itemIndex + 1),
-      name: 'MCP名称' + (itemIndex + 1),
-    })),
-  };
-});
-
-const apiGroups: IResourceGroup<IApiResource>[] = Array.from({ length: 20 }, (_, groupIndex) => {
-  const groupNo = String(groupIndex + 1).padStart(2, '0');
-  const itemCount = groupIndex % 4 + 2;
-  return {
-    id: 'gateway-' + groupNo,
-    name: '业务网关' + groupNo,
-    official: groupIndex < 2,
-    items: Array.from({ length: itemCount }, (_, itemIndex) => ({
-      id: groupIndex === 0 ? 'api-id' + (itemIndex + 1) : 'api-' + groupNo + '-' + (itemIndex + 1),
-      name: 'API 名称' + (itemIndex + 1),
-      action: '资源操作' + (itemIndex + 1),
-      isPublic: itemIndex !== itemCount - 1,
-    })),
-  };
-});
+// 每种资源类型分别维护搜索防抖计时器
+const searchTimers = new Map<string, ReturnType<typeof setTimeout>>();
+// 标识最新抽屉初始化请求，防止切换令牌后旧响应回写
+let drawerRequestId = 0;
 
 const isEdit = computed(() => Boolean(token?.id));
+
 const drawerTitle = computed(() => (isEdit.value ? t('编辑个人令牌') : t('新增个人令牌')));
+
 const primaryButtonText = computed(() => (isEdit.value ? t('保存') : t('生成令牌')));
+
 const dateShortcuts = computed(() => [
   {
     days: 7,
@@ -844,6 +555,7 @@ const dateShortcuts = computed(() => [
     label: t('365天后'),
   },
 ]);
+
 const formRules = computed(() => ({
   name: [
     {
@@ -854,451 +566,378 @@ const formRules = computed(() => ({
   ],
   expiredAt: [
     {
-      validator: (value: Date | string | null) => formData.value.permanent || Boolean(value),
+      validator: (value: Date | string | null) => Boolean(value),
       message: t('请选择过期时间'),
       trigger: 'change',
     },
   ],
 }));
-const mcpTotalCount = computed(() =>
-  mcpGroups.reduce((total, group) => total + group.items.length, 0));
-const apiTotalCount = computed(() =>
-  apiGroups.reduce((total, group) => total + group.items.length, 0));
-const mcpResourceMap = computed(() => new Map(
-  mcpGroups.flatMap(group => group.items.map(item => [
-    item.id,
-    {
-      group,
-      item,
-    },
-  ] as const)),
-));
-const mcpGroupMap = computed(() => new Map(mcpGroups.map(group => [group.id, group])));
-const apiGroupMap = computed(() => new Map(apiGroups.map(group => [group.id, group])));
-const apiResourceMap = computed(() => new Map(
-  apiGroups.flatMap(group => group.items.map(item => [
-    item.id,
-    {
-      group,
-      item,
-    },
-  ] as const)),
-));
-const filteredMcpGroups = computed(() => {
-  const keyword = mcpSearchKey.value.trim().toLowerCase();
-  if (!keyword) {
-    return mcpGroups;
-  }
-  return mcpGroups.reduce<IResourceGroup<IMcpResource>[]>((result, group) => {
-    const groupMatched = group.name.toLowerCase().includes(keyword);
-    const items = groupMatched
-      ? group.items
-      : group.items.filter(item =>
-        item.name.toLowerCase().includes(keyword) || item.id.toLowerCase().includes(keyword));
-    if (items.length) {
-      result.push({
-        ...group,
-        items,
-      });
-    }
-    return result;
-  }, []);
-});
-const filteredApiGroups = computed(() => {
-  const keyword = apiSearchKey.value.trim().toLowerCase();
-  if (!keyword) {
-    return apiGroups;
-  }
-  return apiGroups.reduce<IResourceGroup<IApiResource>[]>((result, group) => {
-    const groupMatched = group.name.toLowerCase().includes(keyword);
-    const items = groupMatched
-      ? group.items
-      : group.items.filter(item =>
-        item.name.toLowerCase().includes(keyword) || item.action.toLowerCase().includes(keyword));
-    if (items.length) {
-      result.push({
-        ...group,
-        items,
-      });
-    }
-    return result;
-  }, []);
-});
-const pagedMcpGroups = computed(() => {
-  const start = (mcpPage.value - 1) * mcpPageSize.value;
-  return filteredMcpGroups.value.slice(start, start + mcpPageSize.value);
-});
-const pagedApiGroups = computed(() => {
-  const start = (apiPage.value - 1) * apiPageSize.value;
-  return filteredApiGroups.value.slice(start, start + apiPageSize.value);
-});
-const completeCustomMcpResources = computed(() =>
-  customMcpResources.value.filter(item => item.serverUrl.trim() && item.name.trim()));
-const completeCustomApiResources = computed(() =>
-  customApiResources.value.filter(item => item.gatewayName.trim() && item.name.trim()));
-const mcpPreviewItems = computed<IPreviewItem[]>(() => {
-  const customItems: IPreviewItem[] = completeCustomMcpResources.value.map(item => ({
-    key: 'custom-mcp-' + item.uid,
-    id: String(item.uid),
-    kind: 'custom-mcp',
-    name: item.name + '（' + item.serverUrl + '）',
-    tags: [
-      { text: 'MCP' },
-      {
-        text: t('非公开'),
-        theme: 'danger',
-      },
-    ],
-  }));
-  if (mcpSelectAll.value) {
-    return [
-      {
-        key: 'mcp-all',
-        id: 'mcp-all',
-        kind: 'all',
-        name: t('全部 MCP（包括后续新增）'),
-        tags: [
-          {
-            text: 'ALL',
-            theme: 'info',
-          },
-        ],
-      },
-      ...customItems,
-    ];
-  }
-  const selectedItems = selectedMcpIds.value.reduce<IPreviewItem[]>((result, id) => {
-    const matched = mcpResourceMap.value.get(id);
-    if (matched) {
-      result.push({
-        key: 'mcp-' + id,
-        id,
-        kind: 'mcp',
-        name: matched.item.name + '（' + matched.item.id + '）',
-        tags: [{ text: 'MCP' }],
-      });
-    }
-    return result;
-  }, []);
-  return [...selectedItems, ...customItems];
-});
-const apiAllPreviewItems = computed<IPreviewItem[]>(() => {
-  const customItems: IPreviewItem[] = completeCustomApiResources.value.map(item => ({
-    key: 'custom-api-' + item.uid,
-    id: String(item.uid),
-    kind: 'custom-api',
-    name: item.gatewayName + ' / ' + item.name,
-    tags: [
-      {
-        text: 'API',
-        theme: 'info',
-      },
-      {
-        text: t('非公开'),
-        theme: 'danger',
-      },
-    ],
-  }));
-  return [
-    {
-      key: 'api-all',
-      id: 'api-all',
-      kind: 'all',
-      name: t('全部 API（包括后续新增）'),
-      tags: [
-        {
-          text: 'ALL',
-          theme: 'info',
-        },
-      ],
-    },
-    ...customItems,
-  ];
-});
-const apiGatewayPreviewItems = computed<IPreviewItem[]>(() =>
-  selectedGatewayIds.value.reduce<IPreviewItem[]>((result, id) => {
-    const group = apiGroupMap.value.get(id);
-    if (group) {
-      result.push({
-        key: 'gateway-' + id,
-        id,
-        kind: 'gateway',
-        name: group.name,
-        tags: [
-          {
-            text: t('网关'),
-            theme: 'warning' as const,
-          },
-        ],
-      });
-    }
-    return result;
-  }, []));
-const apiResourcePreviewItems = computed<IPreviewItem[]>(() => {
-  const selectedItems = selectedApiIds.value.reduce<IPreviewItem[]>((result, id) => {
-    const matched = apiResourceMap.value.get(id);
-    if (matched) {
-      const tags: IPreviewTag[] = [
-        {
-          text: 'API',
-          theme: 'info',
-        },
-      ];
-      if (!matched.item.isPublic) {
-        tags.push({
-          text: t('非公开'),
-          theme: 'danger',
-        });
-      }
-      result.push({
-        key: 'api-' + id,
-        id,
-        kind: 'api',
-        name: matched.item.name + '（' + matched.item.action + '）',
-        tags,
-      });
-    }
-    return result;
-  }, []);
-  const customItems: IPreviewItem[] = completeCustomApiResources.value.map(item => ({
-    key: 'custom-api-' + item.uid,
-    id: String(item.uid),
-    kind: 'custom-api' as const,
-    name: item.gatewayName + ' / ' + item.name,
-    tags: [
-      {
-        text: 'API',
-        theme: 'info' as const,
-      },
-      {
-        text: t('非公开'),
-        theme: 'danger' as const,
-      },
-    ],
-  }));
-  return [...selectedItems, ...customItems];
-});
-const apiPreviewCount = computed(() => (apiSelectAll.value
-  ? apiAllPreviewItems.value.length
-  : apiGatewayPreviewItems.value.length + apiResourcePreviewItems.value.length));
-const hasSelectedResource = computed(() =>
-  mcpSelectAll.value
-  || apiSelectAll.value
-  || selectedMcpIds.value.length > 0
-  || selectedGatewayIds.value.length > 0
-  || selectedApiIds.value.length > 0
-  || completeCustomMcpResources.value.length > 0
-  || completeCustomApiResources.value.length > 0);
 
-watch(mcpSearchKey, () => {
-  mcpPage.value = 1;
-  if (mcpSearchKey.value.trim()) {
-    filteredMcpGroups.value.forEach((group) => {
-      mcpCollapsed.value[group.id] = false;
-    });
-  }
-});
+const resourceCards = computed<IResourceCard[]>(() => resourceTypes.value
+  .map(resourceType => ({
+    resourceType,
+    state: resourceStates.value[resourceType.name],
+  }))
+  .filter((card): card is IResourceCard => Boolean(card.state)));
 
-watch(apiSearchKey, () => {
-  apiPage.value = 1;
-  if (apiSearchKey.value.trim()) {
-    filteredApiGroups.value.forEach((group) => {
-      apiCollapsed.value[group.id] = false;
-    });
-  }
-});
+const hasSelectedResource = computed(() => selectedAudience.value.length > 0);
 
-watch(mcpPageSize, () => {
-  mcpPage.value = 1;
-});
-
-watch(apiPageSize, () => {
-  apiPage.value = 1;
-});
-
-watch(hasSelectedResource, (value) => {
-  if (value) {
-    resourceError.value = false;
-  }
-});
-
-const disabledDate = (value: Date | number) => {
-  const date = value instanceof Date ? value : new Date(value);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return date.getTime() < today.getTime();
+// 有效期限制在今天至后端允许的最大时间内
+const disabledDate = (date: Date) => {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  return date.getTime() < startOfToday.getTime()
+    || date.getTime() > getEstimatedMaxExpiresAt().getTime();
 };
 
 const handleDateShortcut = (days: number, change: DateShortcutChange) => {
   const date = new Date();
   date.setDate(date.getDate() + days);
-  date.setSeconds(0, 0);
   formData.value.expiredAt = date;
-  change(date);
-  formRef.value?.clearValidate('expiredAt');
+  change(date, false);
 };
 
-const handlePermanentChange = (value: boolean | number | string) => {
-  formData.value.permanent = Boolean(value);
-  if (formData.value.permanent) {
-    formData.value.expiredAt = null;
-    formRef.value?.clearValidate('expiredAt');
+const createResourceState = (): IResourceState => ({
+  expanded: true,
+  loading: false,
+  keyword: '',
+  page: 1,
+  pageSize: 10,
+  count: 0,
+  results: [],
+  collapsed: {},
+  requestId: 0,
+});
+
+const registerSelectedResource = (resource: IPersonalTokenResource) => {
+  selectedResourceMap.value[resource.audience] = resource;
+};
+
+const registerGrantableResource = (
+  resourceType: IGrantableResourceType,
+  resource: IGrantableResource,
+  level: string,
+) => {
+  if (resource.audience) {
+    registerSelectedResource({
+      type: resourceType.name,
+      level,
+      name: resource.name,
+      display_name: resource.display_name,
+      audience: resource.audience,
+      extras: resource.extras,
+    });
   }
 };
 
-const getMcpSelectedCount = (group: IResourceGroup<IMcpResource>) => {
-  if (mcpSelectAll.value) {
-    return group.items.length;
-  }
-  return group.items.filter(item => selectedMcpIds.value.includes(item.id)).length;
+// 将接口返回的分层资源摊平为 audience 到预览信息的映射
+const registerGrantableResourceTree = (
+  resourceType: IGrantableResourceType,
+  resources: IGrantableResource[],
+) => {
+  const outerLevel = resourceType.levels[0]?.name ?? '';
+  const innerLevel = resourceType.levels[resourceType.levels.length - 1]?.name ?? '';
+  resources.forEach((resource) => {
+    registerGrantableResource(resourceType, resource, resource.items ? outerLevel : innerLevel);
+    resource.items?.forEach((item) => {
+      registerGrantableResource(resourceType, item, innerLevel);
+    });
+  });
 };
 
-const isMcpGroupSelected = (group: IResourceGroup<IMcpResource>) => {
-  const sourceGroup = mcpGroupMap.value.get(group.id) ?? group;
-  return sourceGroup.items.length > 0
-    && sourceGroup.items.every(item => selectedMcpIds.value.includes(item.id));
-};
-
-const getApiSelectedCount = (group: IResourceGroup<IApiResource>) => {
-  if (apiSelectAll.value || selectedGatewayIds.value.includes(group.id)) {
-    return group.items.length;
-  }
-  return group.items.filter(item => selectedApiIds.value.includes(item.id)).length;
-};
-
-const handleMcpSelectAll = (value: boolean | number | string) => {
-  mcpSelectAll.value = Boolean(value);
-  if (mcpSelectAll.value) {
-    selectedMcpIds.value = [];
-  }
-};
-
-const handleMcpGroupSelect = (group: IResourceGroup<IMcpResource>, value: boolean) => {
-  const sourceGroup = mcpGroupMap.value.get(group.id) ?? group;
-  const groupMcpIds = new Set(sourceGroup.items.map(item => item.id));
-  if (value) {
-    selectedMcpIds.value = [...new Set([...selectedMcpIds.value, ...groupMcpIds])];
+// 注册类型级 audience，用于包含后续新增资源的全选项
+const registerResourceTypeAudience = (resourceType: IGrantableResourceType) => {
+  if (!resourceType.audience) {
     return;
   }
-  selectedMcpIds.value = selectedMcpIds.value.filter(id => !groupMcpIds.has(id));
+  registerSelectedResource({
+    type: resourceType.name,
+    level: '',
+    name: resourceType.name,
+    display_name: '全部 ' + resourceType.display_name,
+    audience: resourceType.audience,
+  });
 };
 
-const handleApiSelectAll = (value: boolean | number | string) => {
-  apiSelectAll.value = Boolean(value);
-  if (apiSelectAll.value) {
-    selectedGatewayIds.value = [];
-    selectedApiIds.value = [];
+const getResourceState = (typeName: string) => resourceStates.value[typeName];
+
+// 后端使用“末级层级:关键字”的格式搜索资源
+const buildKeyword = (resourceType: IGrantableResourceType, keyword: string) => {
+  const levelName = resourceType.levels[resourceType.levels.length - 1]?.name;
+  return levelName && keyword ? levelName + ':' + keyword : undefined;
+};
+
+// bk-gpu 新建令牌时默认选中唯一资源
+const ensureGpuResourceSelected = (
+  resourceType: IGrantableResourceType,
+  state: IResourceState,
+) => {
+  if (realm !== 'bk-gpu' || isEdit.value || resourceType.name !== 'resource') {
+    return;
+  }
+  const resource = state.results.find(item => Boolean(item.audience));
+  if (state.count === 1 && resource?.audience && !isAudienceSelected(resource.audience)) {
+    selectedAudience.value = [resource.audience];
   }
 };
 
-const handleGatewaySelect = (group: IResourceGroup<IApiResource>, value: boolean) => {
-  const sourceGroup = apiGroupMap.value.get(group.id) ?? group;
-  if (value) {
-    if (!selectedGatewayIds.value.includes(group.id)) {
-      selectedGatewayIds.value = [...selectedGatewayIds.value, group.id];
+// 加载单类可授权资源，并丢弃过期请求的结果
+const fetchGrantableResources = async (
+  resourceType: IGrantableResourceType,
+  currentRealm = realm,
+) => {
+  const state = getResourceState(resourceType.name);
+  if (!state) {
+    return;
+  }
+  const requestId = state.requestId + 1;
+  state.requestId = requestId;
+  state.loading = true;
+  try {
+    const result = await getGrantableResourceList(currentRealm, {
+      type: resourceType.name,
+      keyword: buildKeyword(resourceType, state.keyword),
+      page: state.page,
+      page_size: state.pageSize,
+    });
+    if (
+      state.requestId !== requestId
+      || resourceStates.value[resourceType.name] !== state
+      || realm !== currentRealm
+      || !isShow.value
+    ) {
+      return;
     }
-    const groupApiIds = new Set(sourceGroup.items.map(item => item.id));
-    selectedApiIds.value = selectedApiIds.value.filter(id => !groupApiIds.has(id));
-    return;
+    state.count = result.count;
+    state.results = result.results;
+    result.results.forEach((resource) => {
+      if (resource.items) {
+        state.collapsed[resource.name] = state.keyword
+          ? false
+          : (state.collapsed[resource.name] ?? true);
+      }
+    });
+    registerGrantableResourceTree(resourceType, result.results);
+    ensureGpuResourceSelected(resourceType, state);
   }
-  selectedGatewayIds.value = selectedGatewayIds.value.filter(id => id !== group.id);
+  finally {
+    if (state.requestId === requestId) {
+      state.loading = false;
+    }
+  }
 };
 
-const handleAddCustomMcp = () => {
-  customResourceSeed += 1;
-  customMcpResources.value.push({
-    uid: customResourceSeed,
-    serverUrl: '',
-    name: '',
+// 初始化资源类型及各类型的首屏资源
+const loadResourceTypes = async (currentRealm: PersonalTokenRealm, requestId: number) => {
+  const types = await getGrantableResourceTypes(currentRealm);
+  if (drawerRequestId !== requestId || realm !== currentRealm || !isShow.value) {
+    return;
+  }
+  resourceStates.value = Object.fromEntries(types.map(type => [type.name, createResourceState()]));
+  resourceTypes.value = types;
+  types.forEach(registerResourceTypeAudience);
+  await Promise.all(types.map(type => fetchGrantableResources(type, currentRealm)));
+};
+
+// 清洗搜索关键字，并按资源类型分别防抖查询
+const handleKeywordChange = (resourceType: IGrantableResourceType, value: string) => {
+  const state = getResourceState(resourceType.name);
+  if (!state) {
+    return;
+  }
+  state.keyword = value.replace(/[,:]/g, '');
+  const currentTimer = searchTimers.get(resourceType.name);
+  if (currentTimer) {
+    clearTimeout(currentTimer);
+  }
+  searchTimers.set(resourceType.name, setTimeout(() => {
+    state.page = 1;
+    fetchGrantableResources(resourceType);
+  }, 300));
+};
+
+const handleSearch = (resourceType: IGrantableResourceType) => {
+  const state = getResourceState(resourceType.name);
+  if (!state) {
+    return;
+  }
+  state.page = 1;
+  fetchGrantableResources(resourceType);
+};
+
+const handlePageChange = (resourceType: IGrantableResourceType, page: number) => {
+  const state = getResourceState(resourceType.name);
+  if (!state || state.page === page) {
+    return;
+  }
+  state.page = page;
+  fetchGrantableResources(resourceType);
+};
+
+const handlePageSizeChange = (resourceType: IGrantableResourceType, pageSize: number) => {
+  const state = getResourceState(resourceType.name);
+  if (!state || state.pageSize === pageSize) {
+    return;
+  }
+  state.page = 1;
+  state.pageSize = Math.min(pageSize, 20);
+  fetchGrantableResources(resourceType);
+};
+
+const isAudienceSelected = (audience: string) => selectedAudience.value.includes(audience);
+
+const handleAudienceChange = (audience: string, value: CheckboxValue) => {
+  if (!audience) {
+    return;
+  }
+  const checked = Boolean(value);
+  if (checked && !isAudienceSelected(audience)) {
+    selectedAudience.value = [...selectedAudience.value, audience];
+  }
+  if (!checked) {
+    selectedAudience.value = selectedAudience.value.filter(item => item !== audience);
+  }
+  resourceError.value = false;
+};
+
+// 分组资源优先使用自身 audience，否则汇总所有子资源 audience
+const getGrantableResourceAudiences = (resource: IGrantableResource) => {
+  if (resource.audience) {
+    return [resource.audience];
+  }
+  return resource.items?.map(item => item.audience).filter(Boolean) ?? [];
+};
+
+const hasSelectableResource = (resource: IGrantableResource) =>
+  getGrantableResourceAudiences(resource).length > 0;
+
+const isGrantableResourceSelected = (resource: IGrantableResource) => {
+  const audiences = getGrantableResourceAudiences(resource);
+  return audiences.length > 0 && audiences.every(isAudienceSelected);
+};
+
+const handleGrantableResourceChange = (resource: IGrantableResource, value: boolean) => {
+  getGrantableResourceAudiences(resource).forEach((audience) => {
+    handleAudienceChange(audience, value);
   });
 };
 
-const handleDeleteCustomMcp = (uid: number) => {
-  customMcpResources.value = customMcpResources.value.filter(item => item.uid !== uid);
-};
-
-const handleAddCustomApi = () => {
-  customResourceSeed += 1;
-  customApiResources.value.push({
-    uid: customResourceSeed,
-    gatewayName: '',
-    name: '',
-  });
-};
-
-const handleDeleteCustomApi = (uid: number) => {
-  customApiResources.value = customApiResources.value.filter(item => item.uid !== uid);
-};
-
-const handleRemoveMcpPreview = (item: IPreviewItem) => {
-  if (item.kind === 'all') {
-    mcpSelectAll.value = false;
-    return;
+const getGrantableResourceSelectedCount = (resource: IGrantableResource) => {
+  if (resource.audience && isAudienceSelected(resource.audience)) {
+    return resource.items?.length ?? 1;
   }
-  if (item.kind === 'custom-mcp') {
-    handleDeleteCustomMcp(Number(item.id));
-    return;
+  return resource.items?.filter(item => isAudienceSelected(item.audience)).length ?? 0;
+};
+
+const isAudienceLocked = (resourceType: IGrantableResourceType, audience: string) =>
+  realm === 'bk-gpu' && resourceType.name === 'resource' && Boolean(audience);
+
+const isResourceLocked = (
+  resourceType: IGrantableResourceType,
+  resource: IGrantableResource,
+) => getGrantableResourceAudiences(resource)
+  .some(audience => isAudienceLocked(resourceType, audience));
+
+const getSelectAllDescription = (resourceType: IGrantableResourceType) => {
+  if (resourceType.name === 'mcp') {
+    return t('，包括后续新增的 MCP 也生效');
   }
-  selectedMcpIds.value = selectedMcpIds.value.filter(id => id !== item.id);
+  return t('，包括后续新增的 API 也生效');
 };
 
-const handleRemoveApiPreview = (item: IPreviewItem) => {
-  if (item.kind === 'gateway') {
-    selectedGatewayIds.value = selectedGatewayIds.value.filter(id => id !== item.id);
-    return;
+const getSelectAllTooltip = (resourceType: IGrantableResourceType) => (
+  resourceType.name === 'mcp'
+    ? t('勾选后将自动包含后续新增的 MCP')
+    : t('勾选后将自动包含后续新增的 API')
+);
+
+const getSearchPlaceholder = (resourceType: IGrantableResourceType) => {
+  if (resourceType.name === 'mcp') {
+    return t('搜索网关、MCP 名称');
   }
-  if (item.kind === 'custom-api') {
-    handleDeleteCustomApi(Number(item.id));
-    return;
+  if (resourceType.name === 'api') {
+    return t('搜索网关、API 名称');
   }
-  selectedApiIds.value = selectedApiIds.value.filter(id => id !== item.id);
+  return resourceType.display_name;
 };
 
-const handleRemoveApiAllPreview = (item: IPreviewItem) => {
-  if (item.kind === 'all') {
-    apiSelectAll.value = false;
-    return;
+// 按类型收集预览资源，无法识别的历史 audience 归入首个分组
+const getTypePreviewResources = (resourceType: IGrantableResourceType) => {
+  const firstTypeName = resourceTypes.value[0]?.name;
+  return selectedAudience.value.reduce<IPersonalTokenResource[]>((result, audience) => {
+    const resource = selectedResourceMap.value[audience];
+    if (resource?.type === resourceType.name) {
+      result.push(resource);
+    }
+    else if (!resource && resourceType.name === firstTypeName) {
+      result.push({
+        type: '',
+        level: '__raw__',
+        name: audience,
+        display_name: audience,
+        audience,
+      });
+    }
+    return result;
+  }, []);
+};
+
+// 按资源层级生成稳定顺序的预览分组
+const getPreviewGroups = (resourceType: IGrantableResourceType): IPreviewGroup[] => {
+  const resources = getTypePreviewResources(resourceType);
+  const levels = [
+    {
+      name: '',
+      display_name: 'ALL',
+    },
+    ...resourceType.levels,
+    {
+      name: '__raw__',
+      display_name: '',
+    },
+  ];
+  return levels
+    .map(level => ({
+      level: level.name,
+      displayName: level.display_name,
+      items: resources.filter(resource => resource.level === level.name),
+    }))
+    .filter(group => group.items.length > 0);
+};
+
+const getTypeSelectedCount = (resourceType: IGrantableResourceType) =>
+  getTypePreviewResources(resourceType).length;
+
+const hasRemovableSelection = (resourceType: IGrantableResourceType) =>
+  getTypePreviewResources(resourceType)
+    .some(resource => !isAudienceLocked(resourceType, resource.audience));
+
+const handleRemoveAudience = (resourceType: IGrantableResourceType, audience: string) => {
+  if (!isAudienceLocked(resourceType, audience)) {
+    handleAudienceChange(audience, false);
   }
-  if (item.kind === 'custom-api') {
-    handleDeleteCustomApi(Number(item.id));
-  }
 };
 
-const handleClearMcp = () => {
-  mcpSelectAll.value = false;
-  selectedMcpIds.value = [];
-  customMcpResources.value = [];
+const handleClearType = (resourceType: IGrantableResourceType) => {
+  const removableAudiences = new Set(
+    getTypePreviewResources(resourceType)
+      .filter(resource => !isAudienceLocked(resourceType, resource.audience))
+      .map(resource => resource.audience),
+  );
+  selectedAudience.value = selectedAudience.value.filter(audience => !removableAudiences.has(audience));
 };
 
-const handleClearApi = () => {
-  apiSelectAll.value = false;
-  selectedGatewayIds.value = [];
-  selectedApiIds.value = [];
-  customApiResources.value = [];
-};
+const isNonPublicResource = (resource: IPersonalTokenResource) =>
+  Object.prototype.hasOwnProperty.call(resource.extras ?? {}, 'is_public')
+  && resource.extras?.is_public === false;
 
-const parseDate = (value: string) => new Date(value.replace(/-/g, '/'));
-
-const formatDate = (value: Date | string) => {
-  const date = value instanceof Date ? value : parseDate(value);
-  const pad = (number: number) => String(number).padStart(2, '0');
-  return date.getFullYear()
-    + '-' + pad(date.getMonth() + 1)
-    + '-' + pad(date.getDate())
-    + ' ' + pad(date.getHours())
-    + ':' + pad(date.getMinutes())
-    + ':' + pad(date.getSeconds());
-};
-
-const hasIncompleteCustomResource = () =>
-  customMcpResources.value.some(item => !item.serverUrl.trim() || !item.name.trim())
-  || customApiResources.value.some(item => !item.gatewayName.trim() || !item.name.trim());
+const getPreviewItemName = (resource: IPersonalTokenResource) => (
+  resource.name === resource.display_name
+    ? resource.display_name
+    : resource.display_name + '（' + resource.name + '）'
+);
 
 const validateResources = () => {
-  if (hasIncompleteCustomResource()) {
-    messageWarn(t('请完整填写非公开资源信息'));
-    return false;
-  }
   if (!hasSelectedResource.value) {
     resourceError.value = true;
     messageWarn(t('请选择至少一项授权资源'));
@@ -1307,34 +946,24 @@ const validateResources = () => {
   return true;
 };
 
-const buildPayload = (): PersonalTokenPayload => ({
-  name: formData.value.name.trim(),
-  description: formData.value.description.trim(),
-  permanent: formData.value.permanent,
-  expired_at: formData.value.permanent || !formData.value.expiredAt
-    ? null
-    : formatDate(formData.value.expiredAt),
-  resource: {
-    mcp: {
-      all: mcpSelectAll.value,
-      ids: mcpSelectAll.value ? [] : selectedMcpIds.value,
-      custom_resources: completeCustomMcpResources.value.map(item => ({
-        server_url: item.serverUrl.trim(),
-        name: item.name.trim(),
-      })),
-    },
-    api: {
-      all: apiSelectAll.value,
-      gateway_ids: apiSelectAll.value ? [] : selectedGatewayIds.value,
-      ids: apiSelectAll.value ? [] : selectedApiIds.value,
-      custom_resources: completeCustomApiResources.value.map(item => ({
-        gateway_name: item.gatewayName.trim(),
-        name: item.name.trim(),
-      })),
-    },
-  },
-});
+// 编辑时复用原始过期时间，其他字段统一转换为接口格式
+const buildPayload = (): IPersonalTokenPayload => {
+  const selectedExpiresAt = formData.value.expiredAt
+    ? dateToUnixSeconds(formData.value.expiredAt)
+    : 0;
+  const expiresAt = originalExpiresAt.value !== null
+    && selectedExpiresAt === originalExpiresAt.value
+    ? originalExpiresAt.value
+    : selectedExpiresAt;
+  return {
+    name: formData.value.name.trim(),
+    description: formData.value.description.trim(),
+    audience: [...selectedAudience.value],
+    expires_at: expiresAt,
+  };
+};
 
+// 根据抽屉模式分别执行新建或编辑流程
 const handleSubmit = async () => {
   try {
     await formRef.value?.validate();
@@ -1350,13 +979,14 @@ const handleSubmit = async () => {
   try {
     const payload = buildPayload();
     if (isEdit.value && token) {
-      await updatePersonalToken(token.id, payload);
+      await updatePersonalToken(realm, token.id, payload);
       messageSuccess(t('编辑成功'));
       isShow.value = false;
       emit('success');
       return;
     }
-    createdResult.value = await createPersonalToken(payload);
+    createdTokenName.value = payload.name;
+    createdResult.value = await createPersonalToken(realm, payload);
     isShow.value = false;
     emit('success');
     await nextTick();
@@ -1385,128 +1015,105 @@ const handleCopyToken = async () => {
 };
 
 const resetState = () => {
+  searchTimers.forEach(timer => clearTimeout(timer));
+  searchTimers.clear();
   formData.value = {
     name: '',
     description: '',
     expiredAt: null,
     permanent: false,
   };
-  mcpSectionExpanded.value = true;
-  apiSectionExpanded.value = true;
-  mcpSelectAll.value = false;
-  apiSelectAll.value = false;
-  selectedMcpIds.value = [];
-  selectedGatewayIds.value = [];
-  selectedApiIds.value = [];
-  mcpSearchKey.value = '';
-  apiSearchKey.value = '';
-  mcpPage.value = 1;
-  apiPage.value = 1;
-  mcpPageSize.value = 10;
-  apiPageSize.value = 10;
-  mcpCollapsed.value = Object.fromEntries(mcpGroups.map(group => [group.id, true]));
-  apiCollapsed.value = Object.fromEntries(apiGroups.map(group => [group.id, true]));
-  customMcpResources.value = [];
-  customApiResources.value = [];
+  resourceTypes.value = [];
+  resourceStates.value = {};
+  selectedAudience.value = [];
+  selectedResourceMap.value = {};
+  originalExpiresAt.value = null;
   resourceError.value = false;
   nextTick(() => {
     formRef.value?.clearValidate();
   });
 };
 
-const resolveMcpResourceId = (resource: PersonalTokenDetail['mcp_resources'][number]) => {
-  if (mcpResourceMap.value.has(resource.id)) {
-    return resource.id;
-  }
-  const matched = [...mcpResourceMap.value.values()].find(item => item.item.name === resource.name);
-  return matched?.item.id;
-};
-
-const resolveGatewayId = (resource: PersonalTokenDetail['gateway_resources'][number]) => {
-  if (resource.id && apiGroupMap.value.has(resource.id)) {
-    return resource.id;
-  }
-  return apiGroups.find(group => group.name === resource.name)?.id;
-};
-
-const resolveApiId = (resource: PersonalTokenDetail['api_resources'][number]) => {
-  if (resource.id && apiResourceMap.value.has(resource.id)) {
-    return resource.id;
-  }
-  const matched = [...apiResourceMap.value.values()].find(item => item.item.name === resource.name);
-  return matched?.item.id;
-};
-
-const applyDetail = (detail: PersonalTokenDetail) => {
+// 回填编辑数据，并展开包含已选资源的分组
+const applyDetail = (detail: IPersonalToken) => {
   formData.value = {
     name: detail.name,
     description: detail.description,
-    expiredAt: detail.permanent ? null : parseDate(detail.expired_at),
-    permanent: Boolean(detail.permanent),
+    expiredAt: unixSecondsToDate(detail.expires_at),
+    permanent: false,
   };
-  mcpSelectAll.value = Boolean(detail.resource.mcp?.all);
-  apiSelectAll.value = Boolean(detail.resource.api?.all);
-  if (!mcpSelectAll.value) {
-    selectedMcpIds.value = detail.mcp_resources
-      .map(resolveMcpResourceId)
-      .filter((id): id is string => Boolean(id));
-  }
-  if (!apiSelectAll.value) {
-    selectedGatewayIds.value = detail.gateway_resources
-      .map(resolveGatewayId)
-      .filter((id): id is string => Boolean(id));
-    selectedApiIds.value = detail.api_resources
-      .map(resolveApiId)
-      .filter((id): id is string => Boolean(id));
-    const selectedGatewayApiIds = new Set(selectedGatewayIds.value.flatMap(id =>
-      apiGroupMap.value.get(id)?.items.map(item => item.id) ?? []));
-    selectedApiIds.value = selectedApiIds.value.filter(id => !selectedGatewayApiIds.has(id));
-  }
-  mcpGroups.forEach((group) => {
-    if (group.items.some(item => selectedMcpIds.value.includes(item.id))) {
-      mcpCollapsed.value[group.id] = false;
-    }
-  });
-  apiGroups.forEach((group) => {
-    if (selectedGatewayIds.value.includes(group.id)
-      || group.items.some(item => selectedApiIds.value.includes(item.id))) {
-      apiCollapsed.value[group.id] = false;
-    }
+  originalExpiresAt.value = detail.expires_at;
+  selectedAudience.value = [...detail.audience];
+  detail.resources?.forEach(registerSelectedResource);
+  resourceCards.value.forEach(({ state }) => {
+    state.results.forEach((resource) => {
+      if (
+        resource.items
+        && getGrantableResourceAudiences(resource).some(isAudienceSelected)
+      ) {
+        state.collapsed[resource.name] = false;
+      }
+    });
   });
 };
 
+// 并行加载资源和令牌详情，仅应用当前抽屉的初始化结果
 const initializeDrawer = async () => {
   resetState();
-  if (!token?.id) {
-    return;
-  }
-  const tokenId = token.id;
+  const requestId = drawerRequestId + 1;
+  drawerRequestId = requestId;
+  const tokenId = token?.id;
+  const currentRealm = realm;
   initializing.value = true;
   try {
-    const detail = await getPersonalTokenDetail(tokenId);
-    if (isShow.value && token?.id === tokenId) {
+    const detailPromise = tokenId
+      ? getPersonalTokenDetail(currentRealm, tokenId)
+      : Promise.resolve(null);
+    await loadResourceTypes(currentRealm, requestId);
+    const detail = await detailPromise;
+    if (
+      drawerRequestId === requestId
+      && isShow.value
+      && realm === currentRealm
+      && token?.id === tokenId
+      && detail
+    ) {
       applyDetail(detail);
     }
   }
   finally {
-    initializing.value = false;
+    if (drawerRequestId === requestId) {
+      initializing.value = false;
+    }
   }
 };
 
 const handleClosed = () => {
+  // 使抽屉关闭前尚未完成的初始化请求失效
+  drawerRequestId += 1;
+  initializing.value = false;
   resetState();
 };
 
 const handleCreatedDialogClosed = () => {
   createdResult.value = null;
+  createdTokenName.value = '';
 };
 
-watch(isShow, (value) => {
-  if (value) {
-    initializeDrawer();
-  }
-}, { immediate: true });
+watch(
+  [isShow, () => realm],
+  ([visible]) => {
+    if (visible) {
+      initializeDrawer();
+    }
+  },
+  { immediate: true },
+);
 
+onBeforeUnmount(() => {
+  searchTimers.forEach(timer => clearTimeout(timer));
+  searchTimers.clear();
+});
 </script>
 
 <style scoped lang="scss">
@@ -1761,8 +1368,9 @@ watch(isShow, (value) => {
     justify-content: space-between;
     min-height: 32px;
     padding: 4px 8px;
-    margin-bottom: 6px;
+    margin-bottom: 2px;
     background-color: #fff;
+    border-radius: 2px;
 
     &:hover {
       background-color: #e1ecff;
@@ -1786,6 +1394,7 @@ watch(isShow, (value) => {
     color: #63656e;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: pointer;
   }
 
   .remove-preview-button {
@@ -1807,8 +1416,6 @@ watch(isShow, (value) => {
   padding: 4px 20px 8px;
 
   .created-success-icon {
-    display: block;
-    margin: 0 auto;
     font-size: 48px;
     color: #2dcb56;
   }
@@ -1863,6 +1470,10 @@ watch(isShow, (value) => {
 
 :deep(.token-created-dialog .bk-dialog-footer) {
   text-align: center;
+}
+
+.flat-resource-list {
+  padding: 12px 28px;
 }
 
 </style>
