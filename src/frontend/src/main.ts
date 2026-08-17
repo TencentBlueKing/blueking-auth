@@ -15,7 +15,7 @@ import '@unocss/reset/tailwind-compat.css';
 import i18n from './locales';
 
 import directive from '@/directives';
-import AgIcon from '@/components/ag-icon/Index.vue';
+import CommonIcon from '@/components/common-icon/Index.vue';
 import IconButton from '@/components/icon-button/Index.vue';
 
 const app = createApp(App);
@@ -26,6 +26,6 @@ app.use(createPinia())
   .use(i18n)
   .use(directive)
   // 全局组件
-  .component('AgIcon', AgIcon)
+  .component('CommonIcon', CommonIcon)
   .component('IconButton', IconButton)
   .mount('#app');

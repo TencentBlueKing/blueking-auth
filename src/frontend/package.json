@@ -15,11 +15,12 @@
   },
   "dependencies": {
     "@blueking/login-modal": "^1.0.6",
+    "@blueking/tdesign-ui": "^0.0.7",
     "@unocss/reset": "^66.3.3",
     "@vueuse/components": "^14",
     "@vueuse/core": "^14",
     "@vueuse/integrations": "^14",
-    "axios": "^1.11.0",
+    "axios": "^1",
     "bkui-vue": "2.0.2-beta.93",
     "dayjs": "^1.11.19",
     "js-cookie": "^3.0.5",
@@ -27,10 +28,11 @@
     "pinia": "^3.0.3",
     "vue": "^3.5.30",
     "vue-i18n": "^11.1.11",
-    "vue-router": "^5"
+    "vue-request": "^2.0.4",
+    "vue-router": "^5",
+    "tdesign-vue-next": "^1.18.0"
   },
   "devDependencies": {
-    "vite": "^7.3.1",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@rolldown/pluginutils": "1.0.0-beta.29",
@@ -63,6 +65,7 @@
     "unocss": "^66.3.3",
     "unplugin-auto-import": "^19.3.0",
     "unplugin-turbo-console": "^2.2.0",
+    "vite": "^7",
     "vite-plugin-vue-devtools": "^8.0.6",
     "vue-tsc": "^2.2.12"
   },

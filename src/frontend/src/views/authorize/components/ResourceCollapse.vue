@@ -32,7 +32,7 @@
               </div>
             </div>
             <div class="ml-auto h-18px w-18px rounded-full bg-[#F5F7FA] flex items-center justify-center">
-              <AgIcon
+              <CommonIcon
                 size="14"
                 color="#C4C6CC"
                 :class="{ 'active-icon': isPanelActive }"

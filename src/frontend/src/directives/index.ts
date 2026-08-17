@@ -16,7 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-import { bkTooltips } from 'bkui-vue';
+import { bkEllipsis, bkTooltips } from 'bkui-vue';
 
 const clickOutSide = {
   beforeMount(el: any, binding: any) {
@@ -38,8 +38,8 @@ const clickOutSide = {
 const directives: Record<string, any> = {
   // 指令对象
   bkTooltips,
-  // overflowTitle,
   clickOutSide,
+  bkEllipsis,
 };
 
 export default {

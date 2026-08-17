@@ -20,7 +20,7 @@
   <BkButton
     v-bind="$attrs"
   >
-    <AgIcon
+    <CommonIcon
       v-if="icon"
       :name="icon"
       :size="size"

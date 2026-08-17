@@ -8,7 +8,7 @@
 
       <!-- 用户信息 -->
       <div class="code-user">
-        <AgIcon
+        <CommonIcon
           name="user-circle"
           size="16"
           color="#3A84FF"
@@ -69,7 +69,7 @@
         v-if="hasError"
         class="code-error"
       >
-        <AgIcon
+        <CommonIcon
           name="exclamation-circle-fill"
           size="14"
           color="#EA3636"
