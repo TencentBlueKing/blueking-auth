@@ -27,6 +27,9 @@
           令牌管理
         </div>
       </div>
+      <div class="header-aside-wrap">
+        <UserInfo />
+      </div>
     </template>
     <div class="content">
       <RouterView />
@@ -36,6 +39,14 @@
 
 <script setup lang="ts">
 import LogoWithoutTitle from '@/assets/APIgateway-logo.png';
+import UserInfo from '@/components/user-info/Index.vue';
+import { useEnv, useUserInfo } from '@/stores';
+
+const userInfoStore = useUserInfo();
+const envStore = useEnv();
+
+userInfoStore.fetchUserInfo();
+envStore.fetchEnv();
 </script>
 
 <style scoped lang="scss">
@@ -54,6 +65,10 @@ import LogoWithoutTitle from '@/assets/APIgateway-logo.png';
       padding: 0 !important;
     }
   }
+}
+
+.header-aside-wrap {
+  color: #fff;
 }
 
 .content {

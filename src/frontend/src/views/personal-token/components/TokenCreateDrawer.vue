@@ -166,7 +166,7 @@
                       :auto-expand-on-check="false"
                       :checkbox-disabled="isResourceLocked(card.resourceType, resource)"
                       :model-value="isGrantableResourceSelected(resource)"
-                      :show-checkbox="hasSelectableResource(resource)"
+                      :show-checkbox="card.resourceType.name !== 'mcp' && hasSelectableResource(resource)"
                       @update:model-value="(value: boolean) => handleGrantableResourceChange(resource, value)"
                     >
                       <template #title>
