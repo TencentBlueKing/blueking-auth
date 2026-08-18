@@ -40,9 +40,33 @@ type ResourceDisplay struct {
 	Items       []ServiceDisplay `json:"items"`
 }
 
-const Name = "bk-devops"
+const (
+	Name = "bk-devops"
+
+	// Shared by the display path, the parser and the grantable resource catalog
+	// in grantable_resource.go, so the prefix is spelled once.
+	typeService     = "service"
+	typeDisplayName = "蓝盾"
+
+	// The catalog is one level deep. levelService spells the same string as
+	// typeService and is deliberately not defined in terms of it: the type is a
+	// division of what can be granted and is labelled by the product, the level
+	// is a rung of that division's tree and is labelled by what the rung holds.
+	// Here they collapse onto one string, which is not a reason to make a rename
+	// of one rewrite the other.
+	levelService            = "service"
+	levelServiceDisplayName = "服务"
+
+	servicePrefix = typeService + ":"
+)
 
 // key: lowercase service name -> display name
+//
+// This is a display lookup, not an allowlist: parseServiceItem accepts any
+// service:<name>, so an unlisted service is still a valid audience and simply
+// renders under its bare name. The grantable resource catalog can therefore
+// only offer the services known here, which is a subset of what validation
+// admits -- a caller must not read the catalog as the set of legal values.
 var serviceDisplayNames = map[string]string{
 	"codecc": "CodeCC",
 }
@@ -64,10 +88,10 @@ func New() oauth.Realm {
 func (r *devopsRealm) Name() string { return Name }
 
 func parseServiceItem(item string) (string, error) {
-	if !strings.HasPrefix(item, "service:") {
+	if !strings.HasPrefix(item, servicePrefix) {
 		return "", fmt.Errorf("invalid resource: must be in service:<name> format, got %q", item)
 	}
-	name := strings.TrimPrefix(item, "service:")
+	name := strings.TrimPrefix(item, servicePrefix)
 	if name == "" {
 		return "", fmt.Errorf("invalid resource: empty name in %q", item)
 	}
@@ -101,7 +125,7 @@ func (r *devopsRealm) ExtractAudiences(_ context.Context, resource string) ([]st
 		if err != nil {
 			return nil, err
 		}
-		aud := "service:" + name
+		aud := servicePrefix + name
 		if !seen[aud] {
 			seen[aud] = true
 			audiences = append(audiences, aud)
@@ -117,18 +141,74 @@ func (r *devopsRealm) ResolveResourceDisplay(_ context.Context, resource string)
 		return nil, fmt.Errorf("empty resource string")
 	}
 
-	var serviceItems []ServiceDisplay
+	names := make([]string, 0, len(items))
 	for _, item := range items {
 		name, err := parseServiceItem(item)
 		if err != nil {
 			return nil, err
 		}
-		serviceItems = append(serviceItems, ServiceDisplay{Name: name, DisplayName: resolveServiceDisplayName(name)})
+		names = append(names, name)
+	}
+
+	return serviceDisplay(names), nil
+}
+
+// ValidateAudiences accepts the same tokens as ValidateResource. This realm
+// grants whole services, so a client asking for one and a user picking one name
+// the same thing; the two are still checked through separate entry points
+// because nothing guarantees that stays true.
+func (r *devopsRealm) ValidateAudiences(_ context.Context, audiences []string) error {
+	if len(audiences) == 0 {
+		return fmt.Errorf("empty audience list")
+	}
+	for _, aud := range audiences {
+		if _, err := parseServiceItem(aud); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ResolveAudienceDisplays ignores tenantID and gains nothing from being handed
+// many tokens: the service list is compiled in, so there is no upstream to scope
+// and nothing to batch.
+//
+// Its entries carry the same name, display name and token as the catalog entry
+// for the same service, there being one source for all three.
+func (r *devopsRealm) ResolveAudienceDisplays(
+	_ context.Context,
+	_ string,
+	audiences []string,
+) (map[string]oauth.AudienceDisplay, error) {
+	displays := make(map[string]oauth.AudienceDisplay, len(audiences))
+	for _, aud := range audiences {
+		name, err := parseServiceItem(aud)
+		if err != nil {
+			return nil, err
+		}
+		displays[aud] = oauth.AudienceDisplay{
+			Type:  typeService,
+			Level: levelService,
+			// The catalog's only level, and every grant is at it: there is no
+			// level above, and no all-services token for the type-wide box to
+			// contribute either.
+			Name:        name,
+			DisplayName: resolveServiceDisplayName(name),
+			Audience:    aud,
+		}
+	}
+	return displays, nil
+}
+
+func serviceDisplay(names []string) []ResourceDisplay {
+	items := make([]ServiceDisplay, 0, len(names))
+	for _, name := range names {
+		items = append(items, ServiceDisplay{Name: name, DisplayName: resolveServiceDisplayName(name)})
 	}
 
 	return []ResourceDisplay{{
-		Type:        "service",
-		DisplayName: "蓝盾",
-		Items:       serviceItems,
-	}}, nil
+		Type:        typeService,
+		DisplayName: typeDisplayName,
+		Items:       items,
+	}}
 }

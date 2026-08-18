@@ -27,6 +27,11 @@ import (
 const (
 	defaultAccessTokenTTL  int64 = 7200    // 2 hours
 	defaultRefreshTokenTTL int64 = 2592000 // 30 days
+
+	defaultPersonalTokenMaxTTL int64 = 94608000 // 3 years
+	// A count rather than a duration, so it stays a plain int like every other
+	// length and quota in the codebase.
+	defaultPersonalTokenMaxActivePerUser int = 20
 )
 
 // Server ...
@@ -200,6 +205,20 @@ type IntrospectAllowedAppCode struct {
 	AppCode   string
 }
 
+// PersonalToken holds the policy knobs for personal access tokens (PAT).
+//
+// This phase does not gate the feature by realm on the backend: which realm the
+// PAT management API is used from is constrained purely by the frontend routing,
+// and the selectable-resource catalog is hardcoded in the frontend. Only the
+// numeric policy knobs below stay in config.
+type PersonalToken struct {
+	// MaxTTL is how far past now an expires_at may be set, in seconds. It bounds
+	// creation, renewal and the update path that carries an expiry.
+	MaxTTL int64
+	// MaxActivePerUser bounds active tokens per (realm, sub).
+	MaxActivePerUser int
+}
+
 // OAuth holds OAuth 2.0 protocol-specific configuration.
 type OAuth struct {
 	// AccessTokenTTL is the lifetime of access token in seconds (default: 7200)
@@ -309,19 +328,24 @@ type Config struct {
 	Trace     TraceConfig
 	Profiling ProfilingConfig
 
+	AppCode   string
+	AppSecret string
 	// BKAuthURL is the external base URL of the BKAuth service
 	// (e.g., https://bkauth.example.com). Used to construct OAuth issuer,
 	// well-known endpoints, and frontend redirect URLs.
-	BKAuthURL string
-
-	AppCode              string
-	AppSecret            string
+	BKAuthURL            string
 	BKApiURLTmpl         string
 	BKLoginURL           string
 	BKLoginTokenName     string
 	BKLoginAPIViaGateway bool
+	// CSRFTrustedOrigins additionally accepts these origins ("scheme://host[:port]")
+	// on the Cookie-authenticated /api/v1/web endpoints, for deployments where the
+	// frontend is served from somewhere other than BKAuthURL. The origin of
+	// BKAuthURL is always trusted and does not need to be repeated here.
+	CSRFTrustedOrigins []string
 
-	OAuth OAuth
+	OAuth         OAuth
+	PersonalToken PersonalToken
 }
 
 // Load 从 viper 中读取配置文件
@@ -376,6 +400,14 @@ func Load(v *viper.Viper) (*Config, error) {
 	)
 	for _, entry := range cfg.OAuth.IntrospectAllowedAppCodes {
 		cfg.OAuth.introspectAllowedMap[entry] = struct{}{}
+	}
+
+	// 8. PersonalToken numeric-policy defaults.
+	if cfg.PersonalToken.MaxTTL == 0 {
+		cfg.PersonalToken.MaxTTL = defaultPersonalTokenMaxTTL
+	}
+	if cfg.PersonalToken.MaxActivePerUser == 0 {
+		cfg.PersonalToken.MaxActivePerUser = defaultPersonalTokenMaxActivePerUser
 	}
 
 	return &cfg, nil

@@ -41,7 +41,27 @@ type ItemDisplay struct {
 const (
 	Name = "bk-gpu"
 
-	validResource = "resource:all"
+	// These are shared by the display path below and the grantable resource
+	// catalog in grantable_resource.go. Spelling them once is what keeps the
+	// entry offered in the creation form identical to the one the detail page
+	// renders back.
+	typeResource            = "resource"
+	typeDisplayName         = "IEG GPU 管理平台"
+	resourceItemName        = "all"
+	resourceItemDisplayName = "所有"
+
+	// The catalog is one level deep. levelResource spells the same string as
+	// typeResource and is deliberately not defined in terms of it: the type is a
+	// division of what can be granted and is labelled by the product, the level
+	// is a rung of that division's tree and is labelled by what the rung holds.
+	//
+	// Note that resourceItemName above is also "all". That one is the name of an
+	// entry, this one names a level, and nothing follows from them being spelled
+	// alike.
+	levelResource            = "resource"
+	levelResourceDisplayName = "资源"
+
+	validResource = typeResource + ":" + resourceItemName
 )
 
 type gpuRealm struct{}
@@ -71,12 +91,63 @@ func (r *gpuRealm) ResolveResourceDisplay(_ context.Context, resource string) (a
 	if resource != validResource {
 		return nil, fmt.Errorf("invalid resource: must be %q, got %q", validResource, resource)
 	}
+	return resourceDisplay(), nil
+}
+
+// ValidateAudiences accepts the single token this realm knows about. The realm
+// is all-or-nothing, so a token list is either exactly that one entry or a
+// mistake.
+func (r *gpuRealm) ValidateAudiences(_ context.Context, audiences []string) error {
+	if len(audiences) != 1 || audiences[0] != validResource {
+		return fmt.Errorf("invalid audience: must be exactly [%q], got %v", validResource, audiences)
+	}
+	return nil
+}
+
+// ResolveAudienceDisplays ignores tenantID and gains nothing from being handed
+// many tokens: there is nothing upstream to scope and nothing to batch.
+//
+// It checks each token but not how many there are, unlike ValidateAudiences,
+// which demands exactly the one. That constraint governs what may be written,
+// and re-imposing it here would turn a stored grant list that predates it into a
+// page that will not render at all.
+//
+// "所有" says nothing on its own, but there is only ever this one grant, so the
+// type's label above it is the whole story. The entry is the same name, display
+// name and token as the catalog's sole entry, there being one source for all
+// three.
+func (r *gpuRealm) ResolveAudienceDisplays(
+	_ context.Context,
+	_ string,
+	audiences []string,
+) (map[string]oauth.AudienceDisplay, error) {
+	displays := make(map[string]oauth.AudienceDisplay, len(audiences))
+	for _, aud := range audiences {
+		if aud != validResource {
+			return nil, fmt.Errorf("invalid audience: must be %q, got %q", validResource, aud)
+		}
+		displays[aud] = oauth.AudienceDisplay{
+			Type: typeResource,
+			// The sole entry of a one-level catalog, so the grant is at that
+			// level. resource:all reads like a select-all token but is not one:
+			// GrantableResourceTypes leaves the type-wide box empty so the token
+			// is offered in one place only.
+			Level:       levelResource,
+			Name:        resourceItemName,
+			DisplayName: resourceItemDisplayName,
+			Audience:    validResource,
+		}
+	}
+	return displays, nil
+}
+
+func resourceDisplay() []ResourceDisplay {
 	return []ResourceDisplay{{
-		Type:        "resource",
-		DisplayName: "IEG GPU 管理平台",
+		Type:        typeResource,
+		DisplayName: typeDisplayName,
 		Items: []ItemDisplay{{
-			Name:        "all",
-			DisplayName: "所有",
+			Name:        resourceItemName,
+			DisplayName: resourceItemDisplayName,
 		}},
-	}}, nil
+	}}
 }

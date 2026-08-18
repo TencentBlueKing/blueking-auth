@@ -18,39 +18,8 @@
 
 package fixture
 
-import (
-	"context"
-	"fmt"
-
-	"go.uber.org/zap"
-
-	"bkauth/pkg/oauth"
-	"bkauth/pkg/service"
-	"bkauth/pkg/service/types"
-)
+import "bkauth/pkg/oauth"
 
 func ensurePublicApp(tenantMode, tenantID string) {
-	ctx := context.Background()
-
-	appSvc := service.NewAppService()
-	exists, err := appSvc.Exists(ctx, oauth.PublicAppCode)
-	if err != nil {
-		zap.S().Panic(err, fmt.Sprintf("appSvc.Exists appCode=%s fail", oauth.PublicAppCode))
-	}
-	if exists {
-		return
-	}
-
-	app := types.App{
-		Code:        oauth.PublicAppCode,
-		Name:        oauth.PublicAppCode,
-		Description: "reserved for public OAuth clients",
-		TenantMode:  tenantMode,
-		TenantID:    tenantID,
-	}
-	err = appSvc.Create(ctx, app, "deploy_init")
-	if err != nil {
-		zap.S().Panic(err, fmt.Sprintf("appSvc.Create appCode=%s fail", oauth.PublicAppCode))
-	}
-	zap.S().Infof("created reserved app: %s", oauth.PublicAppCode)
+	ensureReservedApp(oauth.PublicAppCode, "reserved for public OAuth clients", tenantMode, tenantID)
 }

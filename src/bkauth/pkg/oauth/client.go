@@ -36,6 +36,13 @@ const (
 
 	// PublicAppCode is returned in introspection response for all DCR registered (public) clients.
 	PublicAppCode = "public"
+
+	// PersonalAppCode is reported as both client_id and bk_app_code for personal
+	// access tokens, mirroring PublicAppCode for dynamically registered clients.
+	// Because ResolveAppCode returns any non-dcr client_id unchanged, a PAT whose
+	// ClientID is set to this constant yields client_id == bk_app_code == personal
+	// with no change to the introspection response assembly.
+	PersonalAppCode = "personal"
 )
 
 // IsPublicClient reports whether the client_id belongs to a public client.

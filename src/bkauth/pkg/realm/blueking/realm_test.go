@@ -67,12 +67,25 @@ var _ = Describe("bluekingRealm", func() {
 			assert.Equal(GinkgoT(), []string{"mcp:s1", "mcp:s2"}, aud)
 		})
 
-		It("should dedup gateway audiences", func() {
+		It("should keep the api segment in gateway audiences", func() {
 			aud, err := r.ExtractAudiences(ctx,
 				"gateway:gw/api:a1,gateway:gw/api:a2,gateway:gw/api:*",
 			)
 			require.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), []string{"gateway:gw"}, aud)
+			assert.Equal(GinkgoT(),
+				[]string{"gateway:gw/api:a1", "gateway:gw/api:a2", "gateway:gw/api:*"}, aud)
+		})
+
+		It("should dedup identical gateway audiences", func() {
+			aud, err := r.ExtractAudiences(ctx, "gateway:gw/api:a1,gateway:gw/api:a1")
+			require.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), []string{"gateway:gw/api:a1"}, aud)
+		})
+
+		It("should not let a gateway wildcard absorb its specific apis", func() {
+			aud, err := r.ExtractAudiences(ctx, "gateway:gw/api:*,gateway:gw/api:a1")
+			require.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), []string{"gateway:gw/api:*", "gateway:gw/api:a1"}, aud)
 		})
 
 		It("should handle mixed types", func() {
@@ -80,7 +93,14 @@ var _ = Describe("bluekingRealm", func() {
 				"mcp:s1,gateway:gw1/api:*,mcp:s2,gateway:gw2/api:a1",
 			)
 			require.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), []string{"mcp:s1", "gateway:gw1", "mcp:s2", "gateway:gw2"}, aud)
+			assert.Equal(GinkgoT(),
+				[]string{"mcp:s1", "gateway:gw1/api:*", "mcp:s2", "gateway:gw2/api:a1"}, aud)
+		})
+
+		It("should extract the global wildcards verbatim", func() {
+			aud, err := r.ExtractAudiences(ctx, "mcp:*,gateway:*/api:*")
+			require.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), []string{"mcp:*", "gateway:*/api:*"}, aud)
 		})
 
 		It("should handle URL format", func() {
@@ -117,7 +137,7 @@ var _ = Describe("bluekingRealm", func() {
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
-			assert.Equal(GinkgoT(), "gateway", groups[0].Type)
+			assert.Equal(GinkgoT(), "api", groups[0].Type)
 			require.Len(GinkgoT(), groups[0].Items, 1)
 			item := groups[0].Items[0]
 			assert.Equal(GinkgoT(), "bk-apigateway-a", item.Name)
@@ -157,7 +177,7 @@ var _ = Describe("bluekingRealm", func() {
 			require.Len(GinkgoT(), groups, 2)
 			assert.Equal(GinkgoT(), "mcp", groups[0].Type)
 			assert.Len(GinkgoT(), groups[0].Items, 2)
-			assert.Equal(GinkgoT(), "gateway", groups[1].Type)
+			assert.Equal(GinkgoT(), "api", groups[1].Type)
 			assert.Len(GinkgoT(), groups[1].Items, 2)
 		})
 
@@ -279,7 +299,7 @@ var _ = Describe("bluekingRealm", func() {
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
-			assert.Equal(GinkgoT(), "gateway", groups[0].Type)
+			assert.Equal(GinkgoT(), "api", groups[0].Type)
 		})
 
 		It("should handle mixed MCP and gateway with title resolution", func() {

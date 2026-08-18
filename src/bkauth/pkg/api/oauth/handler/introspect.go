@@ -19,6 +19,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -84,9 +85,7 @@ func NewIntrospectHandler() gin.HandlerFunc {
 			return
 		}
 
-		tokenHash := oauth.HashToken(req.Token)
-
-		token, err := impls.GetAccessTokenByTokenHash(ctx, tokenHash)
+		token, err := resolveAccessToken(ctx, req.Token)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, oauth.NewServerError("failed to introspect token: "+err.Error()))
 			return
@@ -107,6 +106,19 @@ func NewIntrospectHandler() gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, newActiveIntrospectionResponse(token))
 	}
+}
+
+// resolveAccessToken dispatches on the token's family code so that each family is
+// looked up in its own store. The raw token never leaves this layer — only its
+// hash is passed down. The type code is a routing hint only: it sits outside the
+// checksum's scope, so a tampered code merely routes to the wrong store where it
+// misses and reports inactive. The hash lookup remains the sole authority.
+func resolveAccessToken(ctx context.Context, raw string) (types.ResolvedAccessToken, error) {
+	tokenHash := oauth.HashToken(raw)
+	if oauth.IsPersonalToken(raw) {
+		return impls.GetPersonalAccessTokenByTokenHash(ctx, tokenHash)
+	}
+	return impls.GetAccessTokenByTokenHash(ctx, tokenHash)
 }
 
 func newActiveIntrospectionResponse(token types.ResolvedAccessToken) IntrospectionResponse {

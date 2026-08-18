@@ -104,7 +104,32 @@ var _ = Describe("per-family token generators", func() {
 		},
 		Entry("access", GenerateAccessToken, byte(tokenTypeCodeAccess)),
 		Entry("refresh", GenerateRefreshToken, byte(tokenTypeCodeRefresh)),
+		Entry("personal", GeneratePersonalToken, byte(tokenTypeCodePersonal)),
 	)
+})
+
+var _ = Describe("IsPersonalToken", func() {
+	It("accepts a genuine personal token", func() {
+		raw, err := GeneratePersonalToken()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(IsPersonalToken(raw)).To(BeTrue())
+	})
+
+	It("rejects tokens of other families", func() {
+		access, err := GenerateAccessToken()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(IsPersonalToken(access)).To(BeFalse())
+
+		refresh, err := GenerateRefreshToken()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(IsPersonalToken(refresh)).To(BeFalse())
+	})
+
+	It("rejects malformed input", func() {
+		Expect(IsPersonalToken("")).To(BeFalse())
+		Expect(IsPersonalToken("not-a-token")).To(BeFalse())
+		Expect(IsPersonalToken(strings.Repeat("a", legacyTokenLength))).To(BeFalse())
+	})
 })
 
 var _ = Describe("generateToken", func() {

@@ -36,9 +36,18 @@ import (
 )
 
 // MCPServerClient queries MCP server display info from BK API Gateway.
+//
+// Deprecated: this client speaks the open API, which is scheduled for removal.
+// It is frozen at its current shape and kept only so the consent page keeps
+// working on gateway deployments that predate the v2 inner APIs; new callers
+// belong on LookupClient. When the open API goes away, point the consent page
+// at LookupClient.LookupMCPServer and delete this file.
 type MCPServerClient interface {
 	// BatchQueryTitles returns a map of mcp_name → title for the given names.
 	// Names not found in the remote response are omitted from the result.
+	//
+	// The result cannot express "not found" separately from "has no title";
+	// that is one of the reasons it is not reused for the token display path.
 	BatchQueryTitles(ctx context.Context, names []string) (map[string]string, error)
 }
 

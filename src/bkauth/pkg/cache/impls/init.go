@@ -31,11 +31,12 @@ const CacheLayer = "Cache"
 var (
 	LocalAccessAppCache memory.Cache
 
-	AppExistsCache   *redis.Cache
-	AppCache         *redis.Cache
-	AccessKeysCache  *redis.Cache
-	ConsentCache     *redis.Cache
-	AccessTokenCache *redis.Cache
+	AppExistsCache           *redis.Cache
+	AppCache                 *redis.Cache
+	AccessKeysCache          *redis.Cache
+	ConsentCache             *redis.Cache
+	AccessTokenCache         *redis.Cache
+	PersonalAccessTokenCache *redis.Cache
 )
 
 // InitCaches : Cache should only know about get/retrieve data
@@ -78,6 +79,19 @@ func InitCaches(disabled bool) {
 		bkauthredis.GetDefaultRedisClient(),
 		// oct = oauth access token
 		"oct",
+		5*time.Minute,
+	)
+
+	PersonalAccessTokenCache = redis.NewCache(
+		bkauthredis.GetDefaultRedisClient(),
+		// pat = personal access token
+		"pat",
+		// Expiry stays exact whatever this value is — the entry carries expires_at
+		// and IsActive re-evaluates it on every read — so the TTL only bounds how
+		// long a revocation can go unnoticed when active invalidation fails or
+		// loses the read-through race. Worth weighing before raising it further:
+		// unlike an oct entry, whose token dies on its own within hours, a PAT
+		// lives for years and revocation is its only kill switch.
 		5*time.Minute,
 	)
 }

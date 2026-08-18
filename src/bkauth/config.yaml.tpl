@@ -37,6 +37,13 @@ bkLoginUrl: "https://bk.example.com/login/"
 bkLoginAPIViaGateway: false
 # "bk_token" (default) or "bk_ticket"
 bkLoginTokenName: "bk_token"
+# Extra origins accepted by the CSRF check on /api/v1/web, for deployments where
+# the frontend is not served from bkAuthUrl. Exact "scheme://host[:port]" values;
+# bkAuthUrl's own origin is always trusted and need not be listed. The check runs
+# in every environment, so a local frontend dev server needs its origin here too.
+# csrfTrustedOrigins:
+#   - "https://console.example.com"
+#   - "http://localhost:8080"
 
 oauth:
   defaultRealmName: "blueking"
@@ -150,11 +157,30 @@ logger:
     encoding: json
     writer: file
     settings: {name: bkauth_audit.log, size: 500, backups: 20, age: 365, path: ./}
+    # Desensitization is per-logger: rules under `api` do not apply here.
+    # The audit log keeps entries for a year, so a plaintext credential landing
+    # in it is the longest-lived leak of any log this service writes.
+    desensitization:
+      enabled: true
+      fields:
+        - key: response_body
+          jsonPath:
+            # Web: the personal access token plaintext, handed out once on create
+            - "data.token"
   web:
     level: info
     encoding: json
     writer: file
     settings: {name: bkauth_web.log, size: 100, backups: 10, age: 7, path: ./}
+    # WebLogger is mounted on the whole /api/v1/web group and records the
+    # response body, so every web response passes through here.
+    desensitization:
+      enabled: true
+      fields:
+        - key: response_body
+          jsonPath:
+            # Web: the personal access token plaintext, handed out once on create
+            - "data.token"
 
 trace:
   enabled: false

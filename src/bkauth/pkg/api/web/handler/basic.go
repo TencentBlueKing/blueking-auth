@@ -39,7 +39,7 @@ type envVarsResponse struct {
 // Requires LoginRequired middleware; reads username from context.
 func NewUserInfoHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		webJSONSuccess(c, userInfoResponse{
+		util.WebSuccess(c, userInfoResponse{
 			Username: util.GetUsername(c),
 		})
 	}
@@ -51,7 +51,7 @@ func NewEnvVarsHandler() gin.HandlerFunc {
 	authenticator := login.GetAuthenticator()
 
 	return func(c *gin.Context) {
-		webJSONSuccess(c, envVarsResponse{
+		util.WebSuccess(c, envVarsResponse{
 			Version:  version.Version,
 			LoginURL: authenticator.GetLoginURL(),
 		})
