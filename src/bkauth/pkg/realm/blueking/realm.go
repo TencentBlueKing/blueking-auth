@@ -46,16 +46,66 @@ type ResourceGroup struct {
 	Items       []ResourceItem `json:"items"`
 }
 
-const Name = "blueking"
+const (
+	Name = "blueking"
+
+	// typeMCP and typeAPI are this realm's two grantable resource types.
+	// They live here rather than beside the enumeration because all three paths
+	// speak them: the consent display puts them in ResourceGroup.Type, the
+	// audience display in AudienceDisplay.Type, and the enumeration in
+	// GrantableResourceType.Name. A client matching one against another needs
+	// them to be one vocabulary, not three literals that happen to agree.
+	// A type is named after what it grants, not after the prefix its audiences
+	// carry: the API type grants APIs, even though every one of its audiences is
+	// written "gateway:<gw>/api:<api>". The prefix is grammar, and gateways are
+	// only a level within this type.
+	typeMCP = "mcp"
+	typeAPI = "api"
+
+	typeMCPDisplayName = "MCP"
+	typeAPIDisplayName = "API"
+
+	// The levels of the two catalogs, named after what each level holds. Both
+	// nest under gateways, but only the API catalog is grantable there, which is
+	// a fact about the rows rather than about the levels.
+	//
+	// levelMCP and levelAPI spell the same strings as typeMCP and typeAPI, and
+	// are deliberately not defined in terms of them: a level and a type are two
+	// vocabularies that happen to agree here, and tying them together would let
+	// a rename of one silently rewrite the other.
+	levelGateway = "gateway"
+	levelMCP     = "mcp"
+	levelAPI     = "api"
+
+	// The innermost level of each catalog is labelled the same as its type, which
+	// is a coincidence of this realm rather than a rule: a type is a division of
+	// what can be granted, a level is a rung of one division's tree. Other realms
+	// label a product ("蓝盾") and a level ("服务") quite differently.
+	levelGatewayDisplayName = "网关"
+	levelMCPDisplayName     = "MCP"
+	levelAPIDisplayName     = "API"
+)
 
 type bluekingRealm struct {
+	// mcpServerClient serves the consent page over the open API, which still
+	// works on gateway deployments that predate the v2 inner APIs. The two
+	// clients converge once the open API is retired.
 	mcpServerClient bkapigateway.MCPServerClient
+
+	// The v2 inner clients are bound to a tenant at construction, and the tenant
+	// arrives per request, so the realm -- registered once at startup -- holds
+	// their constructors instead of instances. Both carry nothing but that
+	// tenant, so building one per call costs nothing.
+	newLookupClient func(tenantID string) bkapigateway.LookupClient
+	newSearchClient func(tenantID string) bkapigateway.SearchClient
 }
 
 // New creates the blueking Realm implementation.
 func New() oauth.Realm {
 	return &bluekingRealm{
 		mcpServerClient: bkapigateway.NewMCPServerClient(),
+		newLookupClient: bkapigateway.NewLookupClient,
+		newSearchClient: bkapigateway.NewSearchClient,
 	}
 }
 
@@ -79,7 +129,7 @@ func parseBluekingResource(item string) (resType, name, apiName string, err erro
 		if n == "" {
 			return "", "", "", fmt.Errorf("invalid resource URL: cannot extract MCP server name from %q", item)
 		}
-		return "mcp", n, "", nil
+		return typeMCP, n, "", nil
 	}
 
 	if strings.HasPrefix(item, "mcp:") {
@@ -87,7 +137,7 @@ func parseBluekingResource(item string) (resType, name, apiName string, err erro
 		if n == "" {
 			return "", "", "", fmt.Errorf("invalid resource: empty name in %q", item)
 		}
-		return "mcp", n, "", nil
+		return typeMCP, n, "", nil
 	}
 
 	if rest, ok := strings.CutPrefix(item, "gateway:"); ok {
@@ -101,7 +151,7 @@ func parseBluekingResource(item string) (resType, name, apiName string, err erro
 		if api == "" {
 			return "", "", "", fmt.Errorf("invalid resource: empty api name in %q", item)
 		}
-		return "gateway", gwName, api, nil
+		return typeAPI, gwName, api, nil
 	}
 
 	return "", "", "", fmt.Errorf("invalid resource: unrecognized format %q", item)
@@ -130,17 +180,20 @@ func (r *bluekingRealm) ExtractAudiences(_ context.Context, resource string) ([]
 	var audiences []string
 
 	for _, item := range items {
-		resType, name, _, err := parseBluekingResource(item)
+		resType, name, apiName, err := parseBluekingResource(item)
 		if err != nil {
 			return nil, err
 		}
 
+		// The audience keeps the API segment. Collapsing it to "gateway:<name>"
+		// would both widen the grant beyond what the user picked and produce a
+		// value outside the five formats the gateway matches against.
 		var aud string
 		switch resType {
-		case "mcp":
+		case typeMCP:
 			aud = "mcp:" + name
-		case "gateway":
-			aud = "gateway:" + name
+		case typeAPI:
+			aud = "gateway:" + name + "/api:" + apiName
 		}
 
 		if !seen[aud] {
@@ -177,12 +230,12 @@ func (r *bluekingRealm) ResolveResourceDisplay(ctx context.Context, resource str
 		}
 
 		switch resType {
-		case "mcp":
+		case typeMCP:
 			if !mcpSeen[name] {
 				mcpSeen[name] = true
 				mcpNames = append(mcpNames, name)
 			}
-		case "gateway":
+		case typeAPI:
 			gs, ok := gwMap[name]
 			if !ok {
 				gs = &gwState{seen: make(map[string]bool)}
@@ -213,7 +266,7 @@ func (r *bluekingRealm) ResolveResourceDisplay(ctx context.Context, resource str
 			mcpItems = append(mcpItems, ResourceItem{Name: name, DisplayName: displayName})
 		}
 		groups = append(groups, ResourceGroup{
-			Type:        "mcp",
+			Type:        typeMCP,
 			DisplayName: "网关 MCP Server",
 			Items:       mcpItems,
 		})
@@ -232,7 +285,7 @@ func (r *bluekingRealm) ResolveResourceDisplay(ctx context.Context, resource str
 			gwItems = append(gwItems, ri)
 		}
 		groups = append(groups, ResourceGroup{
-			Type:        "gateway",
+			Type:        typeAPI,
 			DisplayName: "网关 API",
 			Items:       gwItems,
 		})

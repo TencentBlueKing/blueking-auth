@@ -19,13 +19,32 @@
 package web
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 
 	"bkauth/pkg/login"
+	"bkauth/pkg/oauth"
 	"bkauth/pkg/util"
 )
+
+// RealmRequired validates the :realm_name path parameter and stores it in the
+// gin context for the handlers to read.
+//
+// oauth.RealmMiddleware runs the same check but aborts with the OAuth error
+// object; the web surface answers with its own envelope, so the two cannot be
+// shared without one of them returning a body its clients do not parse.
+func RealmRequired() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		realmName := c.Param("realm_name")
+		if !oauth.IsValidRealm(realmName) {
+			util.WebNotFoundError(c, "unknown realm: "+realmName)
+			c.Abort()
+			return
+		}
+
+		util.SetRealmName(c, realmName)
+		c.Next()
+	}
+}
 
 // LoginRequired returns a gin middleware that verifies the user's login cookie.
 // On success it stores the username in the gin context; on failure it aborts with 401.
@@ -33,14 +52,9 @@ func LoginRequired() gin.HandlerFunc {
 	authenticator := login.GetAuthenticator()
 
 	abortUnauthorized := func(c *gin.Context) {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": gin.H{
-				"code":        "UNAUTHENTICATED",
-				"message":     "login required",
-				"system_name": "bkauth",
-				"data":        gin.H{"login_url": authenticator.GetLoginURL()},
-			},
-		})
+		util.WebUnauthenticatedErrorWithData(c, "login required",
+			gin.H{"login_url": authenticator.GetLoginURL()})
+		c.Abort()
 	}
 
 	return func(c *gin.Context) {

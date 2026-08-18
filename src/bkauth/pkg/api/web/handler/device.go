@@ -20,7 +20,6 @@ package handler
 
 import (
 	"errors"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 
@@ -56,21 +55,16 @@ type deviceConfirmResponse struct {
 	Result string `json:"result"`
 }
 
-// handleUserCodeError maps service-layer user code errors to differentiated HTTP responses,
-// so the frontend can show context-specific messages (expired vs already-used vs not-found).
+// handleUserCodeError maps service-layer user code errors to distinct messages,
+// so the user is told what to do next (expired vs already-used vs not-found).
 func handleUserCodeError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, oauth.ErrUserCodeExpired):
-		webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeExpired,
-			"device code has expired",
-			[]webErrorDetail{{Field: "user_code", Message: "code has expired, please request a new one on your device"}})
+		util.WebInvalidArgumentError(c, "code has expired, please request a new one on your device")
 	case errors.Is(err, oauth.ErrUserCodeAlreadyUsed):
-		webJSONError(c, http.StatusConflict, webErrCodeConflict,
-			"device code has already been used")
+		util.WebAlreadyExistsError(c, "device code has already been used")
 	default:
-		webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeInvalidArgument,
-			"invalid user code",
-			[]webErrorDetail{{Field: "user_code", Message: "code not found, please check and re-enter"}})
+		util.WebInvalidArgumentError(c, "code not found, please check and re-enter")
 	}
 }
 
@@ -79,9 +73,7 @@ func NewDeviceVerifyHandler(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req deviceVerifyRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeInvalidArgument,
-				"invalid request body",
-				[]webErrorDetail{{Field: "user_code", Message: "user_code is required"}})
+			util.WebBindError(c, err)
 			return
 		}
 
@@ -113,7 +105,7 @@ func NewDeviceVerifyHandler(cfg *config.Config) gin.HandlerFunc {
 			}
 		}
 
-		webJSONSuccess(c, deviceVerifyResponse{
+		util.WebSuccess(c, deviceVerifyResponse{
 			ClientName:    clientName,
 			ClientType:    clientType,
 			ClientLogoURI: clientLogoURI,
@@ -131,12 +123,7 @@ func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 
 		var req deviceConfirmRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeInvalidArgument,
-				"invalid request body",
-				[]webErrorDetail{
-					{Field: "user_code", Message: "user_code is required"},
-					{Field: "action", Message: "action is required, must be 'approve' or 'deny'"},
-				})
+			util.WebBindError(c, err)
 			return
 		}
 
@@ -145,7 +132,7 @@ func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 
 		if req.Action == deviceActionDeny {
 			_ = deviceCodeSvc.DenyByUserCode(ctx, req.UserCode)
-			webJSONSuccess(c, deviceConfirmResponse{Result: "denied"})
+			util.WebSuccess(c, deviceConfirmResponse{Result: "denied"})
 			return
 		}
 
@@ -158,12 +145,10 @@ func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 		userTenantID := util.GetTenantID(c)
 		if err := checkUserClientTenant(ctx, dc.ClientID, userTenantID); err != nil {
 			if errors.Is(err, errTenantMismatch) {
-				webJSONError(c, http.StatusForbidden, webErrCodeForbidden,
-					"user tenant does not match client tenant")
+				util.WebNoPermissionError(c, "user tenant does not match client tenant")
 				return
 			}
-			webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
-				"failed to resolve client tenant info")
+			util.WebInternalError(c, "failed to resolve client tenant info")
 			return
 		}
 
@@ -183,12 +168,11 @@ func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 				errors.Is(err, oauth.ErrInvalidUserCode) {
 				handleUserCodeError(c, err)
 			} else {
-				webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
-					"failed to approve device authorization")
+				util.WebInternalError(c, "failed to approve device authorization")
 			}
 			return
 		}
 
-		webJSONSuccess(c, deviceConfirmResponse{Result: "approved"})
+		util.WebSuccess(c, deviceConfirmResponse{Result: "approved"})
 	}
 }

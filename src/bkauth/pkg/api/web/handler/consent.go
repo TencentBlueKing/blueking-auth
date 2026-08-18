@@ -20,7 +20,6 @@ package handler
 
 import (
 	"errors"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 
@@ -62,9 +61,7 @@ func NewConsentInfoHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		consentChallenge := c.Query("consent_challenge")
 		if consentChallenge == "" {
-			webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeInvalidArgument,
-				"missing consent_challenge",
-				[]webErrorDetail{{Field: "consent_challenge", Message: "consent_challenge query parameter is required"}})
+			util.WebInvalidArgumentError(c, "consent_challenge query parameter is required")
 			return
 		}
 
@@ -72,16 +69,14 @@ func NewConsentInfoHandler() gin.HandlerFunc {
 
 		consent, err := impls.GetConsent(ctx, consentChallenge)
 		if err != nil {
-			webJSONError(c, http.StatusNotFound, webErrCodeNotFound,
-				"consent session expired or invalid")
+			util.WebNotFoundError(c, "consent session expired or invalid")
 			return
 		}
 
 		clientSvc := service.NewOAuthClientService()
 		profile, err := clientSvc.GetProfile(ctx, consent.ClientID)
 		if err != nil || profile.ID == "" {
-			webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
-				"Failed to retrieve client information")
+			util.WebInternalError(c, "Failed to retrieve client information")
 			return
 		}
 
@@ -91,7 +86,7 @@ func NewConsentInfoHandler() gin.HandlerFunc {
 			resources, _ = realm.ResolveResourceDisplay(ctx, consent.Resource)
 		}
 
-		webJSONSuccess(c, consentInfoResponse{
+		util.WebSuccess(c, consentInfoResponse{
 			ClientName:    profile.Name,
 			ClientType:    profile.Type,
 			ClientLogoURI: profile.LogoURI,
@@ -114,12 +109,7 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 
 		var req consentConfirmRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
-			webJSONErrorWithDetails(c, http.StatusBadRequest, webErrCodeInvalidArgument,
-				"invalid request body",
-				[]webErrorDetail{
-					{Field: "consent_challenge", Message: "consent_challenge is required"},
-					{Field: "action", Message: "action is required, must be 'approve' or 'deny'"},
-				})
+			util.WebBindError(c, err)
 			return
 		}
 
@@ -129,21 +119,19 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 
 		consent, err := impls.GetConsent(ctx, consentChallenge)
 		if err != nil {
-			webJSONError(c, http.StatusNotFound, webErrCodeNotFound,
-				"consent session expired or invalid")
+			util.WebNotFoundError(c, "consent session expired or invalid")
 			return
 		}
 
 		if err := impls.DeleteConsent(ctx, consentChallenge); err != nil {
-			webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
-				"Failed to consume consent session")
+			util.WebInternalError(c, "Failed to consume consent session")
 			return
 		}
 
 		if req.Action == consentActionDeny {
 			redirectURL := oauth.BuildErrorRedirectURL(consent.RedirectURI, consent.State,
 				"access_denied", "User denied the authorization request")
-			webJSONSuccess(c, consentConfirmResponse{RedirectURL: redirectURL})
+			util.WebSuccess(c, consentConfirmResponse{RedirectURL: redirectURL})
 			return
 		}
 
@@ -152,26 +140,23 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 			if errors.Is(err, errTenantMismatch) {
 				redirectURL := oauth.BuildErrorRedirectURL(consent.RedirectURI, consent.State,
 					oauth.ErrorCodeAccessDenied, "User tenant does not match client tenant")
-				webJSONSuccess(c, consentConfirmResponse{RedirectURL: redirectURL})
+				util.WebSuccess(c, consentConfirmResponse{RedirectURL: redirectURL})
 				return
 			}
-			webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
-				"Failed to resolve client tenant info")
+			util.WebInternalError(c, "Failed to resolve client tenant info")
 			return
 		}
 
 		realm := oauth.GetRealm(consent.RealmName)
 		audience, err := realm.ExtractAudiences(ctx, consent.Resource)
 		if err != nil {
-			webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
-				"Failed to process resource parameter")
+			util.WebInternalError(c, "Failed to process resource parameter")
 			return
 		}
 
 		code, err := oauth.GenerateAuthorizationCode()
 		if err != nil {
-			webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
-				"Failed to generate authorization code")
+			util.WebInternalError(c, "Failed to generate authorization code")
 			return
 		}
 
@@ -190,13 +175,12 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		if err := authCodeSvc.CreateAuthorizationCode(ctx, authCode); err != nil {
-			webJSONError(c, http.StatusInternalServerError, webErrCodeInternal,
-				"Failed to create authorization code")
+			util.WebInternalError(c, "Failed to create authorization code")
 			return
 		}
 
 		redirectURL := oauth.BuildAuthorizationRedirectURL(consent.RedirectURI, consent.State, code)
 
-		webJSONSuccess(c, consentConfirmResponse{RedirectURL: redirectURL})
+		util.WebSuccess(c, consentConfirmResponse{RedirectURL: redirectURL})
 	}
 }

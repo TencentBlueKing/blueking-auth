@@ -133,6 +133,28 @@ func GenerateRefreshToken() (string, error) {
 	return generateToken(tokenTypeCodeRefresh)
 }
 
+// GeneratePersonalToken mints a personal access token. Unlike the OAuth tokens
+// above it is not issued through an authorization flow — a logged-in user mints
+// it for themselves — but it shares this package's character format, checksum
+// and hashing, so it lives here as a non-standard member of the token family.
+func GeneratePersonalToken() (string, error) {
+	return generateToken(tokenTypeCodePersonal)
+}
+
+// IsPersonalToken reports whether raw carries the personal token type code.
+//
+// It is a routing hint only. The type code sits outside the checksum's scope
+// (see the registry comment above), so a tampered code still parses; the sole
+// effect is routing the lookup to the wrong store, where it misses and reports
+// inactive. The hash lookup remains the only authority on what a token is.
+func IsPersonalToken(raw string) bool {
+	parsed, err := parseToken(raw)
+	if err != nil {
+		return false
+	}
+	return parsed.typeCode == tokenTypeCodePersonal
+}
+
 // generateToken produces a token of the given family. The random segment
 // carries about 178.6 bit, well above the 128 bit required by RFC 6749
 // Section 10.10.
