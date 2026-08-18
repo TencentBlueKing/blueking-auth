@@ -18,7 +18,9 @@ const userinfo = computed(() => ({
 }));
 
 const handleLogout = () => {
-  location.href = getLoginURL(envStore.env.login_url, `${location.origin}/dashboard`, 'small');
+  const subPath = window.BK_SITE_PATH === '/' ? location.origin : window.BK_SITE_PATH;
+  const dashboardPath = subPath.endsWith('/') ? 'dashboard' : '/dashboard';
+  location.href = getLoginURL(envStore.env.login_url, `${subPath}${dashboardPath}`, 'small');
 };
 </script>
 
