@@ -17,7 +17,7 @@
           >
         </div>
         <div class="text-16px font-bold color-#eaebf0 cursor-pointer">
-          蓝鲸 Blueking Auth
+          蓝鲸认证中心
         </div>
       </div>
     </template>

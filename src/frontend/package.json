@@ -71,8 +71,8 @@
     "vue-tsc": "^2.2.12"
   },
   "simple-git-hooks": {
-    "pre-commit": "cd src/front && npx lint-staged",
-    "commit-msg": "cd src/front && npx commitlint --edit $1"
+    "pre-commit": "cd src/frontend && npx lint-staged",
+    "commit-msg": "cd src/frontend && npx commitlint --edit $1"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,vue}": [

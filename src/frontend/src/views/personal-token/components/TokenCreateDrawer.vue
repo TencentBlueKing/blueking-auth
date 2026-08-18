@@ -122,7 +122,7 @@
             >
               <BkCheckbox
                 :model-value="isAudienceSelected(card.resourceType.audience)"
-                @change="(value: CheckboxValue) => handleAudienceChange(card.resourceType.audience, value)"
+                @change="(value: CheckboxValue) => handleResourceTypeAudienceChange(card.resourceType, value)"
               >
                 <strong class="select-all-text">{{ t('全选') }}</strong>{{ getSelectAllDescription(card.resourceType) }}
               </BkCheckbox>
@@ -166,7 +166,7 @@
                       :auto-expand-on-check="false"
                       :checkbox-disabled="isResourceLocked(card.resourceType, resource)"
                       :model-value="isGrantableResourceSelected(resource)"
-                      :show-checkbox="card.resourceType.name !== 'mcp' && hasSelectableResource(resource)"
+                      :show-checkbox="Boolean(resource.audience)"
                       @update:model-value="(value: boolean) => handleGrantableResourceChange(resource, value)"
                     >
                       <template #title>
@@ -188,16 +188,26 @@
                         </div>
                       </template>
                       <div class="resource-checkbox-list">
-                        <BkCheckbox
+                        <template
                           v-for="item in resource.items"
-                          :key="item.audience"
-                          :disabled="isAudienceLocked(card.resourceType, item.audience)"
-                          :model-value="isAudienceSelected(item.audience)"
-                          size="small"
-                          @change="(value: CheckboxValue) => handleAudienceChange(item.audience, value)"
+                          :key="item.audience || item.name"
                         >
-                          {{ item.display_name }}（{{ item.name }}）
-                        </BkCheckbox>
+                          <BkCheckbox
+                            v-if="item.audience"
+                            :disabled="isAudienceLocked(card.resourceType, item.audience)"
+                            :model-value="isAudienceSelected(item.audience)"
+                            size="small"
+                            @change="(value: CheckboxValue) => handleAudienceChange(item.audience, value)"
+                          >
+                            {{ item.display_name }}（{{ item.name }}）
+                          </BkCheckbox>
+                          <span
+                            v-else
+                            class="resource-item-label"
+                          >
+                            {{ item.display_name }}（{{ item.name }}）
+                          </span>
+                        </template>
                       </div>
                     </CheckboxCollapse>
                     <div
@@ -580,7 +590,7 @@ const resourceCards = computed<IResourceCard[]>(() => resourceTypes.value
   }))
   .filter((card): card is IResourceCard => Boolean(card.state)));
 
-const hasSelectedResource = computed(() => selectedAudience.value.length > 0);
+const hasSelectedResource = computed(() => selectedAudience.value.some(Boolean));
 
 // 有效期限制在今天至后端允许的最大时间内
 const disabledDate = (date: Date) => {
@@ -667,20 +677,6 @@ const buildKeyword = (resourceType: IGrantableResourceType, keyword: string) => 
   return levelName && keyword ? levelName + ':' + keyword : undefined;
 };
 
-// bk-gpu 新建令牌时默认选中唯一资源
-const ensureGpuResourceSelected = (
-  resourceType: IGrantableResourceType,
-  state: IResourceState,
-) => {
-  if (realm !== 'bk-gpu' || isEdit.value || resourceType.name !== 'resource') {
-    return;
-  }
-  const resource = state.results.find(item => Boolean(item.audience));
-  if (state.count === 1 && resource?.audience && !isAudienceSelected(resource.audience)) {
-    selectedAudience.value = [resource.audience];
-  }
-};
-
 // 加载单类可授权资源，并丢弃过期请求的结果
 const fetchGrantableResources = async (
   resourceType: IGrantableResourceType,
@@ -718,12 +714,34 @@ const fetchGrantableResources = async (
       }
     });
     registerGrantableResourceTree(resourceType, result.results);
-    ensureGpuResourceSelected(resourceType, state);
   }
   finally {
     if (state.requestId === requestId) {
       state.loading = false;
     }
+  }
+};
+
+const getSelectableResources = (resources: IGrantableResource[]): IGrantableResource[] =>
+  resources.flatMap(resource => [
+    ...(resource.audience ? [resource] : []),
+    ...getSelectableResources(resource.items ?? []),
+  ]);
+
+// 新建时仅有一种类型和一个可选资源则默认选中
+const selectOnlyGrantableResource = () => {
+  if (isEdit.value || hasSelectedResource.value || !resourceTypes.value.length || resourceTypes.value.length > 1) {
+    return;
+  }
+  const resourceType = resourceTypes.value[0];
+  const state = getResourceState(resourceType!.name);
+  if (!state || state.count !== 1) {
+    return;
+  }
+  const selectableResources = getSelectableResources(state.results);
+  if (selectableResources.length === 1) {
+    selectedAudience.value = [selectableResources[0]!.audience];
+    resourceError.value = false;
   }
 };
 
@@ -737,6 +755,9 @@ const loadResourceTypes = async (currentRealm: PersonalTokenRealm, requestId: nu
   resourceTypes.value = types;
   types.forEach(registerResourceTypeAudience);
   await Promise.all(types.map(type => fetchGrantableResources(type, currentRealm)));
+  if (drawerRequestId === requestId && realm === currentRealm && isShow.value) {
+    selectOnlyGrantableResource();
+  }
 };
 
 // 清洗搜索关键字，并按资源类型分别防抖查询
@@ -786,6 +807,9 @@ const handlePageSizeChange = (resourceType: IGrantableResourceType, pageSize: nu
 
 const isAudienceSelected = (audience: string) => selectedAudience.value.includes(audience);
 
+const isTypeSelectAllSelected = (resourceType: IGrantableResourceType) =>
+  Boolean(resourceType.audience && isAudienceSelected(resourceType.audience));
+
 const handleAudienceChange = (audience: string, value: CheckboxValue) => {
   if (!audience) {
     return;
@@ -808,9 +832,6 @@ const getGrantableResourceAudiences = (resource: IGrantableResource) => {
   return resource.items?.map(item => item.audience).filter(Boolean) ?? [];
 };
 
-const hasSelectableResource = (resource: IGrantableResource) =>
-  getGrantableResourceAudiences(resource).length > 0;
-
 const isGrantableResourceSelected = (resource: IGrantableResource) => {
   const audiences = getGrantableResourceAudiences(resource);
   return audiences.length > 0 && audiences.every(isAudienceSelected);
@@ -830,7 +851,7 @@ const getGrantableResourceSelectedCount = (resource: IGrantableResource) => {
 };
 
 const isAudienceLocked = (resourceType: IGrantableResourceType, audience: string) =>
-  realm === 'bk-gpu' && resourceType.name === 'resource' && Boolean(audience);
+  isTypeSelectAllSelected(resourceType) && audience !== resourceType.audience;
 
 const isResourceLocked = (
   resourceType: IGrantableResourceType,
@@ -880,6 +901,24 @@ const getTypePreviewResources = (resourceType: IGrantableResourceType) => {
     }
     return result;
   }, []);
+};
+
+// 类型级全选与该类型的具体资源互斥
+const handleResourceTypeAudienceChange = (
+  resourceType: IGrantableResourceType,
+  value: CheckboxValue,
+) => {
+  if (!resourceType.audience) {
+    return;
+  }
+  const typeAudiences = new Set(
+    getTypePreviewResources(resourceType).map(resource => resource.audience),
+  );
+  selectedAudience.value = selectedAudience.value.filter(audience => !typeAudiences.has(audience));
+  if (value) {
+    selectedAudience.value = [...selectedAudience.value, resourceType.audience];
+  }
+  resourceError.value = false;
 };
 
 // 按资源层级生成稳定顺序的预览分组
@@ -958,7 +997,7 @@ const buildPayload = (): IPersonalTokenPayload => {
   return {
     name: formData.value.name.trim(),
     description: formData.value.description.trim(),
-    audience: [...selectedAudience.value],
+    audience: selectedAudience.value.filter(Boolean),
     expires_at: expiresAt,
   };
 };
@@ -1043,8 +1082,13 @@ const applyDetail = (detail: IPersonalToken) => {
     permanent: false,
   };
   originalExpiresAt.value = detail.expires_at;
-  selectedAudience.value = [...detail.audience];
+  selectedAudience.value = detail.audience.filter(Boolean);
   detail.resources?.forEach(registerSelectedResource);
+  if (detail.resources) {
+    resourceTypes.value
+      .filter(resourceType => isTypeSelectAllSelected(resourceType))
+      .forEach(resourceType => handleResourceTypeAudienceChange(resourceType, true));
+  }
   resourceCards.value.forEach(({ state }) => {
     state.results.forEach((resource) => {
       if (
@@ -1278,6 +1322,12 @@ onBeforeUnmount(() => {
   :deep(.resource-checkbox-list .bk-checkbox) {
     margin-left: 0;
     font-size: 12px;
+  }
+
+  .resource-item-label {
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
   }
 
   .resource-empty {
