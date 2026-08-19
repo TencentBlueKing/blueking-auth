@@ -22,7 +22,7 @@
       <div
         v-if="showCheckbox"
         v-bk-tooltips="{
-          content: disabledTips || t('当前只有一个后端服务地址，存在多个后端服务地址才可以配置健康检查'),
+          content: disabledTips || '',
           disabled: !(disabled || checkboxDisabled),
         }"
         class="prefix"
@@ -108,8 +108,6 @@ const {
   arrowPosition = 'right',
   compact = false,
 } = defineProps<IProps>();
-
-const { t } = useI18n();
 
 watch(() => disabled, () => {
   if (disabled) {

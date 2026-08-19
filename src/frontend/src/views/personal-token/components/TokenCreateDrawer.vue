@@ -71,13 +71,13 @@
                 </div>
               </template>
             </BkDatePicker>
-            <BkCheckbox
-              v-model="formData.permanent"
-              v-bk-tooltips="{ content: '暂未支持' }"
-              disabled
-            >
-              {{ t('永久有效') }}
-            </BkCheckbox>
+            <!--            个人令牌暂不支持永久有效 -->
+            <!--            <BkCheckbox -->
+            <!--              v-model="formData.permanent" -->
+            <!--              disabled -->
+            <!--            > -->
+            <!--              {{ t('永久有效') }} -->
+            <!--            </BkCheckbox> -->
           </div>
         </BkFormItem>
       </BkForm>
@@ -420,6 +420,7 @@ import {
 
 import CheckboxCollapse from '@/components/checkbox-collapse/Index.vue';
 import type { PersonalTokenRealm } from '@/constants/personal-token';
+import { useEnv } from '@/stores';
 import {
   type IGrantableResource,
   type IGrantableResourceType,
@@ -463,7 +464,7 @@ interface IFormData {
   name: string
   description: string
   expiredAt: Date | string | null
-  permanent: boolean
+  // permanent: boolean
 }
 
 interface IResourceState {
@@ -498,13 +499,15 @@ const {
 
 const emit = defineEmits<IEmits>();
 
+const envStore = useEnv();
+
 const { t } = useI18n();
 
 const formData = ref<IFormData>({
   name: '',
   description: '',
   expiredAt: null,
-  permanent: false,
+  // permanent: false,
 });
 const initializing = ref(false);
 const submitting = ref(false);
@@ -597,7 +600,9 @@ const disabledDate = (date: Date) => {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   return date.getTime() < startOfToday.getTime()
-    || date.getTime() > getEstimatedMaxExpiresAt().getTime();
+    || date.getTime() > getEstimatedMaxExpiresAt(
+      envStore.env.personal_token_policy.max_ttl,
+    ).getTime();
 };
 
 const handleDateShortcut = (days: number, change: DateShortcutChange) => {
@@ -1060,7 +1065,7 @@ const resetState = () => {
     name: '',
     description: '',
     expiredAt: null,
-    permanent: false,
+    // permanent: false,
   };
   resourceTypes.value = [];
   resourceStates.value = {};
@@ -1079,7 +1084,7 @@ const applyDetail = (detail: IPersonalToken) => {
     name: detail.name,
     description: detail.description,
     expiredAt: unixSecondsToDate(detail.expires_at),
-    permanent: false,
+    // permanent: false,
   };
   originalExpiresAt.value = detail.expires_at;
   selectedAudience.value = detail.audience.filter(Boolean);

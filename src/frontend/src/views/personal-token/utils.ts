@@ -4,7 +4,6 @@ export type TokenStatus = 'valid' | 'expired' | 'revoked';
 
 const MILLISECONDS_PER_SECOND = 1000;
 const SECONDS_PER_DAY = 24 * 60 * 60;
-const MAX_TTL_SECONDS = 94_608_000;
 const MAX_TTL_MARGIN_SECONDS = SECONDS_PER_DAY;
 
 // 撤销状态优先于过期状态
@@ -42,5 +41,5 @@ export const getRemainDays = (expiresAt: number, now = Date.now()) =>
   Math.ceil((expiresAt * MILLISECONDS_PER_SECOND - now) / (SECONDS_PER_DAY * MILLISECONDS_PER_SECOND));
 
 // 最大有效期预留一天，避免客户端与服务端时间边界不一致
-export const getEstimatedMaxExpiresAt = (now = Date.now()) =>
-  new Date(now + (MAX_TTL_SECONDS - MAX_TTL_MARGIN_SECONDS) * MILLISECONDS_PER_SECOND);
+export const getEstimatedMaxExpiresAt = (maxTTL: number, now = Date.now()) =>
+  new Date(now + (maxTTL - MAX_TTL_MARGIN_SECONDS) * MILLISECONDS_PER_SECOND);
