@@ -21,6 +21,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
+	"bkauth/pkg/config"
 	"bkauth/pkg/login"
 	"bkauth/pkg/util"
 	"bkauth/pkg/version"
@@ -30,9 +31,18 @@ type userInfoResponse struct {
 	Username string `json:"username"`
 }
 
+// personalTokenPolicyResponse mirrors types.PersonalTokenPolicy so the frontend
+// can enforce the same bounds the service does, instead of hardcoding a copy of
+// the defaults that silently diverges once a deployment tunes them.
+type personalTokenPolicyResponse struct {
+	MaxTTL           int64 `json:"max_ttl"`
+	MaxActivePerUser int   `json:"max_active_per_user"`
+}
+
 type envVarsResponse struct {
-	Version  string `json:"version"`
-	LoginURL string `json:"login_url"`
+	Version             string                      `json:"version"`
+	LoginURL            string                      `json:"login_url"`
+	PersonalTokenPolicy personalTokenPolicyResponse `json:"personal_token_policy"`
 }
 
 // NewUserInfoHandler creates a handler for GET /basic/userinfo.
@@ -46,14 +56,22 @@ func NewUserInfoHandler() gin.HandlerFunc {
 }
 
 // NewEnvVarsHandler creates a handler for GET /basic/env-vars.
-// No authentication required; exposes frontend-relevant configuration.
-func NewEnvVarsHandler() gin.HandlerFunc {
+// Exposes frontend-relevant configuration. Like every other route in this group
+// it sits behind LoginRequired, so none of it reaches an anonymous caller.
+func NewEnvVarsHandler(cfg *config.Config) gin.HandlerFunc {
 	authenticator := login.GetAuthenticator()
+
+	// Read once at construction: config cannot change while the process runs.
+	policy := personalTokenPolicyResponse{
+		MaxTTL:           cfg.PersonalToken.MaxTTL,
+		MaxActivePerUser: cfg.PersonalToken.MaxActivePerUser,
+	}
 
 	return func(c *gin.Context) {
 		util.WebSuccess(c, envVarsResponse{
-			Version:  version.Version,
-			LoginURL: authenticator.GetLoginURL(),
+			Version:             version.Version,
+			LoginURL:            authenticator.GetLoginURL(),
+			PersonalTokenPolicy: policy,
 		})
 	}
 }
