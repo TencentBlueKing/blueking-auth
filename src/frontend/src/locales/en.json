@@ -57,5 +57,9 @@
   "暂无选择结果": "No resources selected",
   "API（共 {count} 个）": "APIs ({count})",
   "MCP（共 {count} 个）": "MCPs ({count})",
-  "当前只有一个后端服务地址，存在多个后端服务地址才可以配置健康检查": "Health checks require more than one backend service address"
+  "搜索令牌名称、备注、授权资源": "Search name, description, and resources",
+  "活跃令牌：{count} / {limit}": "Active tokens: {count} / {limit}",
+  "活跃令牌数量已达上限，请先撤销一个现有令牌。": "The active token limit has been reached. Revoke an existing token first.",
+  "活跃令牌数量已达上限。": "The active token limit has been reached.",
+  "请先撤销一个现有令牌后再试。": "Revoke an existing token and try again."
 }

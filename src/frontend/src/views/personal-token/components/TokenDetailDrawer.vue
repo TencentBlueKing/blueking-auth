@@ -141,12 +141,6 @@
         <span :class="expiredClass">{{ expiredText }}</span>
       </div>
 
-      <!-- 最近使用 -->
-      <div class="info-row">
-        <span class="info-label">最近使用：</span>
-        <span class="info-value">--</span>
-      </div>
-
       <!-- 创建时间 -->
       <div class="info-row">
         <span class="info-label">创建时间：</span>

@@ -16,13 +16,27 @@
  * to the current version of the project delivered to anyone in the future.
  */
 import { defineStore } from 'pinia';
-import { getEnv } from '@/services/source/basic';
+import {
+  type IEnv,
+  type IPersonalTokenPolicy,
+  getEnv,
+} from '@/services/source/basic';
+
+interface IEnvState extends Omit<IEnv, 'personal_token_policy'> { personal_token_policy: IPersonalTokenPolicy }
+
+interface IState { env: IEnvState }
+
+const DEFAULT_PERSONAL_TOKEN_POLICY = {
+  max_ttl: 94_608_000,
+  max_active_per_user: 20,
+};
 
 export const useEnv = defineStore('useEnv', {
-  state: () => ({
+  state: (): IState => ({
     env: {
       version: '',
       login_url: '',
+      personal_token_policy: { ...DEFAULT_PERSONAL_TOKEN_POLICY },
     },
   }),
   actions: {
@@ -31,7 +45,14 @@ export const useEnv = defineStore('useEnv', {
      */
     async fetchEnv() {
       const result = await getEnv();
-      this.env = Object.assign(this.env, result ?? {});
+      this.env = {
+        ...this.env,
+        ...(result ?? {}),
+        personal_token_policy: {
+          ...DEFAULT_PERSONAL_TOKEN_POLICY,
+          ...(result?.personal_token_policy ?? {}),
+        },
+      };
       return this.env;
     },
   },

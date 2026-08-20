@@ -76,6 +76,7 @@
 <script setup lang="ts">
 import { messageSuccess } from '@/utils';
 import type { PersonalTokenRealm } from '@/constants/personal-token';
+import { useEnv } from '@/stores';
 import {
   type IPersonalToken,
   renewPersonalToken,
@@ -110,6 +111,8 @@ const {
 
 const emit = defineEmits<{ success: [] }>();
 
+const envStore = useEnv();
+
 const presets: PresetOption[] = [
   {
     label: '+ 30 天',
@@ -137,7 +140,8 @@ const formatDate = (date: Date) => {
     + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 };
 
-// 预设时长从令牌当前过期时间起算，自定义模式直接使用所选时间
+// 预设时长，若令牌已过期，从当前服务器时间开始算；若未过期，当前过期时间起算
+// 自定义模式直接使用所选时间
 const computedExpiredAt = computed<Date | null>(() => {
   if (!token) {
     return null;
@@ -146,7 +150,7 @@ const computedExpiredAt = computed<Date | null>(() => {
     return customDate.value ? new Date(dateToUnixSeconds(customDate.value) * 1000) : null;
   }
   const preset = presets.find(item => item.value === selectedType.value);
-  const base = unixSecondsToDate(token.expires_at);
+  const base = unixSecondsToDate(Math.max(token.expires_at, Date.now() / 1000));
   base.setDate(base.getDate() + (preset?.days ?? 0));
   return base;
 });
@@ -163,7 +167,10 @@ const confirmDisabled = computed(() => selectedType.value === 'custom' && !custo
 const disabledDate = (date: Date) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return date.getTime() < today.getTime() || date.getTime() > getEstimatedMaxExpiresAt().getTime();
+  return date.getTime() < today.getTime()
+    || date.getTime() > getEstimatedMaxExpiresAt(
+      envStore.env.personal_token_policy.max_ttl,
+    ).getTime();
 };
 
 const handleSelectPreset = (value: PresetValue) => {

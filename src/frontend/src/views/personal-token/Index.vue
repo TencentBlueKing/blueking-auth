@@ -12,12 +12,32 @@
 
     <!-- 工具栏 -->
     <div class="toolbar mb-16px">
-      <BkButton
-        theme="primary"
-        @click="handleCreate"
-      >
-        新增个人令牌
-      </BkButton>
+      <div class="toolbar-left">
+        <span
+          v-bk-tooltips="{
+            content: t('活跃令牌数量已达上限，请先撤销一个现有令牌。'),
+            disabled: !isActiveTokenLimitReached,
+          }"
+          class="create-button-wrapper"
+        >
+          <BkButton
+            theme="primary"
+            :disabled="isActiveTokenLimitReached"
+            @click="handleCreate"
+          >
+            新增个人令牌
+          </BkButton>
+        </span>
+        <span
+          class="active-token-count"
+          :class="{ 'is-limit-reached': isActiveTokenLimitReached }"
+        >
+          {{ t('活跃令牌：{count} / {limit}', {
+            count: activeTokenCount,
+            limit: maxActivePerUser,
+          }) }}
+        </span>
+      </div>
 
       <div class="toolbar-right">
         <BkSelect
@@ -38,7 +58,7 @@
         <BkInput
           v-model="searchKey"
           class="search-input"
-          placeholder="搜索令牌名称、备注、MCP 名称、API 名称、网关"
+          :placeholder="t('搜索令牌名称、备注、授权资源')"
           type="search"
           clearable
           @enter="handleSearch"
@@ -109,6 +129,7 @@ import {
   revokePersonalToken,
 } from '@/services/source/personal-token';
 import { usePopInfoBox } from '@/hooks';
+import { useEnv } from '@/stores';
 import {
   type TokenStatus,
   formatUnixSeconds,
@@ -139,10 +160,14 @@ interface ITableFilterValue {
 
 type TableSortValue = ITableSort | ITableSort[] | undefined;
 
+const envStore = useEnv();
+
+const { t } = useI18n();
 const route = useRoute();
 
 const searchKey = ref('');
 const filterStatus = ref<TokenStatus[]>([]);
+const activeTokenCount = ref(0);
 // 表头和工具栏筛选最终同步到该查询状态
 const tableFilterStatuses = ref<TokenStatus[]>([]);
 const tableSort = ref<ITableSort>();
@@ -168,6 +193,8 @@ const realm = computed<PersonalTokenRealm>(() => (
     : DEFAULT_PERSONAL_TOKEN_REALM
 ));
 const tableFilterValue = computed<ITableFilterValue>(() => ({ status: tableFilterStatuses.value }));
+const maxActivePerUser = computed(() => envStore.env.personal_token_policy.max_active_per_user);
+const isActiveTokenLimitReached = computed(() => activeTokenCount.value >= maxActivePerUser.value);
 
 const handleTokenUpdated = () => {
   tableRef.value?.fetchData(
@@ -230,11 +257,14 @@ const fetchPersonalTokenTableData = async (params: ITableQuery = {}) => {
   } = params;
   const tokens = await getPersonalTokenList(currentRealm);
   const normalizedKeyword = keyword.trim().toLowerCase();
-  const filteredTokens = tokens
-    .map<IPersonalTokenTableItem>(token => ({
-      ...token,
-      status: getPersonalTokenStatus(token),
-    }))
+  const normalizedTokens = tokens.map<IPersonalTokenTableItem>(token => ({
+    ...token,
+    status: getPersonalTokenStatus(token),
+  }));
+  if (realm.value === currentRealm) {
+    activeTokenCount.value = normalizedTokens.filter(token => token.status === 'valid').length;
+  }
+  const filteredTokens = normalizedTokens
     .filter(token => !statuses.length || statuses.includes(token.status))
     .filter((token) => {
       if (!normalizedKeyword) {
@@ -248,7 +278,6 @@ const fetchPersonalTokenTableData = async (params: ITableQuery = {}) => {
       return [
         token.name,
         token.description,
-        token.token_mask,
         ...token.audience,
         ...resourceTexts,
       ].some(text => text.toLowerCase().includes(normalizedKeyword));
@@ -488,6 +517,7 @@ watch(
   realm,
   (value, oldValue) => {
     resourceTypes.value = [];
+    activeTokenCount.value = 0;
     currentRow.value = null;
     createDrawerShow.value = false;
     detailDrawerShow.value = false;
@@ -543,6 +573,9 @@ const handleClearFilter = () => {
 };
 
 const handleCreate = () => {
+  if (isActiveTokenLimitReached.value) {
+    return;
+  }
   currentRow.value = null;
   createDrawerShow.value = true;
 };
@@ -588,6 +621,25 @@ const handleRevoke = (row: IPersonalTokenTableItem) => {
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .create-button-wrapper {
+      display: inline-flex;
+    }
+
+    .active-token-count {
+      font-size: 12px;
+      color: #63656e;
+
+      &.is-limit-reached {
+        color: #ea3636;
+      }
+    }
   }
 
   .toolbar-right {

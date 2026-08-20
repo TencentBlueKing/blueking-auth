@@ -41,6 +41,10 @@ const errorMessageMap = {
     overview: t('没有权限。'),
     suggestion: t('您没有执行该操作的权限。'),
   },
+  RESOURCE_EXHAUSTED: {
+    overview: t('活跃令牌数量已达上限。'),
+    suggestion: t('请先撤销一个现有令牌后再试。'),
+  },
 };
 
 const redirectLogin = (loginUrl: string) => {
@@ -136,9 +140,11 @@ export default (interceptors: AxiosInterceptorManager<AxiosResponse>) => {
             message: {
               code: errorObj.code,
               overview: errorMessageMap[errorObj.code as keyof typeof errorMessageMap]?.overview || t('系统错误'),
-              suggestion: errorObj.message
-                ? JSON.stringify(errorObj.message)
-                : errorMessageMap[errorObj.code as keyof typeof errorMessageMap]?.suggestion || '',
+              suggestion: errorObj.code === 'RESOURCE_EXHAUSTED'
+                ? errorMessageMap.RESOURCE_EXHAUSTED.suggestion
+                : errorObj.message
+                  ? JSON.stringify(errorObj.message)
+                  : errorMessageMap[errorObj.code as keyof typeof errorMessageMap]?.suggestion || '',
               type: 'json',
               details: errorObj,
               assistant: '',
