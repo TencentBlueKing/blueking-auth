@@ -46,7 +46,7 @@ func Register(cfg *config.Config, r *gin.RouterGroup) {
 	basicGroup := r.Group("/basic")
 	{
 		basicGroup.GET("/userinfo", handler.NewUserInfoHandler())
-		basicGroup.GET("/env-vars", handler.NewEnvVarsHandler())
+		basicGroup.GET("/env-vars", handler.NewEnvVarsHandler(cfg))
 	}
 
 	oauthGroup := r.Group("/oauth2")
