@@ -35,6 +35,7 @@ import (
 // Register ...
 func Register(cfg *config.Config, router *gin.Engine) {
 	// basic
+	router.GET("/", handler.NewIndexHandler(cfg))
 	router.GET("/ping", handler.Ping)
 	router.GET("/version", handler.Version)
 

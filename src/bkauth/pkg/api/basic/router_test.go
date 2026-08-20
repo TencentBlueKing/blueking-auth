@@ -19,6 +19,8 @@
 package basic
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -36,4 +38,33 @@ func TestRegister(t *testing.T) {
 	Register(cfg, r)
 
 	assert.NotNil(t, r)
+}
+
+func TestRegisterIndexRedirectsToFrontend(t *testing.T) {
+	t.Parallel()
+
+	r := gin.New()
+	Register(&config.Config{BKAuthURL: "https://bkauth.example.com"}, r)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	assert.Equal(t, http.StatusFound, w.Code)
+	assert.Equal(t, "https://bkauth.example.com/web/dashboard", w.Header().Get("Location"))
+}
+
+// The index redirect must stay on the exact path: an unmatched API path is a
+// 404, not an invitation to the frontend.
+func TestRegisterLeavesUnmatchedPathsUnredirected(t *testing.T) {
+	t.Parallel()
+
+	r := gin.New()
+	Register(&config.Config{BKAuthURL: "https://bkauth.example.com"}, r)
+
+	for _, path := range []string{"/api/v1/not-exist", "/.well-known/unknown"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+
+		assert.Equal(t, http.StatusNotFound, w.Code, path)
+	}
 }
