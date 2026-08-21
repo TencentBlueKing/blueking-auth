@@ -42,6 +42,7 @@
         append-to-body
         :clearable="false"
         :disabled-date="disabledDate"
+        @change="handleCustomDateChange"
       />
 
       <!-- 续期前后时间对比 -->
@@ -74,7 +75,10 @@
 </template>
 
 <script setup lang="ts">
-import { messageSuccess } from '@/utils';
+import {
+  messageError,
+  messageSuccess,
+} from '@/utils';
 import type { PersonalTokenRealm } from '@/constants/personal-token';
 import { useEnv } from '@/stores';
 import {
@@ -84,6 +88,7 @@ import {
 import {
   dateToUnixSeconds,
   formatUnixSeconds,
+  getEndOfDay,
   getEstimatedMaxExpiresAt,
   unixSecondsToDate,
 } from '../utils';
@@ -112,6 +117,8 @@ const {
 const emit = defineEmits<{ success: [] }>();
 
 const envStore = useEnv();
+
+const { t } = useI18n();
 
 const presets: PresetOption[] = [
   {
@@ -173,6 +180,17 @@ const disabledDate = (date: Date) => {
     ).getTime();
 };
 
+// 选择日期时统一使用当天最后一秒
+const handleCustomDateChange = (_value: string, selectionType?: string) => {
+  if (selectionType !== 'date' || !customDate.value) {
+    return;
+  }
+  const date = getEndOfDay(customDate.value);
+  if (date) {
+    customDate.value = date;
+  }
+};
+
 const handleSelectPreset = (value: PresetValue) => {
   selectedType.value = value;
 };
@@ -190,10 +208,15 @@ const handleConfirm = async () => {
   if (!expiresAt) {
     return;
   }
+  const expiresAtSeconds = dateToUnixSeconds(expiresAt);
+  if (expiresAtSeconds <= Math.floor(Date.now() / 1000)) {
+    messageError(t('过期时间不能早于当前时间'));
+    return;
+  }
 
   submitting.value = true;
   try {
-    await renewPersonalToken(realm, token.id, { expires_at: dateToUnixSeconds(expiresAt) });
+    await renewPersonalToken(realm, token.id, { expires_at: expiresAtSeconds });
     messageSuccess('续期成功');
     isShow.value = false;
     emit('success');

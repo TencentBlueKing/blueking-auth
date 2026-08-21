@@ -59,6 +59,7 @@
               :clearable="false"
               :disabled-date="disabledDate"
               :placeholder="t('请选择过期时间')"
+              @change="handleExpiredAtChange"
             >
               <!-- 过期时间快捷选项 -->
               <template #shortcuts="{ change }">
@@ -572,6 +573,7 @@ import {
 } from '@/utils';
 import {
   dateToUnixSeconds,
+  getEndOfDay,
   getEstimatedMaxExpiresAt,
   unixSecondsToDate,
 } from '../utils';
@@ -752,6 +754,12 @@ const formRules = computed(() => ({
       message: t('请选择过期时间'),
       trigger: 'change',
     },
+    {
+      validator: (value: Date | string | null) => !value
+        || dateToUnixSeconds(value) > Math.floor(Date.now() / 1000),
+      message: t('过期时间不能早于当前时间'),
+      trigger: 'change',
+    },
   ],
 }));
 
@@ -822,11 +830,26 @@ const disabledDate = (date: Date) => {
     ).getTime();
 };
 
+// 选择日期时统一使用当天最后一秒
+const handleExpiredAtChange = (_value: string, selectionType?: string) => {
+  if (selectionType !== 'date' || !formData.value.expiredAt) {
+    return;
+  }
+  const date = getEndOfDay(formData.value.expiredAt);
+  if (date) {
+    formData.value.expiredAt = date;
+  }
+};
+
 const handleDateShortcut = (days: number, change: DateShortcutChange) => {
   const date = new Date();
   date.setDate(date.getDate() + days);
-  formData.value.expiredAt = date;
-  change(date, false);
+  const endOfDay = getEndOfDay(date);
+  if (!endOfDay) {
+    return;
+  }
+  formData.value.expiredAt = endOfDay;
+  change(endOfDay, false);
 };
 
 const createResourceState = (): IResourceState => ({
