@@ -294,7 +294,25 @@ var _ = Describe("PersonalAccessTokenService", func() {
 			assert.Equal(GinkgoT(), "h", hash)
 		})
 
-		It("maps a lost CAS (rows==0, revoked) to not found", func() {
+		// The UPDATE's revoked = 0 guard cannot report this any more, so the
+		// rejection has to happen before the DAO is reached at all -- gomock fails
+		// the test if Renew is called, which is the assertion.
+		It("refuses a revoked token without issuing the UPDATE", func() {
+			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(
+				dao.PersonalAccessToken{
+					ID:        1,
+					TokenHash: "h",
+					ExpiresAt: time.Now().UTC().Add(time.Hour),
+					Revoked:   true,
+				}, nil)
+
+			_, err := svc.Renew(ctx, realm, 1, sub, validExpiresAt(), policy)
+			assert.ErrorIs(GinkgoT(), err, ErrPersonalTokenNotFound)
+		})
+
+		// Renewing to the expiry already stored changes no column, and MySQL counts
+		// changed rows: zero here is a no-op, not a missing row.
+		It("succeeds when the DAO reports zero affected rows", func() {
 			active := dao.PersonalAccessToken{
 				ID:        1,
 				TokenHash: "h",
@@ -303,8 +321,9 @@ var _ = Describe("PersonalAccessTokenService", func() {
 			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(active, nil)
 			manager.EXPECT().Renew(gomock.Any(), realm, int64(1), sub, gomock.Any()).Return(int64(0), nil)
 
-			_, err := svc.Renew(ctx, realm, 1, sub, validExpiresAt(), policy)
-			assert.ErrorIs(GinkgoT(), err, ErrPersonalTokenNotFound)
+			hash, err := svc.Renew(ctx, realm, 1, sub, validExpiresAt(), policy)
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), "h", hash)
 		})
 	})
 
@@ -378,13 +397,29 @@ var _ = Describe("PersonalAccessTokenService", func() {
 			assert.ErrorIs(GinkgoT(), err, ErrPersonalTokenNotFound)
 		})
 
-		It("maps rows==0 (revoked) to not found", func() {
+		// Revocation is terminal, and the UPDATE's revoked = 0 guard can no longer
+		// report that: its row count is zero for an unchanged save too. gomock
+		// fails the test if UpdateByIDAndSub is called, which is the assertion.
+		It("refuses a revoked token without issuing the UPDATE", func() {
+			revoked := storedWith(time.Now().UTC().Add(time.Hour))
+			revoked.Revoked = true
+			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(revoked, nil)
+
+			_, err := svc.Update(ctx, realm, 1, sub, inputWith(revoked.ExpiresAt.Unix()), policy)
+			assert.ErrorIs(GinkgoT(), err, ErrPersonalTokenNotFound)
+		})
+
+		// The bug this file's zero-row handling was rewritten for: a user who opens
+		// the edit form and saves it untouched submits the stored values back,
+		// which changes no column and so is counted as zero affected rows.
+		It("succeeds when the DAO reports zero affected rows", func() {
 			active := storedWith(time.Now().UTC().Add(time.Hour))
 			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(active, nil)
 			expectUpdate(active.ExpiresAt, 0)
 
-			_, err := svc.Update(ctx, realm, 1, sub, inputWith(active.ExpiresAt.Unix()), policy)
-			assert.ErrorIs(GinkgoT(), err, ErrPersonalTokenNotFound)
+			hash, err := svc.Update(ctx, realm, 1, sub, inputWith(active.ExpiresAt.Unix()), policy)
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), "h", hash)
 		})
 
 		It("returns the token hash on success for cache invalidation", func() {
