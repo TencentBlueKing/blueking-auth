@@ -67,6 +67,11 @@ export interface IGrantableResourceListParams {
   page_size?: number
 }
 
+export interface IGrantableResourceLookupParams {
+  type: string
+  name: string
+}
+
 /** 创建与编辑共用的全量请求参数。 */
 export interface IPersonalTokenPayload {
   name: string
@@ -139,4 +144,14 @@ export const getGrantableResourceList = (
 ) => http.get<IGrantableResourceList>(
   `/api/v1/web/realms/${realm}/personal-tokens/grantable-resources`,
   params,
+);
+
+/** 按完整层级名称精确查询一个可授予资源。 */
+export const lookupGrantableResource = (
+  realm: PersonalTokenRealm,
+  params: IGrantableResourceLookupParams,
+) => http.get<IGrantableResource>(
+  `/api/v1/web/realms/${realm}/personal-tokens/grantable-resources/-/lookup`,
+  params,
+  { catchError: true },
 );
