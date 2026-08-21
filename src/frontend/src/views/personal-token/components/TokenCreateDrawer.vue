@@ -1,4 +1,5 @@
 <template>
+  <!-- 新建/编辑令牌侧滑抽屉 -->
   <BkSideslider
     v-model:is-show="isShow"
     class="token-create-drawer"
@@ -6,15 +7,17 @@
     quick-close
     @closed="handleClosed"
   >
+    <!-- 抽屉标题 -->
     <template #header>
       {{ drawerTitle }}
     </template>
 
+    <!-- 抽屉主体 -->
     <div
       v-bkloading="{ loading: initializing }"
       class="drawer-body"
     >
-      <!-- 基础信息 -->
+      <!-- 基础信息表单 -->
       <BkForm
         ref="formRef"
         form-type="vertical"
@@ -57,6 +60,7 @@
               :disabled-date="disabledDate"
               :placeholder="t('请选择过期时间')"
             >
+              <!-- 过期时间快捷选项 -->
               <template #shortcuts="{ change }">
                 <div class="date-shortcuts">
                   <BkButton
@@ -87,6 +91,7 @@
         <div class="section-title">
           {{ t('授权范围') }}
         </div>
+        <!-- 授权范围错误提示 -->
         <div
           v-if="resourceError"
           class="scope-error"
@@ -100,6 +105,7 @@
           :key="card.resourceType.name"
           class="scope-card"
         >
+          <!-- 资源类型标题与全选 -->
           <div class="scope-card-header">
             <div
               class="scope-card-title"
@@ -134,8 +140,9 @@
             class="scope-card-content"
           >
             <div class="resource-browser">
-              <!-- 可授权资源列表 -->
+              <!-- 左侧资源选择区 -->
               <div class="resource-list-pane">
+                <!-- 资源搜索 -->
                 <BkInput
                   class="resource-search"
                   clearable
@@ -150,6 +157,7 @@
                   @clear="() => handleSearch(card.resourceType)"
                 />
 
+                <!-- 分组与平铺资源列表 -->
                 <div
                   v-bkloading="{ loading: card.state.loading }"
                   class="resource-group-list"
@@ -233,6 +241,7 @@
                   />
                 </div>
 
+                <!-- 资源分页 -->
                 <BkPagination
                   class="resource-pagination"
                   :count="card.state.count"
@@ -244,22 +253,139 @@
                   @update:limit="(value: CheckboxValue) => handlePageSizeChange(card.resourceType, Number(value))"
                   @update:model-value="(value: CheckboxValue) => handlePageChange(card.resourceType, Number(value))"
                 />
+                <!-- 非公开 MCP/API 添加区 -->
                 <div
-                  v-if="card.resourceType.name === 'mcp' || card.resourceType.name === 'api'"
+                  v-if="realm === 'blueking'
+                    && (card.resourceType.name === 'mcp' || card.resourceType.name === 'api')"
                   class="custom-resource-area"
                 >
-                  <BkButton
-                    class="add-custom-button"
-                    disabled
-                    theme="primary"
-                    text
+                  <!-- 非公开资源添加浮层 -->
+                  <BkPopover
+                    :is-show="isCustomResourcePopoverShow
+                      && customResourceTypeName === card.resourceType.name"
+                    :width="360"
+                    :padding="0"
+                    ext-cls="custom-resource-popover"
+                    placement="top-start"
+                    theme="light"
+                    trigger="manual"
+                    @clickoutside="(payload: IPopoverClickOutsideEvent) => handleCustomResourcePopoverClickOutside(
+                      card.resourceType.name,
+                      payload,
+                    )"
                   >
-                    <CommonIcon
-                      name="plus-circle-shape"
-                      class="mr-4px"
-                    />
-                    {{ card.resourceType.name === 'mcp' ? t('添加非公开 MCP') : t('添加非公开 API') }}
-                  </BkButton>
+                    <BkButton
+                      class="add-custom-button"
+                      :disabled="isTypeSelectAllSelected(card.resourceType)"
+                      theme="primary"
+                      text
+                      @click="() => handleOpenCustomResource(card.resourceType)"
+                    >
+                      <CommonIcon
+                        name="plus-circle-shape"
+                        class="mr-4px"
+                      />
+                      {{ card.resourceType.name === 'mcp' ? t('添加非公开 MCP') : t('添加非公开 API') }}
+                    </BkButton>
+                    <template #content>
+                      <div class="custom-resource-popover-content">
+                        <div class="custom-resource-popover-title">
+                          {{ customResourcePopoverTitle }}
+                        </div>
+                        <BkForm
+                          ref="customResourceFormRefs"
+                          class="custom-resource-form"
+                          form-type="vertical"
+                          :model="customResourceFormData"
+                          :rules="customResourceFormRules"
+                        >
+                          <BkFormItem
+                            property="gatewayName"
+                            required
+                            :label="t('网关名称')"
+                          >
+                            <BkInput
+                              :maxlength="240"
+                              :model-value="customResourceFormData.gatewayName"
+                              :placeholder="t('请输入网关名称')"
+                              @update:model-value="(value: CheckboxValue) => handleCustomResourceInput(
+                                'gatewayName',
+                                String(value ?? ''),
+                              )"
+                            />
+                          </BkFormItem>
+                          <BkFormItem
+                            property="resourceName"
+                            required
+                            :label="customResourceNameLabel"
+                          >
+                            <BkInput
+                              :maxlength="240"
+                              :model-value="customResourceFormData.resourceName"
+                              :placeholder="customResourceNamePlaceholder"
+                              @enter="handleAddCustomResource"
+                              @update:model-value="(value: CheckboxValue) => handleCustomResourceInput(
+                                'resourceName',
+                                String(value ?? ''),
+                              )"
+                            />
+                          </BkFormItem>
+                        </BkForm>
+                        <div class="custom-resource-popover-footer">
+                          <BkButton
+                            theme="primary"
+                            :loading="customResourceLoading"
+                            @click="handleAddCustomResource"
+                          >
+                            {{ t('确定') }}
+                          </BkButton>
+                          <BkButton @click="handleCloseCustomResourcePopover">
+                            {{ t('取消') }}
+                          </BkButton>
+                        </div>
+                      </div>
+                    </template>
+                  </BkPopover>
+                  <!-- 已校验的非公开资源 -->
+                  <div
+                    v-if="getCustomResources(card.resourceType.name).length"
+                    class="custom-resource-list"
+                  >
+                    <div
+                      v-for="item in getCustomResources(card.resourceType.name)"
+                      :key="item.resource.audience"
+                      class="custom-resource-row"
+                    >
+                      <div class="custom-resource-info">
+                        <span
+                          v-bk-ellipsis
+                          class="custom-resource-name"
+                        >
+                          {{ getCustomResourceDisplayName(item) }}
+                        </span>
+                        <BkTag
+                          v-if="isNonPublicResource(item.resource)"
+                          size="small"
+                          theme="danger"
+                        >
+                          {{ t('非公开') }}
+                        </BkTag>
+                        <BkTag
+                          size="small"
+                          theme="success"
+                        >
+                          {{ t('校验通过') }}
+                        </BkTag>
+                      </div>
+                      <BkButton
+                        class="delete-custom-button"
+                        text
+                        @click="() => handleRemoveAudience(card.resourceType, item.resource.audience)"
+                      >
+                        <Del />
+                      </BkButton>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -342,6 +468,7 @@
       </section>
     </div>
 
+    <!-- 抽屉操作栏 -->
     <template #footer>
       <BkButton
         theme="primary"
@@ -380,6 +507,7 @@
           {{ t('请妥善保存令牌，关闭弹窗后将无法再次查看它') }}
         </template>
       </BkAlert>
+      <!-- 一次性明文令牌信息 -->
       <div class="created-token-info">
         <div class="created-info-label">
           {{ t('令牌名称') }}
@@ -403,6 +531,7 @@
         </div>
       </div>
     </div>
+    <!-- 创建结果操作栏 -->
     <template #footer>
       <BkButton @click="createdDialogShow = false">
         {{ t('关闭') }}
@@ -415,6 +544,7 @@
 import {
   CloseLine,
   Copy,
+  Del,
   Success,
 } from 'bkui-vue/lib/icon';
 
@@ -432,6 +562,7 @@ import {
   getGrantableResourceList,
   getGrantableResourceTypes,
   getPersonalTokenDetail,
+  lookupGrantableResource,
   updatePersonalToken,
 } from '@/services/source/personal-token';
 import {
@@ -447,6 +578,7 @@ import {
 
 type DateShortcutChange = (date: Date, visible?: boolean) => void;
 type CheckboxValue = boolean | number | string;
+type CustomResourceField = 'gatewayName' | 'resourceName';
 
 interface IProps {
   realm: PersonalTokenRealm
@@ -456,7 +588,7 @@ interface IProps {
 interface IEmits { success: [] }
 
 interface IFormInstance {
-  validate: () => Promise<Record<string, unknown>>
+  validate: (fields?: string | string[]) => Promise<Record<string, unknown>>
   clearValidate: (fields?: string | string[]) => void
 }
 
@@ -490,6 +622,28 @@ interface IPreviewGroup {
   items: IPersonalTokenResource[]
 }
 
+interface ICustomResourceFormData {
+  gatewayName: string
+  resourceName: string
+}
+
+interface ICustomResourceItem {
+  gatewayName: string
+  resource: IPersonalTokenResource
+}
+
+interface ILookupErrorResponse {
+  error?: {
+    code?: string
+    message?: string
+  }
+}
+
+interface IPopoverClickOutsideEvent {
+  event: MouseEvent
+  isShow: boolean
+}
+
 const isShow = defineModel<boolean>('isShow', { default: false });
 
 const {
@@ -520,17 +674,32 @@ const resourceStates = ref<Record<string, IResourceState>>({});
 // audience 是提交标识，映射表用于补齐已选资源的预览信息
 const selectedAudience = ref<string[]>([]);
 const selectedResourceMap = ref<Record<string, IPersonalTokenResource>>({});
+// 精确查询成功的非公开资源按类型保留，用于左侧只读回显
+const customResources = ref<Record<string, ICustomResourceItem[]>>({});
+const customResourceTypeName = ref('');
+const customResourceFormData = ref<ICustomResourceFormData>({
+  gatewayName: '',
+  resourceName: '',
+});
+const customResourceErrors = ref<ICustomResourceFormData>({
+  gatewayName: '',
+  resourceName: '',
+});
+const customResourceLoading = ref(false);
 // 编辑时保留原始秒级时间，避免无改动时重复转换
 const originalExpiresAt = ref<number | null>(null);
 const resourceError = ref(false);
 
 const formRef = useTemplateRef<IFormInstance>('formRef');
+const customResourceFormRefs = useTemplateRef<IFormInstance[]>('customResourceFormRefs');
 
 const pageSizeOptions = [5, 10, 20];
 // 每种资源类型分别维护搜索防抖计时器
 const searchTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // 标识最新抽屉初始化请求，防止切换令牌后旧响应回写
 let drawerRequestId = 0;
+// 标识最新非公开资源查询，关闭气泡后忽略旧响应
+let customResourceRequestId = 0;
 
 const isEdit = computed(() => Boolean(token?.id));
 
@@ -594,6 +763,54 @@ const resourceCards = computed<IResourceCard[]>(() => resourceTypes.value
   .filter((card): card is IResourceCard => Boolean(card.state)));
 
 const hasSelectedResource = computed(() => selectedAudience.value.some(Boolean));
+
+const activeCustomResourceType = computed(() => resourceTypes.value
+  .find(resourceType => resourceType.name === customResourceTypeName.value));
+
+const isCustomResourcePopoverShow = computed(() => (
+  realm === 'blueking' && Boolean(activeCustomResourceType.value)
+));
+
+const customResourcePopoverTitle = computed(() => (
+  activeCustomResourceType.value?.name === 'mcp'
+    ? t('添加非公开 MCP')
+    : t('添加非公开 API')
+));
+
+const customResourceNameLabel = computed(() => (
+  activeCustomResourceType.value?.name === 'mcp'
+    ? t('MCP服务名称')
+    : t('API名称')
+));
+
+const customResourceNamePlaceholder = computed(() => (
+  activeCustomResourceType.value?.name === 'mcp'
+    ? t('请输入 MCP 服务名称')
+    : t('请输入 API 名称')
+));
+
+const customResourceNotFoundMessage = computed(() => (
+  activeCustomResourceType.value?.name === 'mcp'
+    ? t('未找到该 MCP 服务，请检查名称是否正确')
+    : t('未找到该 API，请检查名称是否正确')
+));
+
+const customResourceFormRules = computed(() => ({
+  gatewayName: [
+    {
+      validator: (value: string) => Boolean(value?.trim()) && !customResourceErrors.value.gatewayName,
+      message: customResourceErrors.value.gatewayName || t('请输入网关名称'),
+      trigger: 'blur',
+    },
+  ],
+  resourceName: [
+    {
+      validator: (value: string) => Boolean(value?.trim()) && !customResourceErrors.value.resourceName,
+      message: customResourceErrors.value.resourceName || customResourceNamePlaceholder.value,
+      trigger: 'blur',
+    },
+  ],
+}));
 
 // 有效期限制在今天至后端允许的最大时间内
 const disabledDate = (date: Date) => {
@@ -672,6 +889,42 @@ const registerResourceTypeAudience = (resourceType: IGrantableResourceType) => {
     display_name: '全部 ' + resourceType.display_name,
     audience: resourceType.audience,
   });
+};
+
+const getCustomResources = (typeName: string) => customResources.value[typeName] ?? [];
+
+const registerCustomResource = (
+  gatewayName: string,
+  resource: IPersonalTokenResource,
+) => {
+  const typeResources = getCustomResources(resource.type);
+  if (typeResources.some(item => item.resource.audience === resource.audience)) {
+    return;
+  }
+  customResources.value[resource.type] = [
+    ...typeResources,
+    {
+      gatewayName,
+      resource,
+    },
+  ];
+};
+
+const removeCustomResource = (typeName: string, audience: string) => {
+  customResources.value[typeName] = getCustomResources(typeName)
+    .filter(item => item.resource.audience !== audience);
+};
+
+const getCustomResourceDisplayName = (item: ICustomResourceItem) => [
+  item.gatewayName,
+  item.resource.display_name,
+].filter(Boolean).join(' / ');
+
+const getGatewayNameFromAudience = (audience: string) => {
+  const gatewayAudience = audience.split('/')[0] ?? '';
+  return gatewayAudience.startsWith('gateway:')
+    ? gatewayAudience.slice('gateway:'.length)
+    : '';
 };
 
 const getResourceState = (typeName: string) => resourceStates.value[typeName];
@@ -829,6 +1082,178 @@ const handleAudienceChange = (audience: string, value: CheckboxValue) => {
   resourceError.value = false;
 };
 
+const resetCustomResourceForm = () => {
+  customResourceFormData.value = {
+    gatewayName: '',
+    resourceName: '',
+  };
+  customResourceErrors.value = {
+    gatewayName: '',
+    resourceName: '',
+  };
+  nextTick(() => {
+    customResourceFormRefs.value?.[0]?.clearValidate();
+  });
+};
+
+const handleCloseCustomResourcePopover = () => {
+  customResourceRequestId += 1;
+  customResourceTypeName.value = '';
+  customResourceLoading.value = false;
+  resetCustomResourceForm();
+};
+
+const handleOpenCustomResource = (resourceType: IGrantableResourceType) => {
+  if (
+    realm !== 'blueking'
+    || isTypeSelectAllSelected(resourceType)
+  ) {
+    return;
+  }
+  if (customResourceTypeName.value === resourceType.name) {
+    handleCloseCustomResourcePopover();
+    return;
+  }
+  customResourceRequestId += 1;
+  resetCustomResourceForm();
+  customResourceTypeName.value = resourceType.name;
+};
+
+const handleCustomResourcePopoverClickOutside = (
+  typeName: string,
+  {
+    event,
+    isShow,
+  }: IPopoverClickOutsideEvent,
+) => {
+  if (!isShow || customResourceTypeName.value !== typeName) {
+    return;
+  }
+  if ((event.target as HTMLElement | null)?.closest('.add-custom-button')) {
+    return;
+  }
+  handleCloseCustomResourcePopover();
+};
+
+const handleCustomResourceInput = (
+  field: CustomResourceField,
+  value: string,
+) => {
+  customResourceFormData.value[field] = value.replace(/[,:]/g, '');
+  customResourceErrors.value[field] = '';
+  customResourceFormRefs.value?.[0]?.clearValidate(field);
+};
+
+const getLookupError = (error: unknown) => (error as ILookupErrorResponse)?.error;
+
+const showCustomResourceFieldError = async (
+  field: CustomResourceField,
+  message: string,
+) => {
+  customResourceErrors.value[field] = message;
+  await nextTick();
+  try {
+    await customResourceFormRefs.value?.[0]?.validate(field);
+  }
+  catch {
+    // 校验失败即由 BkFormItem 展示当前错误
+  }
+  messageError(t('添加失败，{message}', { message }));
+};
+
+// 按 blueking 两级名称精确查询，并复用已有 audience 选中与预览逻辑
+const handleAddCustomResource = async () => {
+  const resourceType = activeCustomResourceType.value;
+  if (
+    realm !== 'blueking'
+    || !resourceType
+    || isTypeSelectAllSelected(resourceType)
+  ) {
+    return;
+  }
+
+  customResourceErrors.value = {
+    gatewayName: '',
+    resourceName: '',
+  };
+  try {
+    await customResourceFormRefs.value?.[0]?.validate();
+  }
+  catch {
+    return;
+  }
+
+  const gatewayName = customResourceFormData.value.gatewayName.trim();
+  const resourceName = customResourceFormData.value.resourceName.trim();
+  if (!gatewayName || !resourceName) {
+    return;
+  }
+
+  const requestId = customResourceRequestId + 1;
+  customResourceRequestId = requestId;
+  customResourceLoading.value = true;
+  try {
+    const resource = await lookupGrantableResource(realm, {
+      type: resourceType.name,
+      name: `gateway:${gatewayName},${resourceType.name}:${resourceName}`,
+    });
+    if (
+      customResourceRequestId !== requestId
+      || activeCustomResourceType.value?.name !== resourceType.name
+      || !isShow.value
+    ) {
+      return;
+    }
+    if (!resource.audience) {
+      messageError(t('可授予资源查询失败，请稍后重试'));
+      return;
+    }
+
+    const selectedResource: IPersonalTokenResource = {
+      type: resourceType.name,
+      level: resourceType.levels[resourceType.levels.length - 1]?.name ?? resourceType.name,
+      name: resource.name,
+      display_name: resource.display_name,
+      audience: resource.audience,
+      extras: resource.extras,
+    };
+    registerSelectedResource(selectedResource);
+    registerCustomResource(gatewayName, selectedResource);
+    handleAudienceChange(selectedResource.audience, true);
+    messageSuccess(t('添加成功'));
+    handleCloseCustomResourcePopover();
+  }
+  catch (error) {
+    if (customResourceRequestId !== requestId) {
+      return;
+    }
+    const requestError = getLookupError(error);
+    if (requestError?.code === 'NOT_FOUND') {
+      const gatewayNotFound = requestError.message?.includes('no gateway named') === true;
+      await showCustomResourceFieldError(
+        gatewayNotFound ? 'gatewayName' : 'resourceName',
+        gatewayNotFound
+          ? t('未找到该网关，请检查名称是否正确')
+          : customResourceNotFoundMessage.value,
+      );
+      return;
+    }
+    if (requestError?.code === 'INVALID_ARGUMENT') {
+      await showCustomResourceFieldError(
+        'resourceName',
+        t('资源信息校验失败，请检查名称是否正确'),
+      );
+      return;
+    }
+    messageError(t('可授予资源查询失败，请稍后重试'));
+  }
+  finally {
+    if (customResourceRequestId === requestId) {
+      customResourceLoading.value = false;
+    }
+  }
+};
+
 // 分组资源优先使用自身 audience，否则汇总所有子资源 audience
 const getGrantableResourceAudiences = (resource: IGrantableResource) => {
   if (resource.audience) {
@@ -921,6 +1346,7 @@ const handleResourceTypeAudienceChange = (
   );
   selectedAudience.value = selectedAudience.value.filter(audience => !typeAudiences.has(audience));
   if (value) {
+    customResources.value[resourceType.name] = [];
     selectedAudience.value = [...selectedAudience.value, resourceType.audience];
   }
   resourceError.value = false;
@@ -959,6 +1385,7 @@ const hasRemovableSelection = (resourceType: IGrantableResourceType) =>
 const handleRemoveAudience = (resourceType: IGrantableResourceType, audience: string) => {
   if (!isAudienceLocked(resourceType, audience)) {
     handleAudienceChange(audience, false);
+    removeCustomResource(resourceType.name, audience);
   }
 };
 
@@ -969,6 +1396,7 @@ const handleClearType = (resourceType: IGrantableResourceType) => {
       .map(resource => resource.audience),
   );
   selectedAudience.value = selectedAudience.value.filter(audience => !removableAudiences.has(audience));
+  customResources.value[resourceType.name] = [];
 };
 
 const isNonPublicResource = (resource: IPersonalTokenResource) =>
@@ -1071,10 +1499,23 @@ const resetState = () => {
   resourceStates.value = {};
   selectedAudience.value = [];
   selectedResourceMap.value = {};
+  customResources.value = {};
+  customResourceRequestId += 1;
+  customResourceTypeName.value = '';
+  customResourceLoading.value = false;
+  customResourceFormData.value = {
+    gatewayName: '',
+    resourceName: '',
+  };
+  customResourceErrors.value = {
+    gatewayName: '',
+    resourceName: '',
+  };
   originalExpiresAt.value = null;
   resourceError.value = false;
   nextTick(() => {
     formRef.value?.clearValidate();
+    customResourceFormRefs.value?.[0]?.clearValidate();
   });
 };
 
@@ -1088,7 +1529,16 @@ const applyDetail = (detail: IPersonalToken) => {
   };
   originalExpiresAt.value = detail.expires_at;
   selectedAudience.value = detail.audience.filter(Boolean);
-  detail.resources?.forEach(registerSelectedResource);
+  detail.resources?.forEach((resource) => {
+    registerSelectedResource(resource);
+    if (
+      realm === 'blueking'
+      && (resource.type === 'mcp' || resource.type === 'api')
+      && isNonPublicResource(resource)
+    ) {
+      registerCustomResource(getGatewayNameFromAudience(resource.audience), resource);
+    }
+  });
   if (detail.resources) {
     resourceTypes.value
       .filter(resourceType => isTypeSelectAllSelected(resourceType))
@@ -1212,14 +1662,6 @@ onBeforeUnmount(() => {
   .section-title {
     font-size: 14px;
     color: #63656e;
-
-    // height: 36px;
-    // padding: 0 12px;
-    // font-weight: 700;
-    // line-height: 36px;
-    // color: #4d4f56;
-    // background-color: #f0f1f5;
-    // border-bottom: 1px solid #dcdee5;
   }
 
   .scope-error {
@@ -1362,23 +1804,87 @@ onBeforeUnmount(() => {
     gap: 4px;
   }
 
-  .custom-resource-row {
-    display: grid;
-    align-items: center;
+  .custom-resource-list {
     margin-top: 8px;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 24px;
-    gap: 8px;
+  }
+
+  .custom-resource-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 40px;
+    padding: 0 8px;
+    margin-top: 8px;
+    border: 1px solid #dcdee5;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  .custom-resource-info {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 6px;
+  }
+
+  .custom-resource-name {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 12px;
+    color: #4d4f56;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :deep(.custom-resource-row .bk-tag) {
+    flex-shrink: 0;
   }
 
   .delete-custom-button {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
     color: #979ba5;
 
     &:hover {
       color: #ea3636;
     }
+  }
+}
+
+.custom-resource-popover-content {
+  color: #4d4f56;
+  background-color: #fff;
+
+  .custom-resource-popover-title {
+    padding: 18px 20px 8px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 24px;
+  }
+
+  .custom-resource-form {
+    padding: 8px 20px 4px;
+
+    :deep(.bk-form-label) {
+      font-size: 12px;
+      color: #63656e;
+    }
+  }
+
+  .custom-resource-popover-footer {
+    display: flex;
+    padding: 10px 20px;
+    background:#FAFBFD;
+    border-top: 1px solid #dcdee5;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
   }
 }
 
@@ -1531,4 +2037,10 @@ onBeforeUnmount(() => {
   padding: 12px 28px;
 }
 
+</style>
+
+<style lang="scss">
+.custom-resource-popover {
+  padding: 0 !important;
+}
 </style>
