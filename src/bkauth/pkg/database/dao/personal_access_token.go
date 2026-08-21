@@ -98,6 +98,9 @@ type PersonalAccessTokenManager interface {
 	// Renew deliberately omits an `expires_at > now` guard: resurrecting an
 	// expired token via renewal is confirmed product behaviour. The lone
 	// `revoked = 0` guard is the entire implementation of "revocation is terminal".
+	//
+	// Its row count cannot stand in for existence: renewing to the expiry the row
+	// already holds changes no column, and MySQL counts changed rows.
 	Renew(ctx context.Context, realmName string, id int64, sub string, expiresAt time.Time) (int64, error)
 	Revoke(ctx context.Context, realmName string, id int64, sub string) (int64, error)
 	// UpdateByIDAndSub edits name / description / audience and expires_at together
@@ -107,6 +110,9 @@ type PersonalAccessTokenManager interface {
 	//
 	// It allows editing an expired token (it may be renewed back to life) but not
 	// a revoked one.
+	//
+	// Its row count cannot stand in for existence either: a PUT that submits the
+	// stored values back changes no column and is counted as zero.
 	UpdateByIDAndSub(
 		ctx context.Context, realmName string, id int64, sub, name, description, audience string,
 		expiresAt time.Time,

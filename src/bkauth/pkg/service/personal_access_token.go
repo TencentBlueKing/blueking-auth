@@ -124,7 +124,9 @@ func resolveExpiresAt(expiresAt int64, policy types.PersonalTokenPolicy) (time.T
 // Extending an already-active token is not resurrection -- it is already counted
 // as active, so checking it would block a legitimate extension at the quota. A
 // revoked token is not resurrection either: no write path can revive one, since
-// every UPDATE carries a revoked = 0 guard.
+// every UPDATE carries a revoked = 0 guard. Both callers already refuse a revoked
+// token before reaching this point; that arm stays so the function holds on its
+// own rather than on the order its callers happen to check things in.
 func (s *personalAccessTokenService) guardResurrection(
 	ctx context.Context, realmName, sub string,
 	token dao.PersonalAccessToken, policy types.PersonalTokenPolicy,
@@ -295,14 +297,20 @@ func (s *personalAccessTokenService) Update(
 ) (string, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(PersonalAccessTokenSVC, "Update")
 
-	// Read the row for its (immutable) token_hash, the early existence check and
-	// the expiry the resurrection guard needs; the state guard (revoked = 0) still
-	// lives in the UPDATE below, so this is not a read-then-check-then-write.
+	// Read the row for its (immutable) token_hash, the expiry the resurrection
+	// guard needs, and both rejections below.
 	daoToken, err := s.manager.GetByIDAndSub(ctx, realmName, id, sub)
 	if err != nil {
 		return "", errorWrapf(err, "manager.GetByIDAndSub fail")
 	}
 	if daoToken.ID == 0 {
+		return "", ErrPersonalTokenNotFound
+	}
+	// Revocation is terminal, and this is now where an edit of a revoked token is
+	// refused. The UPDATE's own revoked = 0 guard still runs -- it, not this
+	// check, is what makes the state precondition impossible to escape -- but its
+	// affected row count can no longer report the rejection (see below).
+	if daoToken.Revoked {
 		return "", ErrPersonalTokenNotFound
 	}
 
@@ -325,14 +333,19 @@ func (s *personalAccessTokenService) Update(
 		return "", errorWrapf(err, "json.Marshal audience fail")
 	}
 
-	rows, err := s.manager.UpdateByIDAndSub(
+	// The affected row count is deliberately not inspected. MySQL counts changed
+	// rows, not matched ones, so a PUT that submits the stored values back --
+	// opening the edit form and saving it untouched -- reports zero, which read as
+	// "no such row" and answered an ordinary save with a 404.
+	//
+	// The two rejections above cover what that count used to stand for. What is
+	// left is the row being revoked or evicted between the read and this
+	// statement, a window of one round trip whose only cost is reporting success
+	// for a write that did not land.
+	if _, err = s.manager.UpdateByIDAndSub(
 		ctx, realmName, id, sub, input.Name, input.Description, string(audienceJSON), expiresAt,
-	)
-	if err != nil {
+	); err != nil {
 		return "", errorWrapf(err, "manager.UpdateByIDAndSub fail")
-	}
-	if rows == 0 {
-		return "", ErrPersonalTokenNotFound
 	}
 	return daoToken.TokenHash, nil
 }
@@ -355,17 +368,21 @@ func (s *personalAccessTokenService) Renew(
 	if daoToken.ID == 0 {
 		return "", ErrPersonalTokenNotFound
 	}
+	// Same reasoning as in Update: the UPDATE still carries revoked = 0, but the
+	// rejection has to be reported from here.
+	if daoToken.Revoked {
+		return "", ErrPersonalTokenNotFound
+	}
 
 	if err = s.guardResurrection(ctx, realmName, sub, daoToken, policy); err != nil {
 		return "", err
 	}
 
-	rows, err := s.manager.Renew(ctx, realmName, id, sub, newExpiresAt)
-	if err != nil {
+	// Renewing to the expiry the row already holds changes no column and so
+	// reports zero affected rows, the same ambiguity Update has; the count is
+	// discarded for the same reason.
+	if _, err = s.manager.Renew(ctx, realmName, id, sub, newExpiresAt); err != nil {
 		return "", errorWrapf(err, "manager.Renew fail")
-	}
-	if rows == 0 {
-		return "", ErrPersonalTokenNotFound
 	}
 	return daoToken.TokenHash, nil
 }
