@@ -134,7 +134,6 @@ import {
   type TokenStatus,
   formatUnixSeconds,
   getPersonalTokenStatus,
-  getRemainDays,
 } from './utils';
 
 type TableInstance = InstanceType<typeof CommonTable>;
@@ -226,6 +225,9 @@ const statusOptions: {
 
 // 临期阈值（天）
 const EXPIRING_THRESHOLD_DAYS = 7;
+const SECONDS_PER_MINUTE = 60;
+const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
+const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
 
 // 状态展示配置
 const statusConfig: Record<TokenStatus, {
@@ -367,21 +369,34 @@ const renderResource = (token: IPersonalToken) => {
   );
 };
 
+// 根据剩余秒数生成过期提示
+const getExpirationDescription = (remainingSeconds: number) => {
+  if (remainingSeconds <= 0) {
+    return t('已过期');
+  }
+  if (remainingSeconds < SECONDS_PER_MINUTE) {
+    return t('即将过期');
+  }
+  if (remainingSeconds < SECONDS_PER_HOUR) {
+    return t('{count} 分钟后过期', { count: Math.floor(remainingSeconds / SECONDS_PER_MINUTE) });
+  }
+  if (remainingSeconds < SECONDS_PER_DAY) {
+    return t('{count} 小时后过期', { count: Math.floor(remainingSeconds / SECONDS_PER_HOUR) });
+  }
+  return t('{count} 天后过期', { count: Math.floor(remainingSeconds / SECONDS_PER_DAY) });
+};
+
 // 渲染过期时间单元格
 const renderExpiredAt = (row: IPersonalTokenTableItem) => {
   const expiredAtText = formatUnixSeconds(row.expires_at);
-  if (row.status === 'expired') {
-    return <span class="expired-text">{ expiredAtText }</span>;
-  }
-  if (row.status === 'valid') {
-    const remainDays = getRemainDays(row.expires_at);
-    if (remainDays >= 0 && remainDays <= EXPIRING_THRESHOLD_DAYS) {
-      return (
-        <span class="expiring-text">{ expiredAtText + '（' + remainDays + '天后过期）' }</span>
-      );
-    }
-  }
-  return <span>{ expiredAtText }</span>;
+  const remainingSeconds = row.expires_at - Date.now() / 1000;
+  const description = getExpirationDescription(remainingSeconds);
+  const className = row.status === 'expired'
+    ? 'expired-text'
+    : row.status === 'valid' && remainingSeconds <= EXPIRING_THRESHOLD_DAYS * SECONDS_PER_DAY
+      ? 'expiring-text'
+      : undefined;
+  return <span class={className}>{ `${expiredAtText}（${description}）` }</span>;
 };
 
 // 表格列及自定义单元格配置
