@@ -3,7 +3,9 @@ import type { IPersonalToken } from '@/services/source/personal-token';
 export type TokenStatus = 'valid' | 'expired' | 'revoked';
 
 const MILLISECONDS_PER_SECOND = 1000;
-const SECONDS_PER_DAY = 24 * 60 * 60;
+export const SECONDS_PER_MINUTE = 60;
+export const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
+export const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
 const MAX_TTL_MARGIN_SECONDS = SECONDS_PER_DAY;
 
 // 撤销状态优先于过期状态
@@ -25,6 +27,17 @@ export const unixSecondsToDate = (value: number) => new Date(value * MILLISECOND
 export const dateToUnixSeconds = (value: Date | string) => {
   const date = value instanceof Date ? value : new Date(value.replace(/-/g, '/'));
   return Math.floor(date.getTime() / MILLISECONDS_PER_SECOND);
+};
+
+export const getEndOfDay = (value: Date | string) => {
+  const date = value instanceof Date
+    ? new Date(value)
+    : unixSecondsToDate(dateToUnixSeconds(value));
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  date.setHours(23, 59, 59, 0);
+  return date;
 };
 
 export const formatUnixSeconds = (value?: number) => {

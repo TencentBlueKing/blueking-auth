@@ -131,6 +131,9 @@ import {
 import { usePopInfoBox } from '@/hooks';
 import { useEnv } from '@/stores';
 import {
+  SECONDS_PER_DAY,
+  SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
   type TokenStatus,
   formatUnixSeconds,
   getPersonalTokenStatus,
@@ -225,9 +228,6 @@ const statusOptions: {
 
 // 临期阈值（天）
 const EXPIRING_THRESHOLD_DAYS = 7;
-const SECONDS_PER_MINUTE = 60;
-const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
-const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
 
 // 状态展示配置
 const statusConfig: Record<TokenStatus, {
@@ -389,6 +389,9 @@ const getExpirationDescription = (remainingSeconds: number) => {
 // 渲染过期时间单元格
 const renderExpiredAt = (row: IPersonalTokenTableItem) => {
   const expiredAtText = formatUnixSeconds(row.expires_at);
+  if (row.status === 'revoked') {
+    return <span>{ expiredAtText }</span>;
+  }
   const remainingSeconds = row.expires_at - Date.now() / 1000;
   const description = getExpirationDescription(remainingSeconds);
   const className = row.status === 'expired'
