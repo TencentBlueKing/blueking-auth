@@ -28,6 +28,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"bkauth/pkg/database"
 	"bkauth/pkg/database/dao"
 	"bkauth/pkg/errorx"
 	"bkauth/pkg/logging"
@@ -48,6 +49,7 @@ var (
 	ErrPersonalTokenQuotaExceeded    = errors.New("personal access token active quota exceeded")
 	ErrPersonalTokenInvalidExpiresAt = errors.New(
 		"personal access token expires_at is outside the (now, now+max_ttl] window")
+	ErrPersonalTokenNameConflict = errors.New("personal access token name already exists")
 )
 
 // PersonalAccessTokenService defines personal access token operations.
@@ -147,6 +149,36 @@ func (s *personalAccessTokenService) guardResurrection(
 	return nil
 }
 
+// guardNameConflict refuses a name one of the owner's other tokens already
+// holds. Names are what the owner picks a token by in the list, so two rows
+// sharing one make the only human-readable identifier ambiguous at the moment it
+// is used to decide what to revoke.
+//
+// The uk_owner_name index is what actually enforces this; the check exists so
+// the ordinary case is answered with a name-specific error instead of a raw
+// constraint violation. The two are not redundant — this read and the write that
+// follows it are separate statements, so a concurrent create can still slip
+// between them, which is why both callers also translate the duplicate-key error
+// the write itself may return.
+//
+// excludeID keeps the row being edited out of the comparison, so re-submitting a
+// token's own name is not reported as colliding with itself; the create path
+// passes 0, which matches no AUTO_INCREMENT id.
+func (s *personalAccessTokenService) guardNameConflict(
+	ctx context.Context, realmName, sub, name string, excludeID int64,
+) error {
+	errorWrapf := errorx.NewLayerFunctionErrorWrapf(PersonalAccessTokenSVC, "guardNameConflict")
+
+	exists, err := s.manager.ExistsByOwnerAndName(ctx, realmName, sub, name, excludeID)
+	if err != nil {
+		return errorWrapf(err, "manager.ExistsByOwnerAndName fail")
+	}
+	if exists {
+		return ErrPersonalTokenNameConflict
+	}
+	return nil
+}
+
 func (s *personalAccessTokenService) Create(
 	ctx context.Context, input types.CreatePersonalAccessTokenInput, policy types.PersonalTokenPolicy,
 ) (types.CreatedPersonalAccessToken, error) {
@@ -154,6 +186,15 @@ func (s *personalAccessTokenService) Create(
 
 	expiresAt, err := resolveExpiresAt(input.ExpiresAt, policy)
 	if err != nil {
+		return types.CreatedPersonalAccessToken{}, err
+	}
+
+	// Ahead of the quota check so that a name the owner can simply change is
+	// reported as such, rather than as a spent allowance they would have to
+	// revoke a token to reclaim. Both must stay ahead of the eviction below,
+	// which deletes rows: rejecting after it would have destroyed history for a
+	// create that never happened.
+	if err = s.guardNameConflict(ctx, input.RealmName, input.Sub, input.Name, 0); err != nil {
 		return types.CreatedPersonalAccessToken{}, err
 	}
 
@@ -200,6 +241,15 @@ func (s *personalAccessTokenService) Create(
 
 	id, err := s.manager.Create(ctx, daoToken)
 	if err != nil {
+		// Where a create that raced another one past guardNameConflict lands.
+		//
+		// The table's other unique key is token_hash, so attributing every
+		// violation here to the name is in principle ambiguous. In practice it is
+		// not: the hash is 128 bits of a digest over 30 base62 characters of
+		// CSPRNG output, so a collision is not an event this branch will ever see.
+		if database.IsDuplicateEntryError(err) {
+			return types.CreatedPersonalAccessToken{}, ErrPersonalTokenNameConflict
+		}
 		return types.CreatedPersonalAccessToken{}, errorWrapf(err, "manager.Create fail")
 	}
 
@@ -314,6 +364,18 @@ func (s *personalAccessTokenService) Update(
 		return "", ErrPersonalTokenNotFound
 	}
 
+	// Skipped when the name is unchanged, which is the common case for a PUT that
+	// edits something else. Comparing in Go is safe only in this direction: an
+	// exact match cannot collide with anything, because the sole row it could
+	// collide with is the one being excluded. Deciding a name is *different*
+	// enough to be free is what needs the column's collation, and that is left to
+	// the query.
+	if input.Name != daoToken.Name {
+		if err = s.guardNameConflict(ctx, realmName, sub, input.Name, id); err != nil {
+			return "", err
+		}
+	}
+
 	// Compared in Unix seconds, the precision the client was given. On the
 	// unchanged path the stored time is written back verbatim rather than
 	// reconstructed from the client's seconds, so a rename cannot round away the
@@ -345,6 +407,11 @@ func (s *personalAccessTokenService) Update(
 	if _, err = s.manager.UpdateByIDAndSub(
 		ctx, realmName, id, sub, input.Name, input.Description, string(audienceJSON), expiresAt,
 	); err != nil {
+		// Unambiguous here, unlike on the create path: this statement does not
+		// write token_hash, so uk_owner_name is the only key it can violate.
+		if database.IsDuplicateEntryError(err) {
+			return "", ErrPersonalTokenNameConflict
+		}
 		return "", errorWrapf(err, "manager.UpdateByIDAndSub fail")
 	}
 	return daoToken.TokenHash, nil

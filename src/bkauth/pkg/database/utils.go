@@ -20,11 +20,13 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	jsoniter "github.com/json-iterator/go"
 	"go.uber.org/zap"
@@ -35,7 +37,30 @@ import (
 
 const (
 	ArgsTruncateLength = 4096
+
+	// mysqlErrDupEntry is ER_DUP_ENTRY, raised when a write violates a UNIQUE key.
+	mysqlErrDupEntry = 1062
 )
+
+// ============== error classification ==============
+
+// IsDuplicateEntryError reports whether err is MySQL's unique-key violation.
+//
+// A unique index is the only guard that holds under concurrency: an
+// application-side existence check and the write that follows it are two
+// statements with a gap in between, so two requests can both pass the check.
+// Callers translate the violation into their own domain error rather than
+// letting a lost race surface as a 500.
+//
+// It deliberately does not say which key was violated: the index name is only
+// available by parsing the driver's message, whose format differs across MySQL
+// versions (8.0 qualifies the name with the table, 5.7 does not). A caller whose
+// table carries several unique keys has to establish from the statement itself
+// that the outcome is unambiguous.
+func IsDuplicateEntryError(err error) bool {
+	var mysqlErr *mysql.MySQLError
+	return errors.As(err, &mysqlErr) && mysqlErr.Number == mysqlErrDupEntry
+}
 
 // ============== tx Rollback Log ==============
 
