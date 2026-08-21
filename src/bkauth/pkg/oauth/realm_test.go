@@ -54,20 +54,20 @@ var _ = Describe("Extras", func() {
 	})
 })
 
-var _ = Describe("ValidateKeywordLevels", func() {
+var _ = Describe("ValidateLevelNames", func() {
 	It("should accept a query that filters nothing", func() {
-		assert.NoError(GinkgoT(), oauth.ValidateKeywordLevels(nil, "gateway", "api"))
+		assert.NoError(GinkgoT(), oauth.ValidateLevelNames(nil, "gateway", "api"))
 	})
 
 	It("should accept every level the type declares, together or apart", func() {
-		assert.NoError(GinkgoT(), oauth.ValidateKeywordLevels(
+		assert.NoError(GinkgoT(), oauth.ValidateLevelNames(
 			map[string]string{"api": "query"}, "gateway", "api"))
-		assert.NoError(GinkgoT(), oauth.ValidateKeywordLevels(
+		assert.NoError(GinkgoT(), oauth.ValidateLevelNames(
 			map[string]string{"gateway": "bk-", "api": "query"}, "gateway", "api"))
 	})
 
 	It("should reject a level the type does not have, naming it", func() {
-		err := oauth.ValidateKeywordLevels(map[string]string{"mcp": "log"}, "gateway", "api")
+		err := oauth.ValidateLevelNames(map[string]string{"mcp": "log"}, "gateway", "api")
 
 		require.ErrorIs(GinkgoT(), err, oauth.ErrUnknownGrantableResourceLevel)
 		assert.Contains(GinkgoT(), err.Error(), "mcp",
@@ -78,7 +78,7 @@ var _ = Describe("ValidateKeywordLevels", func() {
 		// The levels of the sibling type are the likeliest mistake a client
 		// makes, and they are as wrong here as a typo.
 		assert.ErrorIs(GinkgoT(),
-			oauth.ValidateKeywordLevels(map[string]string{"gateway": "bk-"}, "service"),
+			oauth.ValidateLevelNames(map[string]string{"gateway": "bk-"}, "service"),
 			oauth.ErrUnknownGrantableResourceLevel)
 	})
 })
@@ -209,5 +209,66 @@ var _ = Describe("PageFlatGrantableResources", func() {
 
 		assert.NotNil(GinkgoT(), page.Results)
 		assert.Empty(GinkgoT(), page.Results)
+	})
+})
+
+var _ = Describe("FindFlatGrantableResource", func() {
+	const level = "service"
+
+	entries := []oauth.GrantableResource{
+		{Name: "codecc", DisplayName: "CodeCC", Audience: "service:codecc"},
+		{Name: "codecc-plugin", DisplayName: "CodeCC 插件", Audience: "service:codecc-plugin"},
+	}
+
+	refTo := func(name string) oauth.GrantableResourceRef {
+		return oauth.GrantableResourceRef{Names: map[string]string{level: name}}
+	}
+
+	It("should return the entry named", func() {
+		entry, err := oauth.FindFlatGrantableResource(entries, level, refTo("codecc"))
+
+		require.NoError(GinkgoT(), err)
+		assert.Equal(GinkgoT(), entries[0], entry,
+			"the catalog row verbatim, so a resolved entry and a browsed one are one thing")
+	})
+
+	It("should match the whole name rather than a prefix of it", func() {
+		// The paging helper would return both of these for "codecc". A ref names
+		// one entry, so the near miss must not answer for the exact one.
+		entry, err := oauth.FindFlatGrantableResource(entries, level, refTo("codecc-plugin"))
+
+		require.NoError(GinkgoT(), err)
+		assert.Equal(GinkgoT(), "codecc-plugin", entry.Name)
+	})
+
+	It("should not match on the display name, which identifies nothing", func() {
+		_, err := oauth.FindFlatGrantableResource(entries, level, refTo("CodeCC"))
+
+		assert.ErrorIs(GinkgoT(), err, oauth.ErrGrantableResourceNotFound)
+	})
+
+	It("should report a name nobody has as not found", func() {
+		_, err := oauth.FindFlatGrantableResource(entries, level, refTo("turbo"))
+
+		require.ErrorIs(GinkgoT(), err, oauth.ErrGrantableResourceNotFound)
+		assert.Contains(GinkgoT(), err.Error(), "turbo",
+			"the user has to be told which name to go back and check")
+	})
+
+	It("should tell an unnamed level from one named nothing", func() {
+		// A form the user has not finished is not a name to go and check, so the
+		// two sentinels stay apart.
+		_, err := oauth.FindFlatGrantableResource(entries, level, oauth.GrantableResourceRef{})
+		assert.ErrorIs(GinkgoT(), err, oauth.ErrIncompleteGrantableResourceRef)
+
+		_, err = oauth.FindFlatGrantableResource(entries, level, refTo(""))
+		assert.ErrorIs(GinkgoT(), err, oauth.ErrIncompleteGrantableResourceRef)
+	})
+
+	It("should reject a name keyed by a level this catalog does not have", func() {
+		_, err := oauth.FindFlatGrantableResource(entries, level,
+			oauth.GrantableResourceRef{Names: map[string]string{"gateway": "codecc"}})
+
+		assert.ErrorIs(GinkgoT(), err, oauth.ErrUnknownGrantableResourceLevel)
 	})
 })

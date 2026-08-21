@@ -110,4 +110,40 @@ var _ = Describe("gpuRealm grantable resources", func() {
 			assert.ErrorIs(GinkgoT(), err, oauth.ErrUnknownGrantableResourceLevel)
 		})
 	})
+
+	Describe("ResolveGrantableResource", func() {
+		It("should return the same entry the listing offers", func() {
+			// Nothing is withheld from this catalog, so the two paths must not be
+			// able to disagree about the realm's one entry.
+			page, err := r.ListGrantableResource(ctx, "", oauth.GrantableResourceQuery{Type: "resource"})
+			require.NoError(GinkgoT(), err)
+
+			resource, err := r.ResolveGrantableResource(ctx, "", oauth.GrantableResourceRef{
+				Type:  "resource",
+				Names: map[string]string{"resource": "all"},
+			})
+			require.NoError(GinkgoT(), err)
+
+			assert.Equal(GinkgoT(), page.Results[0], resource)
+		})
+
+		It("should reject an unknown type", func() {
+			_, err := r.ResolveGrantableResource(ctx, "", oauth.GrantableResourceRef{
+				Type:  "mcp",
+				Names: map[string]string{"resource": "all"},
+			})
+
+			assert.ErrorIs(GinkgoT(), err, oauth.ErrUnknownGrantableResourceType)
+		})
+
+		It("should report a name the realm does not have as not found", func() {
+			_, err := r.ResolveGrantableResource(ctx, "", oauth.GrantableResourceRef{
+				Type:  "resource",
+				Names: map[string]string{"resource": "some-gpu"},
+			})
+
+			assert.ErrorIs(GinkgoT(), err, oauth.ErrGrantableResourceNotFound)
+		})
+	})
+
 })

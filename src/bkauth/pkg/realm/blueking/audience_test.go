@@ -217,7 +217,9 @@ var _ = Describe("bluekingRealm audiences", func() {
 				map[string]bkapigateway.Gateway{"bk-log": {Name: "bk-log", IsOfficial: true}}, nil,
 			)
 			mockClient.EXPECT().LookupReleasedResource(gomock.Any(), "bk-log", []string{"query_log"}).Return(
-				map[string]bkapigateway.Resource{"query_log": {Name: "query_log", Description: "查询日志"}}, nil,
+				map[string]bkapigateway.Resource{
+					"query_log": {Name: "query_log", Description: "查询日志", IsPublic: true},
+				}, nil,
 			)
 
 			entries, err := resolve("", []string{"gateway:bk-log/api:query_log"})
@@ -230,7 +232,67 @@ var _ = Describe("bluekingRealm audiences", func() {
 				"the API row it was picked from, named by the API rather than the gateway above it")
 			assert.Equal(GinkgoT(), "gateway:bk-log/api:query_log", entries[0].Audience)
 			assert.Equal(GinkgoT(), "查询日志", entries[0].DisplayName)
+			assert.Equal(GinkgoT(), oauth.Extras{"is_official": true, "is_public": true},
+				entries[0].Extras,
+				"one fact describes the gateway and the other the API; both belong on the entry")
+		})
+
+		It("should mark a private API, whose grant outlives its listing", func() {
+			// The catalog cannot show this row -- its upstream returns public
+			// objects only -- so the token page is where the user learns what the
+			// grant is on.
+			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"bk-log"}).Return(
+				map[string]bkapigateway.Gateway{"bk-log": {Name: "bk-log"}}, nil,
+			)
+			mockClient.EXPECT().LookupReleasedResource(gomock.Any(), "bk-log", []string{"hidden"}).Return(
+				map[string]bkapigateway.Resource{"hidden": {Name: "hidden", IsPublic: false}}, nil,
+			)
+
+			entries, err := resolve("", []string{"gateway:bk-log/api:hidden"})
+			require.NoError(GinkgoT(), err)
+
+			assert.Equal(GinkgoT(), oauth.Extras{"is_official": false, "is_public": false},
+				entries[0].Extras)
+		})
+
+		It("should still render a grant whose object has since been closed", func() {
+			// Being closed to personal tokens is what the resolve path refuses, and
+			// this is why that check lives there rather than in the lookup client:
+			// the switch can go off after the grant was made, and the entry has to
+			// stay on the page, or the user cannot see the grant to revoke it.
+			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"bk-log"}).Return(
+				map[string]bkapigateway.Gateway{"bk-log": {Name: "bk-log"}}, nil,
+			)
+			mockClient.EXPECT().LookupReleasedResource(gomock.Any(), "bk-log", []string{"closed"}).Return(
+				map[string]bkapigateway.Resource{
+					"closed": {
+						Name: "closed", Description: "已关停", IsPublic: true,
+						OAuth2PersonalClientEnabled: false,
+					},
+				}, nil,
+			)
+
+			entries, err := resolve("", []string{"gateway:bk-log/api:closed"})
+			require.NoError(GinkgoT(), err)
+
+			require.Len(GinkgoT(), entries, 1)
+			assert.Equal(GinkgoT(), "已关停", entries[0].DisplayName)
+		})
+
+		It("should leave is_public off the grants that stand for a set", func() {
+			// A gateway-wide or type-wide grant covers whatever the set holds, so
+			// it is neither public nor private, and claiming either would be a
+			// fact about nothing.
+			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"bk-log"}).Return(
+				map[string]bkapigateway.Gateway{"bk-log": {Name: "bk-log", IsOfficial: true}}, nil,
+			)
+
+			entries, err := resolve("", []string{"gateway:bk-log/api:*", "gateway:*/api:*"})
+			require.NoError(GinkgoT(), err)
+
 			assert.Equal(GinkgoT(), oauth.Extras{"is_official": true}, entries[0].Extras)
+			assert.Nil(GinkgoT(), entries[1].Extras,
+				"no gateway of its own to describe, and no single API either")
 		})
 
 		It("should repeat a gateway's is_official on every entry naming it", func() {
@@ -404,7 +466,7 @@ var _ = Describe("bluekingRealm audiences", func() {
 				assert.Equal(GinkgoT(), "first", displays["gateway:gw1/api:a1"].DisplayName)
 				assert.Equal(GinkgoT(), "second", displays["gateway:gw1/api:a2"].DisplayName)
 				assert.Equal(GinkgoT(), "other", displays["gateway:gw2/api:b1"].DisplayName)
-				assert.Equal(GinkgoT(), oauth.Extras{"is_official": true},
+				assert.Equal(GinkgoT(), oauth.Extras{"is_official": true, "is_public": false},
 					displays["gateway:gw1/api:a1"].Extras)
 			})
 

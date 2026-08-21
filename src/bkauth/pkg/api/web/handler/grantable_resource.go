@@ -102,3 +102,87 @@ func NewGrantableResourceListHandler() gin.HandlerFunc {
 		util.WebSuccess(c, common.PaginatedResponse{Count: page.Count, Results: results})
 	}
 }
+
+// NewGrantableResourceLookupHandler creates a handler for
+// GET /realms/:realm_name/personal-tokens/grantable-resources/-/lookup.
+//
+// It resolves names the user typed into one catalog row, which is how a resource
+// the catalog cannot list gets granted: the listing upstream returns public
+// objects only, so a private MCP server or API never appears on a page and has to
+// be named outright.
+//
+// The response is a single entry of exactly the shape a page holds, so a client
+// adds it to a selection beside the ticked rows without a second code path, and
+// submits its audience the same way -- the token grammar stays the backend's.
+//
+// Nothing is written here, and the audience it hands back is not remembered: a
+// caller may still submit an audience that never came from this endpoint, which
+// create and update validate syntactically as they always have. That is the
+// division on purpose. Existence is confirmed while the form is being filled in,
+// where the user can act on the answer, and a token stays editable when its
+// upstream is down or its object has since been removed.
+func NewGrantableResourceLookupHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		realm := oauth.GetRealm(util.GetRealmName(c))
+
+		var req grantableResourceRefRequest
+		if err := c.ShouldBindQuery(&req); err != nil {
+			util.WebBindError(c, err)
+			return
+		}
+
+		names, err := req.names()
+		if err != nil {
+			util.WebInvalidArgumentError(c, err.Error())
+			return
+		}
+
+		resource, err := realm.ResolveGrantableResource(
+			c.Request.Context(), util.GetTenantID(c), oauth.GrantableResourceRef{
+				Type:  req.Type,
+				Names: names,
+			})
+		if err != nil {
+			handleGrantableResourceRefError(c, err)
+			return
+		}
+
+		util.WebSuccess(c, resource)
+	}
+}
+
+// handleGrantableResourceRefError maps the realm's sentinels onto the web error
+// envelope.
+//
+// The incomplete, not-found and not-grantable messages are passed through
+// verbatim: each is built from the names the caller just submitted, and each is
+// what the user needs in order to fix the form. Everything else is an upstream
+// failure whose message carries query and argument context the client may not
+// see.
+func handleGrantableResourceRefError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, oauth.ErrUnknownGrantableResourceType):
+		util.WebInvalidArgumentError(c,
+			"type must be one of those returned by grantable-resource-types")
+
+	case errors.Is(err, oauth.ErrUnknownGrantableResourceLevel):
+		util.WebInvalidArgumentError(c, "each name must be keyed by one of this type's levels")
+
+	case errors.Is(err, oauth.ErrIncompleteGrantableResourceRef):
+		util.WebInvalidArgumentError(c, err.Error())
+
+	case errors.Is(err, oauth.ErrGrantableResourceNotFound):
+		util.WebNotFoundError(c, err.Error())
+
+	// 403 rather than 404: the object is there and the name is right, so an
+	// answer of "no such thing" would be a lie the user cannot act on. It is not
+	// about who is asking either -- nobody may grant it until its owner opens it
+	// -- but of the codes available this is the one that says "found, refused".
+	case errors.Is(err, oauth.ErrGrantableResourceNotGrantable):
+		util.WebNoPermissionError(c, err.Error())
+
+	default:
+		util.SetError(c, err)
+		util.WebInternalError(c, "failed to look up the grantable resource")
+	}
+}

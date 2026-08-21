@@ -36,12 +36,28 @@ const (
 	// with parseBluekingAudience.
 	wildcard = "*"
 
+	// The two select-all tokens, spelled as constants because a const cannot call
+	// the builders below. Keep them in step with those: mcpAudience(wildcard) and
+	// gatewayAPIAudience(wildcard, wildcard) must produce exactly these.
 	allMCPServersAudience  = "mcp:*"
 	allGatewayAPIsAudience = "gateway:*/api:*"
 
 	displayAllMCPServers = "所有 MCP Server"
 	displayAllAPIs       = "所有 API"
 )
+
+// mcpAudience and gatewayAPIAudience are the only places an audience is spelled.
+// The gateway compares stored tokens byte for byte, so a second spelling of one
+// grant is a grant that silently never matches -- and the catalog, the consent
+// path and the resolve path each build tokens. parseBluekingAudience is their
+// inverse; the three are meant to be read together.
+func mcpAudience(serverName string) string {
+	return "mcp:" + serverName
+}
+
+func gatewayAPIAudience(gatewayName, apiName string) string {
+	return "gateway:" + gatewayName + "/api:" + apiName
+}
 
 // parseBluekingAudience accepts exactly the five token shapes the gateway
 // matches against:
@@ -219,6 +235,10 @@ func gatewayAudienceDisplay(p parsedAudience, displays displayIndex) oauth.Audie
 		Type:     typeAPI,
 		Audience: p.audience,
 	}
+	// Built up rather than assigned, because the two facts below come from two
+	// lookups that fail independently, and a key is only allowed to appear once
+	// its value is known.
+	extras := oauth.Extras{}
 
 	switch {
 	case p.name == wildcard:
@@ -233,15 +253,24 @@ func gatewayAudienceDisplay(p parsedAudience, displays displayIndex) oauth.Audie
 		entry.Level = levelAPI
 		entry.Name = p.apiName
 		entry.DisplayName = p.apiName
-		if resource, ok := displays.resources[p.name][p.apiName]; ok && resource.Description != "" {
-			entry.DisplayName = resource.Description
+		if resource, ok := displays.resources[p.name][p.apiName]; ok {
+			if resource.Description != "" {
+				entry.DisplayName = resource.Description
+			}
+			// Only on this level: the two above stand for sets, and a set is not
+			// public or private the way one API is.
+			extras["is_public"] = resource.IsPublic
 		}
 	}
 
 	if gateway, ok := displays.gateways[p.name]; ok {
 		// Describes the gateway, so an item-level entry repeats what its group
 		// says about itself.
-		entry.Extras = oauth.Extras{"is_official": gateway.IsOfficial}
+		extras["is_official"] = gateway.IsOfficial
+	}
+
+	if len(extras) > 0 {
+		entry.Extras = extras
 	}
 	return entry
 }

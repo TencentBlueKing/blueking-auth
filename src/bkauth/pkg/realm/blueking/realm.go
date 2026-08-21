@@ -191,9 +191,9 @@ func (r *bluekingRealm) ExtractAudiences(_ context.Context, resource string) ([]
 		var aud string
 		switch resType {
 		case typeMCP:
-			aud = "mcp:" + name
+			aud = mcpAudience(name)
 		case typeAPI:
-			aud = "gateway:" + name + "/api:" + apiName
+			aud = gatewayAPIAudience(name, apiName)
 		}
 
 		if !seen[aud] {

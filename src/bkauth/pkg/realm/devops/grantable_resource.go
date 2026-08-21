@@ -58,8 +58,34 @@ func (r *devopsRealm) ListGrantableResource(
 			"%w: %q", oauth.ErrUnknownGrantableResourceType, q.Type)
 	}
 
-	// Sorted because the source is a map, whose iteration order would otherwise
-	// shuffle the entries between requests -- which paging cannot survive.
+	return oauth.PageFlatGrantableResources(grantableServices(), levelService, q)
+}
+
+// ResolveGrantableResource answers by exact name.
+//
+// It resolves the named services alone, though ValidateAudiences would store a
+// grant on any service:<name>. The two differ for the reason ListGrantableResource
+// gives: an unnamed service is grantable but cannot be described, and this call
+// exists to hand back a described entry.
+func (r *devopsRealm) ResolveGrantableResource(
+	_ context.Context,
+	_ string,
+	ref oauth.GrantableResourceRef,
+) (oauth.GrantableResource, error) {
+	if ref.Type != typeService {
+		return oauth.GrantableResource{}, fmt.Errorf(
+			"%w: %q", oauth.ErrUnknownGrantableResourceType, ref.Type)
+	}
+
+	return oauth.FindFlatGrantableResource(grantableServices(), levelService, ref)
+}
+
+// grantableServices is the entry per named service, read by both paths above so
+// neither can offer one the other does not know.
+//
+// Sorted because the source is a map, whose iteration order would otherwise
+// shuffle the entries between requests -- which paging cannot survive.
+func grantableServices() []oauth.GrantableResource {
 	names := make([]string, 0, len(serviceDisplayNames))
 	for name := range serviceDisplayNames {
 		names = append(names, name)
@@ -74,6 +100,5 @@ func (r *devopsRealm) ListGrantableResource(
 			Audience:    servicePrefix + name,
 		})
 	}
-
-	return oauth.PageFlatGrantableResources(entries, levelService, q)
+	return entries
 }

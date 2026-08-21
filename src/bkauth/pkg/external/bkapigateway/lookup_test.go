@@ -35,8 +35,12 @@ var _ = Describe("lookupClient", func() {
 		It("should key the result by name and keep is_public", func() {
 			received := serveInner(func(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusOK, `{"data": [
-					{"name": "log-query", "title": "日志查询", "is_public": true},
-					{"name": "secret-one", "title": "内部", "is_public": false}
+					{"name": "log-query", "title": "日志查询", "is_public": true,
+						"oauth2_personal_client_enabled": true,
+						"oauth2_public_client_enabled": true},
+					{"name": "secret-one", "title": "内部", "is_public": false,
+						"oauth2_personal_client_enabled": false,
+						"oauth2_public_client_enabled": true}
 				]}`)
 			})
 
@@ -48,12 +52,35 @@ var _ = Describe("lookupClient", func() {
 			Expect(req.Header.Get("X-Bk-Tenant-Id")).To(Equal("tencent"),
 				"the tenant the client was built with, sent on every call it makes")
 			Expect(req.URL.Query().Get("names")).To(Equal("log-query,secret-one"))
-			Expect(req.URL.Query().Get("fields")).To(Equal("name,title,is_public"))
+			Expect(req.URL.Query().Get("fields")).To(Equal(
+				"name,title,is_public,oauth2_personal_client_enabled,oauth2_public_client_enabled"))
 
 			Expect(servers).To(Equal(map[string]MCPServer{
-				"log-query":  {Name: "log-query", Title: "日志查询", IsPublic: true},
-				"secret-one": {Name: "secret-one", Title: "内部", IsPublic: false},
+				"log-query": {
+					Name: "log-query", Title: "日志查询", IsPublic: true,
+					OAuth2PersonalClientEnabled: true, OAuth2PublicClientEnabled: true,
+				},
+				"secret-one": {
+					Name: "secret-one", Title: "内部", IsPublic: false,
+					OAuth2PersonalClientEnabled: false, OAuth2PublicClientEnabled: true,
+				},
 			}))
+		})
+
+		It("should carry a private server that is open to personal tokens", func() {
+			// The two facts are independent: unlisted says nothing about callable,
+			// and this pair is the whole reason the resolve path exists.
+			serveInner(func(w http.ResponseWriter, r *http.Request) {
+				writeJSON(w, http.StatusOK, `{"data": [
+					{"name": "secret-one", "is_public": false,
+						"oauth2_personal_client_enabled": true}
+				]}`)
+			})
+
+			servers, err := NewLookupClient("").LookupMCPServer(ctx, []string{"secret-one"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(servers["secret-one"].IsPublic).To(BeFalse())
+			Expect(servers["secret-one"].OAuth2PersonalClientEnabled).To(BeTrue())
 		})
 
 		It("should not send the paged endpoint's retired name filter", func() {
@@ -141,7 +168,9 @@ var _ = Describe("lookupClient", func() {
 		It("should put the gateway on the path and the names in the query", func() {
 			received := serveInner(func(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusOK, `{"data": [
-					{"id": 1001, "name": "get_gateway", "description": "获取网关"}
+					{"id": 1001, "name": "get_gateway", "description": "获取网关",
+						"is_public": false, "oauth2_personal_client_enabled": true,
+						"oauth2_public_client_enabled": false}
 				]}`)
 			})
 
@@ -152,9 +181,14 @@ var _ = Describe("lookupClient", func() {
 			Expect(req.URL.Path).To(Equal("/api/v2/inner/gateways/bk-log/released-resources/-/lookup/"))
 			Expect(req.URL.Query().Get("names")).To(Equal("get_gateway"))
 			Expect(req.URL.Query()).NotTo(HaveKey("resource_names"))
+			Expect(req.URL.Query().Get("fields")).To(Equal(
+				"name,description,is_public,oauth2_personal_client_enabled,oauth2_public_client_enabled"))
 
 			Expect(resources).To(Equal(map[string]Resource{
-				"get_gateway": {Name: "get_gateway", Description: "获取网关"},
+				"get_gateway": {
+					Name: "get_gateway", Description: "获取网关", IsPublic: false,
+					OAuth2PersonalClientEnabled: true, OAuth2PublicClientEnabled: false,
+				},
 			}))
 		})
 
