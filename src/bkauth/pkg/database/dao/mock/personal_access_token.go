@@ -102,6 +102,21 @@ func (mr *MockPersonalAccessTokenManagerMockRecorder) DeleteOldestInactiveByOwne
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOldestInactiveByOwner", reflect.TypeOf((*MockPersonalAccessTokenManager)(nil).DeleteOldestInactiveByOwner), ctx, realmName, sub, limit)
 }
 
+// ExistsByOwnerAndName mocks base method.
+func (m *MockPersonalAccessTokenManager) ExistsByOwnerAndName(ctx context.Context, realmName, sub, name string, excludeID int64) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExistsByOwnerAndName", ctx, realmName, sub, name, excludeID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExistsByOwnerAndName indicates an expected call of ExistsByOwnerAndName.
+func (mr *MockPersonalAccessTokenManagerMockRecorder) ExistsByOwnerAndName(ctx, realmName, sub, name, excludeID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistsByOwnerAndName", reflect.TypeOf((*MockPersonalAccessTokenManager)(nil).ExistsByOwnerAndName), ctx, realmName, sub, name, excludeID)
+}
+
 // GetByIDAndSub mocks base method.
 func (m *MockPersonalAccessTokenManager) GetByIDAndSub(ctx context.Context, realmName string, id int64, sub string) (dao.PersonalAccessToken, error) {
 	m.ctrl.T.Helper()

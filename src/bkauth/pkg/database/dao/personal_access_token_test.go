@@ -104,6 +104,56 @@ func Test_personalAccessTokenManager_CountActiveByOwner(t *testing.T) {
 	})
 }
 
+// The name comparison stays in SQL so that it inherits the column's collation
+// and so agrees with uk_owner_name; the assertion here is that `name` is a bound
+// parameter of the query rather than something Go compared beforehand.
+func Test_personalAccessTokenManager_ExistsByOwnerAndName(t *testing.T) {
+	query := `SELECT id FROM personal_access_token ` +
+		`WHERE realm_name = .+ AND sub = .+ AND name = .+ AND id != .+`
+
+	t.Run("reports a name another token holds", func(t *testing.T) {
+		database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+			mock.ExpectQuery(query).
+				WithArgs("blueking", "u-1", "ci", int64(0)).
+				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
+
+			manager := &personalAccessTokenManager{DB: db}
+			exists, err := manager.ExistsByOwnerAndName(context.Background(), "blueking", "u-1", "ci", 0)
+			assert.NoError(t, err)
+			assert.True(t, exists)
+		})
+	})
+
+	// A miss is the ordinary outcome, not an error the caller has to unwrap.
+	t.Run("reports a free name rather than sql.ErrNoRows", func(t *testing.T) {
+		database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+			mock.ExpectQuery(query).
+				WithArgs("blueking", "u-1", "ci", int64(0)).
+				WillReturnError(sql.ErrNoRows)
+
+			manager := &personalAccessTokenManager{DB: db}
+			exists, err := manager.ExistsByOwnerAndName(context.Background(), "blueking", "u-1", "ci", 0)
+			assert.NoError(t, err)
+			assert.False(t, exists)
+		})
+	})
+
+	// Without the exclusion an update would find the row by its own name and
+	// report every save as a conflict with itself.
+	t.Run("leaves the excluded row out of the comparison", func(t *testing.T) {
+		database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+			mock.ExpectQuery(query).
+				WithArgs("blueking", "u-1", "ci", int64(7)).
+				WillReturnError(sql.ErrNoRows)
+
+			manager := &personalAccessTokenManager{DB: db}
+			exists, err := manager.ExistsByOwnerAndName(context.Background(), "blueking", "u-1", "ci", 7)
+			assert.NoError(t, err)
+			assert.False(t, exists)
+		})
+	})
+}
+
 func Test_personalAccessTokenManager_CountByOwner(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		query := `SELECT COUNT\(\*\) FROM personal_access_token WHERE realm_name = .+ AND sub = .+`

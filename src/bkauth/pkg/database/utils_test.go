@@ -19,9 +19,11 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/go-sql-driver/mysql"
 	jsoniter "github.com/json-iterator/go"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
@@ -68,6 +70,35 @@ var _ = Describe("Utils", func() {
 				assert.Equal(GinkgoT(), `[1`, b)
 			})
 		})
+	})
+})
+
+var _ = Describe("IsDuplicateEntryError", func() {
+	It("recognises a unique-key violation", func() {
+		err := &mysql.MySQLError{Number: 1062, Message: "Duplicate entry 'a' for key 'tbl.uk_name'"}
+		assert.True(GinkgoT(), IsDuplicateEntryError(err))
+	})
+
+	// Callers get the driver error through a DAO that may have wrapped it, so
+	// unwrapping is part of the contract rather than an implementation detail.
+	It("looks through a wrapped error", func() {
+		err := fmt.Errorf("dao: create: %w", &mysql.MySQLError{Number: 1062, Message: "Duplicate entry"})
+		assert.True(GinkgoT(), IsDuplicateEntryError(err))
+	})
+
+	It("rejects a different MySQL error", func() {
+		// 1213 is deadlock: a retryable failure that must not be reported to the
+		// user as a name they already used.
+		err := &mysql.MySQLError{Number: 1213, Message: "Deadlock found"}
+		assert.False(GinkgoT(), IsDuplicateEntryError(err))
+	})
+
+	It("rejects a non-driver error", func() {
+		assert.False(GinkgoT(), IsDuplicateEntryError(errors.New("connection refused")))
+	})
+
+	It("rejects nil", func() {
+		assert.False(GinkgoT(), IsDuplicateEntryError(nil))
 	})
 })
 

@@ -43,5 +43,23 @@ CREATE TABLE IF NOT EXISTS `bkauth`.`personal_access_token` (
         ON UPDATE CURRENT_TIMESTAMP(6) COMMENT 'UTC',
     -- idx_owner's trailing `id` gives list pagination a stable sort without a
     -- filesort.
-    INDEX `idx_owner` (`realm_name`, `sub`, `id`)
+    INDEX `idx_owner` (`realm_name`, `sub`, `id`),
+    -- Names are how the owner tells their own tokens apart in the list, so a
+    -- duplicate makes the only human-readable identifier ambiguous exactly where
+    -- it is used to decide what to revoke.
+    --
+    -- The scope covers every row, not just the active ones: MySQL has no partial
+    -- index, and "active" depends on `expires_at > now`, which no generated
+    -- column can express. Full-row uniqueness is the only version of this rule a
+    -- database can hold, and it is workable because an owner can delete a token
+    -- to free its name.
+    --
+    -- Comparison follows the column collation, so it is case-insensitive; the
+    -- application-side pre-check must therefore compare in SQL rather than in Go,
+    -- or it would pass a name this index then rejects.
+    --
+    -- 192 characters of utf8mb4 is 768 bytes, well under InnoDB's 3072-byte key
+    -- limit. It does not subsume idx_owner: the list's ORDER BY id still needs
+    -- that one.
+    UNIQUE KEY `uk_owner_name` (`realm_name`, `sub`, `name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

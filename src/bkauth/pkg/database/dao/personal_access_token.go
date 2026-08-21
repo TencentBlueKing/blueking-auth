@@ -91,6 +91,17 @@ type PersonalAccessTokenManager interface {
 	ListByOwner(ctx context.Context, realmName, sub string) ([]PersonalAccessToken, error)
 	CountByOwner(ctx context.Context, realmName, sub string) (int, error)
 	CountActiveByOwner(ctx context.Context, realmName, sub string) (int, error)
+	// ExistsByOwnerAndName backs the friendly rejection for a duplicate name;
+	// uk_owner_name is what actually enforces it. excludeID leaves one row out of
+	// the check so an update that keeps the token's own name is not reported as
+	// colliding with itself; pass 0 on the create path, where there is no row yet.
+	//
+	// It matches every lifecycle state, the scope uk_owner_name covers.
+	//
+	// The comparison happens in SQL so that it inherits the column's collation
+	// and agrees with the index. Doing it in Go would be case-sensitive and let a
+	// name through that the INSERT then rejects.
+	ExistsByOwnerAndName(ctx context.Context, realmName, sub, name string, excludeID int64) (bool, error)
 	// DeleteOldestInactiveByOwner drops the owner's `limit` least valuable expired
 	// or revoked rows, terminal ones first. It never touches an active row, so it
 	// cannot destroy a usable credential no matter what limit it is handed.
@@ -235,6 +246,27 @@ func (m *personalAccessTokenManager) CountActiveByOwner(
 	WHERE realm_name = ? AND sub = ? AND revoked = 0 AND expires_at > ?`
 	err = database.SqlxGet(ctx, m.DB, &total, query, realmName, sub, time.Now().UTC())
 	return total, err
+}
+
+func (m *personalAccessTokenManager) ExistsByOwnerAndName(
+	ctx context.Context, realmName, sub, name string, excludeID int64,
+) (bool, error) {
+	// uk_owner_name makes the first three predicates a unique lookup; id is then
+	// compared on the single row it can reach. An excludeID of 0 never matches an
+	// AUTO_INCREMENT id, so the create path needs no separate statement.
+	query := `SELECT id FROM personal_access_token
+	WHERE realm_name = ? AND sub = ? AND name = ? AND id != ?
+	LIMIT 1`
+
+	var id int64
+	err := database.SqlxGet(ctx, m.DB, &id, query, realmName, sub, name, excludeID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (m *personalAccessTokenManager) DeleteOldestInactiveByOwner(

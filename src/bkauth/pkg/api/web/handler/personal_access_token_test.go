@@ -34,6 +34,54 @@ import (
 	"bkauth/pkg/util"
 )
 
+// The name carries a uniqueness constraint, so the whitespace binding lets
+// through is not cosmetic: " ci" would be a second spelling of a name the owner
+// already holds, indistinguishable from the first in the list it identifies a
+// token in.
+func TestNormalizeNameOrAbort(t *testing.T) {
+	t.Run("trims surrounding whitespace", func(t *testing.T) {
+		c, w := testGinContext(t)
+		name, ok := normalizeNameOrAbort(c, "  ci  ")
+
+		assert.True(t, ok)
+		assert.Equal(t, "ci", name)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("passes an already-clean name through untouched", func(t *testing.T) {
+		c, _ := testGinContext(t)
+		name, ok := normalizeNameOrAbort(c, "ci")
+
+		assert.True(t, ok)
+		assert.Equal(t, "ci", name)
+	})
+
+	// binding's `required` only refuses the empty string, so this reaches the
+	// handler intact and has to be rejected here.
+	t.Run("rejects a name of pure whitespace", func(t *testing.T) {
+		for _, raw := range []string{" ", "\t", "\n", "   "} {
+			c, w := testGinContext(t)
+			_, ok := normalizeNameOrAbort(c, raw)
+
+			assert.False(t, ok)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			errObj := decodeBody(t, w)["error"].(map[string]any)
+			assert.Equal(t, "INVALID_ARGUMENT", errObj["code"])
+			assert.Equal(t, "name must not be blank", errObj["message"])
+		}
+	})
+
+	// Trimming can only shorten, so the max=64 tag still holds afterwards and an
+	// inner space is not the serializer's business.
+	t.Run("leaves inner whitespace alone", func(t *testing.T) {
+		c, _ := testGinContext(t)
+		name, ok := normalizeNameOrAbort(c, "  ci deploy  ")
+
+		assert.True(t, ok)
+		assert.Equal(t, "ci deploy", name)
+	})
+}
+
 func TestHandlePersonalAccessTokenError(t *testing.T) {
 	policy := types.PersonalTokenPolicy{MaxTTL: 3600, MaxActivePerUser: 5}
 
@@ -81,6 +129,22 @@ func TestHandlePersonalAccessTokenError(t *testing.T) {
 
 		assert.NotContains(t, errObj, "data")
 		assert.NotContains(t, errObj, "details")
+	})
+
+	// 409 rather than the quota's 429: this one the caller can fix by editing the
+	// request. The message names the states the rule spans, because the token in
+	// the way may be one the user considers finished with.
+	t.Run("name conflict", func(t *testing.T) {
+		c, w := testGinContext(t)
+		handlePersonalAccessTokenError(c, service.ErrPersonalTokenNameConflict, policy)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+		errObj := decodeBody(t, w)["error"].(map[string]any)
+		assert.Equal(t, "ALREADY_EXISTS", errObj["code"])
+		assert.Equal(t,
+			"a personal access token with this name already exists, expired and revoked ones included",
+			errObj["message"])
+		assert.NotContains(t, errObj, "data")
 	})
 
 	t.Run("quota exceeded names the ceiling in the message", func(t *testing.T) {

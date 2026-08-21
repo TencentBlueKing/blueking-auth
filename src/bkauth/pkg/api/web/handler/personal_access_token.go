@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -63,6 +64,11 @@ func NewPersonalAccessTokenCreateHandler(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		name, ok := normalizeNameOrAbort(c, req.Name)
+		if !ok {
+			return
+		}
+
 		audience, ok := normalizeAudienceOrAbort(c, req.Audience)
 		if !ok {
 			return
@@ -74,7 +80,7 @@ func NewPersonalAccessTokenCreateHandler(cfg *config.Config) gin.HandlerFunc {
 			TenantID:    util.GetTenantID(c),
 			Sub:         util.GetSub(c),
 			Username:    util.GetUsername(c),
-			Name:        req.Name,
+			Name:        name,
 			Description: req.Description,
 			Audience:    audience,
 			ExpiresAt:   req.ExpiresAt,
@@ -231,6 +237,11 @@ func NewPersonalAccessTokenUpdateHandler(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		name, ok := normalizeNameOrAbort(c, req.Name)
+		if !ok {
+			return
+		}
+
 		audience, ok := normalizeAudienceOrAbort(c, req.Audience)
 		if !ok {
 			return
@@ -239,7 +250,7 @@ func NewPersonalAccessTokenUpdateHandler(cfg *config.Config) gin.HandlerFunc {
 		svc := service.NewPersonalAccessTokenService()
 		tokenHash, err := svc.Update(c.Request.Context(), util.GetRealmName(c), id, util.GetSub(c),
 			types.UpdatePersonalAccessTokenInput{
-				Name:        req.Name,
+				Name:        name,
 				Description: req.Description,
 				Audience:    audience,
 				ExpiresAt:   req.ExpiresAt,
@@ -342,6 +353,24 @@ func parsePersonalAccessTokenID(c *gin.Context) (int64, bool) {
 	return id, true
 }
 
+// normalizeNameOrAbort trims the name and rejects one left empty, writing the
+// error response itself and reporting whether the caller should continue.
+//
+// binding's `required` only refuses the empty string, so a name of pure
+// whitespace arrives here intact. Trimming is not cosmetic now that the name
+// carries a uniqueness constraint: " ci" would otherwise be a second spelling of
+// a name the owner already holds, indistinguishable from the first in the list
+// it is meant to identify a token in. The `max=64` tag still holds afterwards,
+// since trimming can only shorten.
+func normalizeNameOrAbort(c *gin.Context, raw string) (string, bool) {
+	name := strings.TrimSpace(raw)
+	if name == "" {
+		util.WebInvalidArgumentError(c, "name must not be blank")
+		return "", false
+	}
+	return name, true
+}
+
 // normalizeAudienceOrAbort normalizes the audience and checks it against the
 // realm, writing the error response itself and reporting whether the caller
 // should continue.
@@ -396,6 +425,17 @@ func handlePersonalAccessTokenError(c *gin.Context, err error, policy types.Pers
 		util.WebInvalidArgumentError(c, fmt.Sprintf(
 			"expires_at must be in Unix seconds, after now and no later than %d (%s)",
 			maxExpiresAt.Unix(), maxExpiresAt.Format(time.RFC3339)))
+
+	case errors.Is(err, service.ErrPersonalTokenNameConflict):
+		// 409 ALREADY_EXISTS: the owner already has a token under this name, and
+		// the way out is to pick another or free this one. That is what separates
+		// it from the quota's 429, which no edit to this request can satisfy.
+		//
+		// The message names the states the rule covers, because the conflicting
+		// token may well be one the user considers finished with; without that,
+		// the rejection reads as pointing at a token that is not there.
+		util.WebAlreadyExistsError(c,
+			"a personal access token with this name already exists, expired and revoked ones included")
 
 	case errors.Is(err, service.ErrPersonalTokenQuotaExceeded):
 		// 429 RESOURCE_EXHAUSTED: the request is well formed, the account is at
