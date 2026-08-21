@@ -88,6 +88,18 @@ func Register(cfg *config.Config, r *gin.RouterGroup) {
 		patGroup.GET("/grantable-resources", handler.NewGrantableResourceListHandler())
 		patGroup.GET("/grantable-resource-types", handler.NewGrantableResourceTypeListHandler())
 
+		// Resolves names the user typed into one entry of the collection above,
+		// which is the only way to grant what that collection cannot list: its
+		// upstream returns public objects exclusively, so a private MCP server or
+		// API is never on a page.
+		//
+		// Under the collection rather than beside it, because what it answers with
+		// is one of its entries. The "-" stands in for the identifier the path
+		// would otherwise carry: the entry is what is being looked for, so it
+		// cannot also be what addresses the request. It follows the upstream
+		// gateway's own spelling for the same situation.
+		patGroup.GET("/grantable-resources/-/lookup", handler.NewGrantableResourceLookupHandler())
+
 		patGroup.GET("", handler.NewPersonalAccessTokenListHandler(cfg))
 		patGroup.GET("/:id", handler.NewPersonalAccessTokenGetHandler(cfg))
 

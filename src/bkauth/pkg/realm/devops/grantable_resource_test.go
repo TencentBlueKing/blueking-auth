@@ -118,4 +118,42 @@ var _ = Describe("devopsRealm grantable resources", func() {
 			assert.ErrorIs(GinkgoT(), err, oauth.ErrUnknownGrantableResourceLevel)
 		})
 	})
+
+	Describe("ResolveGrantableResource", func() {
+		resolve := func(name string) (oauth.GrantableResource, error) {
+			return r.ResolveGrantableResource(ctx, "", oauth.GrantableResourceRef{
+				Type:  "service",
+				Names: map[string]string{"service": name},
+			})
+		}
+
+		It("should return the same entry the listing offers", func() {
+			page, err := r.ListGrantableResource(ctx, "", oauth.GrantableResourceQuery{Type: "service"})
+			require.NoError(GinkgoT(), err)
+			require.NotEmpty(GinkgoT(), page.Results)
+
+			resource, err := resolve(page.Results[0].Name)
+			require.NoError(GinkgoT(), err)
+
+			assert.Equal(GinkgoT(), page.Results[0], resource)
+		})
+
+		It("should reject an unknown type", func() {
+			_, err := r.ResolveGrantableResource(ctx, "", oauth.GrantableResourceRef{
+				Type:  "gateway",
+				Names: map[string]string{"service": "codecc"},
+			})
+
+			assert.ErrorIs(GinkgoT(), err, oauth.ErrUnknownGrantableResourceType)
+		})
+
+		It("should resolve only the named services, though any would be storable", func() {
+			// ValidateAudiences takes service:<anything>, and that stays true: an
+			// unnamed service is grantable, it just has no entry to hand back.
+			_, err := resolve("unlisted-service")
+			assert.ErrorIs(GinkgoT(), err, oauth.ErrGrantableResourceNotFound)
+
+			assert.NoError(GinkgoT(), r.ValidateAudiences(ctx, []string{"service:unlisted-service"}))
+		})
+	})
 })

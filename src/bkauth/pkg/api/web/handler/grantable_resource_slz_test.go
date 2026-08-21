@@ -217,7 +217,87 @@ func TestGrantableResourceQueryMalformedKeywords(t *testing.T) {
 			q := grantableResourceQueryRequest{Keyword: tt.keyword}
 
 			_, err := q.keywords()
-			assert.ErrorIs(t, err, errMalformedKeyword)
+			assert.ErrorIs(t, err, errMalformedLevelPairs)
 		})
 	}
+}
+
+func TestGrantableResourceRefBinding(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	bind := func(query string) (grantableResourceRefRequest, error) {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodGet, "/?"+query, nil)
+
+		var req grantableResourceRefRequest
+		return req, c.ShouldBindQuery(&req)
+	}
+
+	t.Run("accepts a type and a name", func(t *testing.T) {
+		req, err := bind("type=mcp&name=gateway:bk-log,mcp:bk-log-prod-query")
+		require.NoError(t, err)
+		assert.Equal(t, "mcp", req.Type)
+	})
+
+	t.Run("rejects a missing name, which has no sensible answer", func(t *testing.T) {
+		// Unlike keyword on the listing endpoint, where an absent filter means
+		// "everything" rather than "nothing to look up".
+		_, err := bind("type=mcp")
+		assert.Error(t, err)
+	})
+
+	t.Run("rejects a missing type", func(t *testing.T) {
+		_, err := bind("name=gateway:bk-log,mcp:bk-log-prod-query")
+		assert.Error(t, err)
+	})
+
+	t.Run("rejects a name past what the parser should be asked to walk", func(t *testing.T) {
+		long := make([]byte, 513)
+		for i := range long {
+			long[i] = 'a'
+		}
+
+		_, err := bind("type=mcp&name=" + string(long))
+		assert.Error(t, err)
+	})
+}
+
+func TestGrantableResourceRefNames(t *testing.T) {
+	t.Run("reads a name per level, the levels being the realm's to check", func(t *testing.T) {
+		q := grantableResourceRefRequest{Name: "gateway:bk-log,mcp:bk-log-prod-query"}
+
+		names, err := q.names()
+		require.NoError(t, err)
+		assert.Equal(t, map[string]string{
+			"gateway": "bk-log",
+			"mcp":     "bk-log-prod-query",
+		}, names)
+	})
+
+	t.Run("shares the listing endpoint's grammar, so one syntax serves both", func(t *testing.T) {
+		const raw = "gateway:bk-,api:query"
+
+		fromKeyword, err := (&grantableResourceQueryRequest{Keyword: raw}).keywords()
+		require.NoError(t, err)
+		fromName, err := (&grantableResourceRefRequest{Name: raw}).names()
+		require.NoError(t, err)
+
+		assert.Equal(t, fromKeyword, fromName)
+	})
+
+	t.Run("rejects a bare name with no level to key it by", func(t *testing.T) {
+		// The pairs are what single out the entry, so a dropped one cannot be
+		// forgiven the way a dropped filter merely widens a page.
+		_, err := (&grantableResourceRefRequest{Name: "bk-log-prod-query"}).names()
+
+		assert.ErrorIs(t, err, errMalformedLevelPairs)
+	})
+
+	t.Run("errors on an empty name rather than resolving nothing", func(t *testing.T) {
+		// The opposite of keywords(), which reads empty as "filter nothing". Here
+		// there is nothing an empty ref could name.
+		_, err := (&grantableResourceRefRequest{}).names()
+
+		assert.ErrorIs(t, err, errMalformedLevelPairs)
+	})
 }

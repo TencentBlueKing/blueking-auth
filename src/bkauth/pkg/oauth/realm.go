@@ -58,6 +58,38 @@ var (
 	// that was never applied -- both read as bugs to whoever is looking at the
 	// screen.
 	ErrUnknownGrantableResourceLevel = errors.New("unknown grantable resource level")
+
+	// ErrGrantableResourceNotFound is returned by ResolveGrantableResource when
+	// the realm has nothing under the names given. A sentinel so the web layer
+	// answers 404 rather than 500, and distinct from the two above: those say the
+	// caller used a word the realm does not know, this says the words were fine
+	// and named nothing.
+	ErrGrantableResourceNotFound = errors.New("grantable resource not found")
+
+	// ErrIncompleteGrantableResourceRef is returned when a ref leaves out a level
+	// the type needs in order to name a single entry.
+	//
+	// Separate from the not-found sentinel because the two lead somewhere
+	// different: a missing level is a form the user has not finished filling in,
+	// while not-found is a name to go back and check. Reporting the former as the
+	// latter would tell someone their gateway name is wrong when they simply have
+	// not typed the MCP server yet.
+	ErrIncompleteGrantableResourceRef = errors.New("incomplete grantable resource ref")
+
+	// ErrGrantableResourceNotGrantable is returned when the names given do
+	// identify an object, but one this kind of token is not allowed to be
+	// granted -- its owner has not opened it to personal access tokens.
+	//
+	// Kept apart from the not-found sentinel because the two lead somewhere
+	// different, the same way not-found and incomplete do: not-found is a name to
+	// go back and check, this is a name spelled exactly right whose owner has to
+	// change a setting. Folding it into not-found would send the user hunting for
+	// a typo that is not there.
+	//
+	// Only realms whose catalog is filtered upstream need it. Where the filter
+	// and the resolve read the same in-memory set there is nothing to diverge:
+	// anything resolvable is grantable by construction.
+	ErrGrantableResourceNotGrantable = errors.New("grantable resource not grantable")
 )
 
 // Extras carries display-only facts about the row it hangs on, such as
@@ -167,6 +199,36 @@ type Realm interface {
 	ListGrantableResource(
 		ctx context.Context, tenantID string, q GrantableResourceQuery,
 	) (GrantableResourcePage, error)
+
+	// ResolveGrantableResource names one grantable entry exactly, rather than
+	// searching for it.
+	//
+	// It exists because the catalog cannot enumerate everything a token may be
+	// granted: blueking's is served by upstream endpoints that return public
+	// objects only, so a private MCP server or API is grantable but never listed.
+	// The user types its name instead, and only the realm can turn that into an
+	// audience -- the token grammar is the one thing clients are told not to
+	// build. What comes back is a catalog row, the same type ListGrantableResource
+	// returns, so a caller treats a typed-in entry exactly like a ticked one.
+	//
+	// This is where existence is checked, and it is the only place. Write-time
+	// validation stays syntactic (see ValidateAudiences), which is what keeps a
+	// token editable while the upstream is down and keeps a grant on a since-
+	// deleted object from blocking a rename.
+	//
+	// Existence is not the whole of it: an implementation must also refuse an
+	// object that exists but is closed to personal access tokens
+	// (ErrGrantableResourceNotGrantable). ListGrantableResource gets that filter
+	// for free where the upstream applies it, and this path does not -- naming an
+	// object outright is exactly what skips the catalog's filtering.
+	//
+	// Unlike ResolveAudienceDisplays an upstream failure is an error rather than a
+	// degraded answer: confirming the entry is the whole point of the call, so
+	// answering without having confirmed it would report "found" for something
+	// nobody looked up.
+	ResolveGrantableResource(
+		ctx context.Context, tenantID string, ref GrantableResourceRef,
+	) (GrantableResource, error)
 }
 
 // AudienceDisplay is one stored audience rendered for display. It is a function
@@ -219,8 +281,9 @@ type AudienceDisplay struct {
 	// Its keys are not the catalog row's, so the two directions must not be
 	// compared key for key. A fact describing the level above repeats on every
 	// entry under it -- is_official describes the gateway, and an API grant has
-	// no gateway row of its own to hang it on -- and is_public appears only here,
-	// the catalog's upstream returning public objects exclusively.
+	// no gateway row of its own to hang it on -- and is_public appears here and on
+	// a resolved row, but never while browsing, that catalog's upstream returning
+	// public objects exclusively.
 	Extras Extras `json:"extras"`
 }
 
@@ -292,7 +355,7 @@ type GrantableResourceQuery struct {
 	// the type does not have an error the realm can see, where a positional pair
 	// left it indistinguishable from a filter that simply matched nothing.
 	//
-	// Validate it with ValidateKeywordLevels before reading, then read by level
+	// Validate it with ValidateLevelNames before reading, then read by level
 	// name; a missing key is a level nobody filtered on.
 	Keywords map[string]string
 
@@ -300,17 +363,38 @@ type GrantableResourceQuery struct {
 	Offset int
 }
 
-// ValidateKeywordLevels reports whether every keyword names one of the levels
-// given, which are the levels of the type being queried.
+// GrantableResourceRef names a single entry of one type, for the times a caller
+// already knows what it wants instead of browsing for it.
+//
+// Names is keyed by level, the same vocabulary GrantableResourceQuery.Keywords
+// speaks, and differs from it in two ways: the values are matched exactly rather
+// than as substrings, and together they must pin down one entry. Which levels
+// that takes is the type's business -- blueking needs both of its, so a gateway
+// with no MCP server named is ErrIncompleteGrantableResourceRef rather than a
+// stand-in for every server of that gateway.
+type GrantableResourceRef struct {
+	Type string
+	// Names holds one exact name per level; validate it with ValidateLevelNames
+	// before reading, then read by level name.
+	Names map[string]string
+}
+
+// ValidateLevelNames reports whether every key names one of the levels given,
+// which are the levels of the type being queried or referred to.
+//
+// It serves both GrantableResourceQuery.Keywords and GrantableResourceRef.Names:
+// the two hold different things -- a substring to filter on, an exact name to
+// resolve -- but they are keyed by the same level vocabulary, and a caller
+// aiming at a level the type does not have is the same mistake either way.
 //
 // Realms call it rather than the web layer: a level name belongs to the same
 // vocabulary as the type name, and the handler would have to rebuild the type to
 // levels mapping to check it, which is a second copy of what the realm already
 // declares in GrantableResourceTypes.
-func ValidateKeywordLevels(keywords map[string]string, levels ...string) error {
-	for keyword := range keywords {
-		if !slices.Contains(levels, keyword) {
-			return fmt.Errorf("%w: %q", ErrUnknownGrantableResourceLevel, keyword)
+func ValidateLevelNames(named map[string]string, levels ...string) error {
+	for level := range named {
+		if !slices.Contains(levels, level) {
+			return fmt.Errorf("%w: %q", ErrUnknownGrantableResourceLevel, level)
 		}
 	}
 	return nil
@@ -322,8 +406,14 @@ type GrantableResource struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name"`
 	// Extras carries display-only facts such as is_official; see the type for the
-	// contract it comes with. Today only group rows have any, the facts on offer
-	// describing gateways, so an item row serializes it as {}.
+	// contract it comes with.
+	//
+	// Which keys appear depends on where the row came from rather than on its
+	// level. Browsing the catalog, only group rows carry anything, the facts on
+	// offer describing gateways, so an item row serializes it as {}. A row from
+	// ResolveGrantableResource carries is_public, which the browsable catalog has
+	// no use for: its upstream returns public objects exclusively, and a private
+	// one is reachable only by being named.
 	Extras Extras `json:"extras"`
 	// Audience is the token this entry contributes when granted, and is opaque
 	// to the frontend: it is collected, submitted as-is, and matched by equality
@@ -383,7 +473,7 @@ func PageFlatGrantableResources(
 	level string,
 	q GrantableResourceQuery,
 ) (GrantableResourcePage, error) {
-	if err := ValidateKeywordLevels(q.Keywords, level); err != nil {
+	if err := ValidateLevelNames(q.Keywords, level); err != nil {
 		return GrantableResourcePage{}, err
 	}
 
@@ -412,4 +502,38 @@ func PageFlatGrantableResources(
 	}
 
 	return GrantableResourcePage{Count: count, Results: matched}, nil
+}
+
+// FindFlatGrantableResource picks the entry a ref names out of a set the realm
+// holds in memory. It is the ResolveGrantableResource counterpart of
+// PageFlatGrantableResources and serves the same realms: those whose grantable
+// set is compiled in and one level deep.
+//
+// Matching is on Name alone, unlike the paging helper, which also matches
+// DisplayName. A ref names an entry rather than describing it, and Name is the
+// only field that identifies one -- two entries may well read the same to a
+// human, and picking whichever came first would be a coin toss.
+func FindFlatGrantableResource(
+	all []GrantableResource,
+	level string,
+	ref GrantableResourceRef,
+) (GrantableResource, error) {
+	if err := ValidateLevelNames(ref.Names, level); err != nil {
+		return GrantableResource{}, err
+	}
+
+	name := ref.Names[level]
+	if name == "" {
+		return GrantableResource{}, fmt.Errorf(
+			"%w: %q must be named", ErrIncompleteGrantableResourceRef, level)
+	}
+
+	for _, entry := range all {
+		if entry.Name == name {
+			return entry, nil
+		}
+	}
+
+	return GrantableResource{}, fmt.Errorf(
+		"%w: no %s named %q", ErrGrantableResourceNotFound, level, name)
 }

@@ -58,9 +58,31 @@ func (r *gpuRealm) ListGrantableResource(
 			"%w: %q", oauth.ErrUnknownGrantableResourceType, q.Type)
 	}
 
-	return oauth.PageFlatGrantableResources([]oauth.GrantableResource{{
+	return oauth.PageFlatGrantableResources(grantableResources(), levelResource, q)
+}
+
+// ResolveGrantableResource answers by exact name. Nothing is withheld from the
+// catalog here -- the set is the constant below -- so this only saves a caller
+// that already knows the name from paging to find it.
+func (r *gpuRealm) ResolveGrantableResource(
+	_ context.Context,
+	_ string,
+	ref oauth.GrantableResourceRef,
+) (oauth.GrantableResource, error) {
+	if ref.Type != typeResource {
+		return oauth.GrantableResource{}, fmt.Errorf(
+			"%w: %q", oauth.ErrUnknownGrantableResourceType, ref.Type)
+	}
+
+	return oauth.FindFlatGrantableResource(grantableResources(), levelResource, ref)
+}
+
+// grantableResources is the realm's entire grantable set, read by both paths
+// above so neither can offer an entry the other does not know.
+func grantableResources() []oauth.GrantableResource {
+	return []oauth.GrantableResource{{
 		Name:        resourceItemName,
 		DisplayName: resourceItemDisplayName,
 		Audience:    validResource,
-	}}, levelResource, q)
+	}}
 }

@@ -34,9 +34,16 @@ import (
 // purpose -- they dropped their name filters, and a page of 20 could not answer
 // a question about 50 names anyway.
 //
-// Unlike the search endpoints these also return objects that are no longer
-// public, which is what makes them usable for rendering a grant that was made
-// before the object was hidden.
+// Unlike the search endpoints these also return objects that are not public,
+// which is what makes them the only way to render a grant made before its object
+// was hidden, and the only way to grant a private object at all -- it never
+// appears in a catalog, so a user names it outright.
+//
+// They also take no oauth_client_type, the filter the search endpoints apply
+// upstream, so what comes back includes objects no personal access token may be
+// granted. Filtering that is left to the caller and is deliberately not done
+// here: the resolve path must reject them, while the display path must render
+// them, a grant outliving the switch that permitted it.
 //
 // Every method keys its result by name and simply omits what upstream did not
 // return. A missing key means "not found", which callers must be able to tell
@@ -54,6 +61,20 @@ type MCPServer struct {
 	Name     string `json:"name"`
 	Title    string `json:"title"`
 	IsPublic bool   `json:"is_public"`
+
+	// OAuth2PersonalClientEnabled and OAuth2PublicClientEnabled are upstream's
+	// per-object switches for the two client kinds, one each for
+	// OAuthClientTypePersonal and OAuthClientTypePublic. Whether an object may be
+	// granted at all is a different question from IsPublic: that one is about
+	// being listed, these are about being callable.
+	//
+	// They are what the search endpoints filter on, given an OAuthClientType, and
+	// so are read only on this side, which has no such filter to apply. Today
+	// that means the personal one alone; the public one is carried because the
+	// pair is one fact about the object and asking for half of it would leave the
+	// other half reading as a settled false rather than as never asked.
+	OAuth2PersonalClientEnabled bool `json:"oauth2_personal_client_enabled"`
+	OAuth2PublicClientEnabled   bool `json:"oauth2_public_client_enabled"`
 }
 
 // Gateway is the display-side view of a gateway.
@@ -66,6 +87,12 @@ type Gateway struct {
 type Resource struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	IsPublic    bool   `json:"is_public"`
+
+	// These two carry the same fact as their MCPServer namesakes, per API rather
+	// than per server; see those fields.
+	OAuth2PersonalClientEnabled bool `json:"oauth2_personal_client_enabled"`
+	OAuth2PublicClientEnabled   bool `json:"oauth2_public_client_enabled"`
 }
 
 type lookupClient struct {
@@ -95,7 +122,8 @@ func (c *lookupClient) LookupMCPServer(
 	for _, chunk := range chunkNames(names) {
 		query := url.Values{}
 		query.Set("names", strings.Join(chunk, ","))
-		query.Set("fields", "name,title,is_public")
+		query.Set("fields",
+			"name,title,is_public,oauth2_personal_client_enabled,oauth2_public_client_enabled")
 
 		var servers []MCPServer
 		if err := innerGet(ctx, c.tenantID, "api/v2/inner/mcp-servers/-/lookup/", query, &servers); err != nil {
@@ -144,7 +172,8 @@ func (c *lookupClient) LookupReleasedResource(
 	for _, chunk := range chunkNames(resourceNames) {
 		query := url.Values{}
 		query.Set("names", strings.Join(chunk, ","))
-		query.Set("fields", "name,description")
+		query.Set("fields",
+			"name,description,is_public,oauth2_personal_client_enabled,oauth2_public_client_enabled")
 
 		path := "api/v2/inner/gateways/" + url.PathEscape(gatewayName) + "/released-resources/-/lookup/"
 
