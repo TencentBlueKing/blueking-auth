@@ -212,6 +212,8 @@ const {
 
 const emit = defineEmits<IEmits>();
 
+const { t } = useI18n();
+
 // 临期阈值（天）
 const EXPIRING_THRESHOLD_DAYS = 7;
 
@@ -430,12 +432,12 @@ const handleRevoke = () => {
     type: 'warning',
     isShow: true,
     title: '确认撤销该个人令牌？',
-    subTitle: `撤销后令牌 ${token.name} 将立即失效且无法恢复。`,
+    subTitle: t('撤销后令牌【{name}】将在 5 分钟内失效且无法恢复。', { name: token.name }),
     confirmText: '撤销',
     cancelText: '取消',
     onConfirm: async () => {
       await revokePersonalToken(realm, token.id);
-      messageSuccess('撤销成功');
+      messageSuccess(t('撤销成功，5 分钟内失效'));
       emit('updated');
       isShow.value = false;
     },

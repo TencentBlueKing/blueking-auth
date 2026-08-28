@@ -217,7 +217,7 @@ const handleConfirm = async () => {
   submitting.value = true;
   try {
     await renewPersonalToken(realm, token.id, { expires_at: expiresAtSeconds });
-    messageSuccess('续期成功');
+    messageSuccess(t('续期成功，5 分钟内生效'));
     isShow.value = false;
     emit('success');
   }
