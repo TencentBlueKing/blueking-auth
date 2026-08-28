@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import LogoWithoutTitle from '@/assets/APIgateway-logo.png';
+import LogoWithoutTitle from '@/assets/bk_auth_logo_transparent.png';
 import UserInfo from '@/components/user-info/Index.vue';
 import { useEnv, useUserInfo } from '@/stores';
 
