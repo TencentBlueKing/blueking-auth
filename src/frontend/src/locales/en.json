@@ -81,5 +81,8 @@
   "活跃令牌：{count} / {limit}": "Active tokens: {count} / {limit}",
   "活跃令牌数量已达上限，请先撤销一个现有令牌。": "The active token limit has been reached. Revoke an existing token first.",
   "活跃令牌数量已达上限。": "The active token limit has been reached.",
+  "续期成功，5 分钟内生效": "Renewed successfully. Changes will take effect within 5 minutes.",
+  "撤销成功，5 分钟内失效": "Revoked successfully. The token will be invalidated within 5 minutes.",
+  "撤销后令牌【{name}】将在 5 分钟内失效且无法恢复。": "Once revoked, token [{name}] will be invalidated within 5 minutes and cannot be restored.",
   "请先撤销一个现有令牌后再试。": "Revoke an existing token and try again."
 }

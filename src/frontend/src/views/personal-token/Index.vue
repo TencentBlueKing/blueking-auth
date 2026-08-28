@@ -619,12 +619,12 @@ const handleRevoke = (row: IPersonalTokenTableItem) => {
     type: 'warning',
     isShow: true,
     title: '确认撤销该个人令牌？',
-    subTitle: `撤销后令牌 ${row.name} 将立即失效且无法恢复。`,
+    subTitle: t('撤销后令牌【{name}】将在 5 分钟内失效且无法恢复。', { name: row.name }),
     confirmText: '撤销',
     cancelText: '取消',
     onConfirm: async () => {
       await revokePersonalToken(realm.value, row.id);
-      messageSuccess('撤销成功');
+      messageSuccess(t('撤销成功，5 分钟内失效'));
       fetchList({ resetPage: false });
     },
   });
