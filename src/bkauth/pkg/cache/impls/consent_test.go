@@ -55,7 +55,7 @@ var _ = Describe("Consent", func() {
 		It("should persist consent that can be retrieved", func() {
 			c := newTestConsent()
 			c.State = "xyz"
-			c.Resource = "bk_paas"
+			c.Resources = []string{"mcp:s1", "gateway:bk-paas/api:get_users"}
 
 			challenge, err := CreateConsent(ctx, c)
 			assert.NoError(GinkgoT(), err)
@@ -65,7 +65,7 @@ var _ = Describe("Consent", func() {
 			assert.Equal(GinkgoT(), "blueking", got.RealmName)
 			assert.Equal(GinkgoT(), "test-client", got.ClientID)
 			assert.Equal(GinkgoT(), "xyz", got.State)
-			assert.Equal(GinkgoT(), "bk_paas", got.Resource)
+			assert.Equal(GinkgoT(), []string{"mcp:s1", "gateway:bk-paas/api:get_users"}, got.Resources)
 		})
 	})
 

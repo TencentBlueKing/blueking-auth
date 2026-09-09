@@ -42,7 +42,11 @@ type AuthorizeRequest struct {
 	State               string `form:"state"`                 // optional for public clients (PKCE); required otherwise
 	CodeChallenge       string `form:"code_challenge"`        // required (RFC 7636)
 	CodeChallengeMethod string `form:"code_challenge_method"` // required ("S256" or "plain")
-	Resource            string `form:"resource"`              // required
+
+	// Resources carries the resource indicators of RFC 8707 Section 2, which the
+	// client repeats once per indicator. At least one is required here, where the
+	// RFC leaves the parameter optional.
+	Resources []string `form:"resource"` // required
 }
 
 // Validate validates the OAuth authorize request parameters in RFC 6749 order.
@@ -110,14 +114,16 @@ func (r *AuthorizeRequest) Validate(
 		return true, oauth.NewInvalidRequestError("code_challenge_method must be 'S256' or 'plain'")
 	}
 
-	if r.Resource == "" {
-		return true, oauth.NewInvalidRequestError("resource is required")
+	resources, err := oauth.NormalizeResources(r.Resources)
+	if err != nil {
+		return true, oauth.NewInvalidTargetError(err.Error())
 	}
+	r.Resources = resources
 
 	realmName := util.GetRealmName(c)
 	realm := oauth.GetRealm(realmName)
-	if err := realm.ValidateResource(c.Request.Context(), r.Resource); err != nil {
-		return true, oauth.NewInvalidRequestError("Invalid resource parameter: " + err.Error())
+	if err := realm.ValidateResources(c.Request.Context(), r.Resources); err != nil {
+		return true, oauth.NewInvalidTargetError("Invalid resource parameter: " + err.Error())
 	}
 
 	return true, nil
@@ -170,7 +176,7 @@ func NewAuthorizeHandler(cfg *config.Config) gin.HandlerFunc {
 			State:               req.State,
 			CodeChallenge:       req.CodeChallenge,
 			CodeChallengeMethod: req.CodeChallengeMethod,
-			Resource:            req.Resource,
+			Resources:           req.Resources,
 		}
 
 		consentChallenge, err := impls.CreateConsent(c.Request.Context(), consent)

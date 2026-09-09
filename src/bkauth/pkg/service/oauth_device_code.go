@@ -35,7 +35,9 @@ const OAuthDeviceCodeSVC = "OAuthDeviceCodeSVC"
 
 // OAuthDeviceCodeService defines the interface for device code operations
 type OAuthDeviceCodeService interface {
-	CreateDeviceCode(ctx context.Context, realmName, clientID, resource string) (types.CreatedDeviceCode, error)
+	CreateDeviceCode(
+		ctx context.Context, realmName, clientID string, resources []string,
+	) (types.CreatedDeviceCode, error)
 	GetByUserCode(ctx context.Context, userCode string) (types.PendingDeviceCode, error)
 	ApproveByUserCode(ctx context.Context, tenantID, userCode, sub, username string, audience []string) error
 	DenyByUserCode(ctx context.Context, userCode string) error
@@ -55,7 +57,7 @@ func NewOAuthDeviceCodeService() OAuthDeviceCodeService {
 
 func (s *oauthDeviceCodeService) CreateDeviceCode(
 	ctx context.Context,
-	realmName, clientID, resource string,
+	realmName, clientID string, resources []string,
 ) (types.CreatedDeviceCode, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(OAuthDeviceCodeSVC, "CreateDeviceCode")
 
@@ -69,13 +71,18 @@ func (s *oauthDeviceCodeService) CreateDeviceCode(
 		return types.CreatedDeviceCode{}, errorWrapf(err, "GenerateUserCode fail")
 	}
 
+	resourceJSON, err := json.Marshal(resources)
+	if err != nil {
+		return types.CreatedDeviceCode{}, errorWrapf(err, "json.Marshal resources fail")
+	}
+
 	expiresAt := time.Now().Add(time.Duration(oauth.DeviceCodeTTL) * time.Second)
 
 	daoDeviceCode := dao.OAuthDeviceCode{
 		DeviceCode:   deviceCode,
 		UserCode:     userCode,
 		ClientID:     clientID,
-		Resource:     resource,
+		Resource:     string(resourceJSON),
 		RealmName:    realmName,
 		Status:       oauth.DeviceCodeStatusPending,
 		PollInterval: oauth.DeviceCodeInterval,
@@ -115,10 +122,15 @@ func (s *oauthDeviceCodeService) GetByUserCode(ctx context.Context, userCode str
 		return types.PendingDeviceCode{}, oauth.ErrUserCodeAlreadyUsed
 	}
 
+	var resources []string
+	if err := json.Unmarshal([]byte(dc.Resource), &resources); err != nil {
+		return types.PendingDeviceCode{}, errorWrapf(err, "json.Unmarshal resource=`%s` fail", dc.Resource)
+	}
+
 	return types.PendingDeviceCode{
 		ClientID:  dc.ClientID,
 		RealmName: dc.RealmName,
-		Resource:  dc.Resource,
+		Resources: resources,
 	}, nil
 }
 

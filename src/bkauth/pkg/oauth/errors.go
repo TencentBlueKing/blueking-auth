@@ -70,6 +70,8 @@ const (
 	ErrorCodeSlowDown = "slow_down"
 	// RFC 8628 §3.5 — Device Authorization Grant
 	ErrorCodeExpiredToken = "expired_token"
+	// RFC 8707 §2 — Resource Indicators
+	ErrorCodeInvalidTarget = "invalid_target"
 )
 
 func NewInvalidRequestError(description string) *OAuthError {
@@ -126,6 +128,16 @@ func NewSlowDownError(description string) *OAuthError {
 
 func NewExpiredTokenError(description string) *OAuthError {
 	return &OAuthError{Code: ErrorCodeExpiredToken, Description: description}
+}
+
+// NewInvalidTargetError reports a resource indicator the authorization server
+// will not act on. RFC 8707 Section 2 reserves it for an indicator that is
+// invalid, unknown, or malformed, which is narrower than invalid_request: the
+// request is well formed and it is the resource being asked for that cannot be
+// honored. A client can therefore tell "drop a resource and retry" apart from
+// "fix the request".
+func NewInvalidTargetError(description string) *OAuthError {
+	return &OAuthError{Code: ErrorCodeInvalidTarget, Description: description}
 }
 
 // AsOAuthError extracts an *OAuthError from err using errors.As.

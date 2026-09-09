@@ -161,7 +161,7 @@ type CreatedDeviceCode struct {
 type PendingDeviceCode struct {
 	ClientID  string
 	RealmName string
-	Resource  string
+	Resources []string
 }
 
 // ApprovedDeviceCode is returned by PollAndConsumeDeviceCode when the device

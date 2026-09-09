@@ -29,7 +29,6 @@ import (
 	"bkauth/pkg/external/bkapigateway"
 	"bkauth/pkg/logging"
 	"bkauth/pkg/oauth"
-	"bkauth/pkg/util"
 )
 
 // ResourceItem represents a single resource entry with optional nested children.
@@ -157,12 +156,11 @@ func parseBluekingResource(item string) (resType, name, apiName string, err erro
 	return "", "", "", fmt.Errorf("invalid resource: unrecognized format %q", item)
 }
 
-func (r *bluekingRealm) ValidateResource(_ context.Context, resource string) error {
-	items := util.SplitCommaList(resource)
-	if len(items) == 0 {
-		return fmt.Errorf("empty resource string")
+func (r *bluekingRealm) ValidateResources(_ context.Context, resources []string) error {
+	if len(resources) == 0 {
+		return fmt.Errorf("empty resource list")
 	}
-	for _, item := range items {
+	for _, item := range resources {
 		if _, _, _, err := parseBluekingResource(item); err != nil {
 			return err
 		}
@@ -170,16 +168,15 @@ func (r *bluekingRealm) ValidateResource(_ context.Context, resource string) err
 	return nil
 }
 
-func (r *bluekingRealm) ExtractAudiences(_ context.Context, resource string) ([]string, error) {
-	items := util.SplitCommaList(resource)
-	if len(items) == 0 {
-		return nil, fmt.Errorf("empty resource string")
+func (r *bluekingRealm) ExtractAudiences(_ context.Context, resources []string) ([]string, error) {
+	if len(resources) == 0 {
+		return nil, fmt.Errorf("empty resource list")
 	}
 
 	seen := make(map[string]bool)
 	var audiences []string
 
-	for _, item := range items {
+	for _, item := range resources {
 		resType, name, apiName, err := parseBluekingResource(item)
 		if err != nil {
 			return nil, err
@@ -205,10 +202,9 @@ func (r *bluekingRealm) ExtractAudiences(_ context.Context, resource string) ([]
 	return audiences, nil
 }
 
-func (r *bluekingRealm) ResolveResourceDisplay(ctx context.Context, resource string) (any, error) {
-	items := util.SplitCommaList(resource)
-	if len(items) == 0 {
-		return nil, fmt.Errorf("empty resource string")
+func (r *bluekingRealm) ResolveResourceDisplay(ctx context.Context, resources []string) (any, error) {
+	if len(resources) == 0 {
+		return nil, fmt.Errorf("empty resource list")
 	}
 
 	// Deduplicated MCP names in encounter order.
@@ -223,7 +219,7 @@ func (r *bluekingRealm) ResolveResourceDisplay(ctx context.Context, resource str
 	}
 	gwMap := make(map[string]*gwState)
 
-	for _, item := range items {
+	for _, item := range resources {
 		resType, name, apiName, err := parseBluekingResource(item)
 		if err != nil {
 			return nil, err

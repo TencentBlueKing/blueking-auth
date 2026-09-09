@@ -73,23 +73,37 @@ func New() oauth.Realm {
 
 func (r *gpuRealm) Name() string { return Name }
 
-func (r *gpuRealm) ValidateResource(_ context.Context, resource string) error {
-	if resource != validResource {
-		return fmt.Errorf("invalid resource: must be %q, got %q", validResource, resource)
+// isValidResources reports whether the request asked for exactly what this
+// realm grants. The realm is all-or-nothing, so a list is either that one entry
+// or a mistake -- asking for it twice included, since a client spelling it twice
+// has misread the realm rather than asked for more.
+func isValidResources(resources []string) bool {
+	return len(resources) == 1 && resources[0] == validResource
+}
+
+// errInvalidResources spells the refusal of the three resource methods, which
+// have the one thing to refuse and nothing to add to each other's wording.
+func errInvalidResources(resources []string) error {
+	return fmt.Errorf("invalid resource: must be exactly [%q], got %v", validResource, resources)
+}
+
+func (r *gpuRealm) ValidateResources(_ context.Context, resources []string) error {
+	if !isValidResources(resources) {
+		return errInvalidResources(resources)
 	}
 	return nil
 }
 
-func (r *gpuRealm) ExtractAudiences(_ context.Context, resource string) ([]string, error) {
-	if resource != validResource {
-		return nil, fmt.Errorf("invalid resource: must be %q, got %q", validResource, resource)
+func (r *gpuRealm) ExtractAudiences(_ context.Context, resources []string) ([]string, error) {
+	if !isValidResources(resources) {
+		return nil, errInvalidResources(resources)
 	}
 	return []string{validResource}, nil
 }
 
-func (r *gpuRealm) ResolveResourceDisplay(_ context.Context, resource string) (any, error) {
-	if resource != validResource {
-		return nil, fmt.Errorf("invalid resource: must be %q, got %q", validResource, resource)
+func (r *gpuRealm) ResolveResourceDisplay(_ context.Context, resources []string) (any, error) {
+	if !isValidResources(resources) {
+		return nil, errInvalidResources(resources)
 	}
 	return resourceDisplay(), nil
 }

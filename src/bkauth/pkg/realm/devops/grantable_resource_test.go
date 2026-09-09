@@ -78,7 +78,7 @@ var _ = Describe("devopsRealm grantable resources", func() {
 			require.NoError(GinkgoT(), err)
 			require.NotEmpty(GinkgoT(), page.Results)
 
-			display, err := r.ResolveResourceDisplay(ctx, "service:"+page.Results[0].Name)
+			display, err := r.ResolveResourceDisplay(ctx, []string{"service:" + page.Results[0].Name})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]devops.ResourceDisplay)
 

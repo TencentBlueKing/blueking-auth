@@ -99,8 +99,8 @@ func NewDeviceVerifyHandler(cfg *config.Config) gin.HandlerFunc {
 
 		var resources any
 		realmName := dc.RealmName
-		if dc.Resource != "" && oauth.IsValidRealm(dc.RealmName) {
-			if display, err := oauth.GetRealm(dc.RealmName).ResolveResourceDisplay(ctx, dc.Resource); err == nil {
+		if len(dc.Resources) > 0 && oauth.IsValidRealm(dc.RealmName) {
+			if display, err := oauth.GetRealm(dc.RealmName).ResolveResourceDisplay(ctx, dc.Resources); err == nil {
 				resources = display
 			}
 		}
@@ -153,8 +153,8 @@ func NewDeviceConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		var audience []string
-		if dc.Resource != "" && oauth.IsValidRealm(dc.RealmName) {
-			if aud, err := oauth.GetRealm(dc.RealmName).ExtractAudiences(ctx, dc.Resource); err == nil {
+		if len(dc.Resources) > 0 && oauth.IsValidRealm(dc.RealmName) {
+			if aud, err := oauth.GetRealm(dc.RealmName).ExtractAudiences(ctx, dc.Resources); err == nil {
 				audience = aud
 			}
 		}

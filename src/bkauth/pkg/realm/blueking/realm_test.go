@@ -26,50 +26,50 @@ var _ = Describe("bluekingRealm", func() {
 		})
 	})
 
-	Describe("ValidateResource", func() {
+	Describe("ValidateResources", func() {
 		It("should accept valid MCP resource", func() {
-			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "mcp:s1"))
+			assert.NoError(GinkgoT(), r.ValidateResources(ctx, []string{"mcp:s1"}))
 		})
 
 		It("should accept valid gateway resource", func() {
-			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "gateway:gw/api:get_host"))
+			assert.NoError(GinkgoT(), r.ValidateResources(ctx, []string{"gateway:gw/api:get_host"}))
 		})
 
 		It("should accept URL format", func() {
-			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "https://bk.example.com/mcp-servers/s1/sse"))
+			assert.NoError(GinkgoT(), r.ValidateResources(ctx, []string{"https://bk.example.com/mcp-servers/s1/sse"}))
 		})
 
 		It("should accept mixed resources", func() {
-			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "mcp:s1,gateway:gw/api:*"))
+			assert.NoError(GinkgoT(), r.ValidateResources(ctx, []string{"mcp:s1", "gateway:gw/api:*"}))
 		})
 
 		It("should error on empty input", func() {
-			assert.Error(GinkgoT(), r.ValidateResource(ctx, ""))
+			assert.Error(GinkgoT(), r.ValidateResources(ctx, nil))
 		})
 
 		It("should error on unknown prefix", func() {
-			assert.Error(GinkgoT(), r.ValidateResource(ctx, "unknown:foo"))
+			assert.Error(GinkgoT(), r.ValidateResources(ctx, []string{"unknown:foo"}))
 		})
 
 		It("should error on gateway without API segment", func() {
-			assert.Error(GinkgoT(), r.ValidateResource(ctx, "gateway:gw"))
+			assert.Error(GinkgoT(), r.ValidateResources(ctx, []string{"gateway:gw"}))
 		})
 
 		It("should error on legacy colon-separated API segment", func() {
-			assert.Error(GinkgoT(), r.ValidateResource(ctx, "gateway:gw:api:get_host"))
+			assert.Error(GinkgoT(), r.ValidateResources(ctx, []string{"gateway:gw:api:get_host"}))
 		})
 	})
 
 	Describe("ExtractAudiences", func() {
 		It("should extract MCP audiences", func() {
-			aud, err := r.ExtractAudiences(ctx, "mcp:s1,mcp:s2")
+			aud, err := r.ExtractAudiences(ctx, []string{"mcp:s1", "mcp:s2"})
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []string{"mcp:s1", "mcp:s2"}, aud)
 		})
 
 		It("should keep the api segment in gateway audiences", func() {
 			aud, err := r.ExtractAudiences(ctx,
-				"gateway:gw/api:a1,gateway:gw/api:a2,gateway:gw/api:*",
+				[]string{"gateway:gw/api:a1", "gateway:gw/api:a2", "gateway:gw/api:*"},
 			)
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(),
@@ -77,20 +77,20 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should dedup identical gateway audiences", func() {
-			aud, err := r.ExtractAudiences(ctx, "gateway:gw/api:a1,gateway:gw/api:a1")
+			aud, err := r.ExtractAudiences(ctx, []string{"gateway:gw/api:a1", "gateway:gw/api:a1"})
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []string{"gateway:gw/api:a1"}, aud)
 		})
 
 		It("should not let a gateway wildcard absorb its specific apis", func() {
-			aud, err := r.ExtractAudiences(ctx, "gateway:gw/api:*,gateway:gw/api:a1")
+			aud, err := r.ExtractAudiences(ctx, []string{"gateway:gw/api:*", "gateway:gw/api:a1"})
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []string{"gateway:gw/api:*", "gateway:gw/api:a1"}, aud)
 		})
 
 		It("should handle mixed types", func() {
 			aud, err := r.ExtractAudiences(ctx,
-				"mcp:s1,gateway:gw1/api:*,mcp:s2,gateway:gw2/api:a1",
+				[]string{"mcp:s1", "gateway:gw1/api:*", "mcp:s2", "gateway:gw2/api:a1"},
 			)
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(),
@@ -98,14 +98,14 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should extract the global wildcards verbatim", func() {
-			aud, err := r.ExtractAudiences(ctx, "mcp:*,gateway:*/api:*")
+			aud, err := r.ExtractAudiences(ctx, []string{"mcp:*", "gateway:*/api:*"})
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []string{"mcp:*", "gateway:*/api:*"}, aud)
 		})
 
 		It("should handle URL format", func() {
 			aud, err := r.ExtractAudiences(ctx,
-				"https://bk.example.com/mcp-servers/my-server/sse",
+				[]string{"https://bk.example.com/mcp-servers/my-server/sse"},
 			)
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []string{"mcp:my-server"}, aud)
@@ -114,7 +114,7 @@ var _ = Describe("bluekingRealm", func() {
 
 	Describe("ResolveResourceDisplay", func() {
 		It("should parse a single MCP resource", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "mcp:bk-cmdb-mcp-server")
+			display, err := r.ResolveResourceDisplay(ctx, []string{"mcp:bk-cmdb-mcp-server"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
@@ -125,7 +125,7 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should parse multiple MCP resources into one group", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "mcp:s1,mcp:s2,mcp:s3")
+			display, err := r.ResolveResourceDisplay(ctx, []string{"mcp:s1", "mcp:s2", "mcp:s3"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
@@ -133,7 +133,7 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should parse gateway with wildcard API", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "gateway:bk-apigateway-a/api:*")
+			display, err := r.ResolveResourceDisplay(ctx, []string{"gateway:bk-apigateway-a/api:*"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
@@ -147,7 +147,9 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should parse gateway with specific APIs", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "gateway:gw1/api:get_host,gateway:gw1/api:get_app")
+			display, err := r.ResolveResourceDisplay(ctx,
+				[]string{"gateway:gw1/api:get_host", "gateway:gw1/api:get_app"},
+			)
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
@@ -159,7 +161,7 @@ var _ = Describe("bluekingRealm", func() {
 
 		It("should let wildcard override specific APIs", func() {
 			display, err := r.ResolveResourceDisplay(ctx,
-				"gateway:gw1/api:get_host,gateway:gw1/api:*,gateway:gw1/api:get_app",
+				[]string{"gateway:gw1/api:get_host", "gateway:gw1/api:*", "gateway:gw1/api:get_app"},
 			)
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
@@ -170,7 +172,7 @@ var _ = Describe("bluekingRealm", func() {
 
 		It("should handle mixed MCP and gateway types", func() {
 			display, err := r.ResolveResourceDisplay(ctx,
-				"mcp:s1,gateway:gw1/api:*,mcp:s2,gateway:gw2/api:a1,gateway:gw2/api:a2",
+				[]string{"mcp:s1", "gateway:gw1/api:*", "mcp:s2", "gateway:gw2/api:a1", "gateway:gw2/api:a2"},
 			)
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
@@ -183,7 +185,7 @@ var _ = Describe("bluekingRealm", func() {
 
 		It("should parse URL format", func() {
 			display, err := r.ResolveResourceDisplay(ctx,
-				"https://bk.example.com/mcp-servers/bk-cmdb-mcp-server/sse",
+				[]string{"https://bk.example.com/mcp-servers/bk-cmdb-mcp-server/sse"},
 			)
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
@@ -191,27 +193,20 @@ var _ = Describe("bluekingRealm", func() {
 			assert.Equal(GinkgoT(), "bk-cmdb-mcp-server", groups[0].Items[0].Name)
 		})
 
-		It("should tolerate spaces and trailing commas", func() {
-			display, err := r.ResolveResourceDisplay(ctx, " mcp:s1 , mcp:s2 , ")
-			require.NoError(GinkgoT(), err)
-			groups := display.([]ResourceGroup)
-			assert.Len(GinkgoT(), groups[0].Items, 2)
-		})
-
 		It("should dedup duplicate gateway APIs within same gateway", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "gateway:gw/api:a1,gateway:gw/api:a1")
+			display, err := r.ResolveResourceDisplay(ctx, []string{"gateway:gw/api:a1", "gateway:gw/api:a1"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			assert.Len(GinkgoT(), groups[0].Items[0].Items, 1)
 		})
 
 		It("should error on empty input", func() {
-			_, err := r.ResolveResourceDisplay(ctx, "")
+			_, err := r.ResolveResourceDisplay(ctx, nil)
 			assert.Error(GinkgoT(), err)
 		})
 
 		It("should error on empty name after prefix", func() {
-			_, err := r.ResolveResourceDisplay(ctx, "mcp:")
+			_, err := r.ResolveResourceDisplay(ctx, []string{"mcp:"})
 			assert.Error(GinkgoT(), err)
 		})
 	})
@@ -238,7 +233,7 @@ var _ = Describe("bluekingRealm", func() {
 				map[string]string{"bk-cmdb": "CMDB MCP Server"}, nil,
 			)
 
-			display, err := realm.ResolveResourceDisplay(ctx, "mcp:bk-cmdb")
+			display, err := realm.ResolveResourceDisplay(ctx, []string{"mcp:bk-cmdb"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
@@ -251,7 +246,7 @@ var _ = Describe("bluekingRealm", func() {
 				map[string]string{"s1": "Server One", "s2": "Server Two"}, nil,
 			)
 
-			display, err := realm.ResolveResourceDisplay(ctx, "mcp:s1,mcp:s2")
+			display, err := realm.ResolveResourceDisplay(ctx, []string{"mcp:s1", "mcp:s2"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups[0].Items, 2)
@@ -264,7 +259,7 @@ var _ = Describe("bluekingRealm", func() {
 				map[string]string{"s1": "Server One"}, nil,
 			)
 
-			display, err := realm.ResolveResourceDisplay(ctx, "mcp:s1,mcp:s2")
+			display, err := realm.ResolveResourceDisplay(ctx, []string{"mcp:s1", "mcp:s2"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			assert.Equal(GinkgoT(), "Server One", groups[0].Items[0].DisplayName)
@@ -276,7 +271,7 @@ var _ = Describe("bluekingRealm", func() {
 				nil, errors.New("network error"),
 			)
 
-			display, err := realm.ResolveResourceDisplay(ctx, "mcp:s1")
+			display, err := realm.ResolveResourceDisplay(ctx, []string{"mcp:s1"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			assert.Equal(GinkgoT(), "s1", groups[0].Items[0].DisplayName)
@@ -287,7 +282,7 @@ var _ = Describe("bluekingRealm", func() {
 				map[string]string{"s1": "Server One"}, nil,
 			)
 
-			display, err := realm.ResolveResourceDisplay(ctx, "mcp:s1,mcp:s1")
+			display, err := realm.ResolveResourceDisplay(ctx, []string{"mcp:s1", "mcp:s1"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups[0].Items, 1)
@@ -295,7 +290,7 @@ var _ = Describe("bluekingRealm", func() {
 		})
 
 		It("should not call BatchQueryTitles when only gateway resources present", func() {
-			display, err := realm.ResolveResourceDisplay(ctx, "gateway:gw/api:*")
+			display, err := realm.ResolveResourceDisplay(ctx, []string{"gateway:gw/api:*"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 1)
@@ -307,7 +302,7 @@ var _ = Describe("bluekingRealm", func() {
 				map[string]string{"s1": "Server One"}, nil,
 			)
 
-			display, err := realm.ResolveResourceDisplay(ctx, "mcp:s1,gateway:gw/api:get_host")
+			display, err := realm.ResolveResourceDisplay(ctx, []string{"mcp:s1", "gateway:gw/api:get_host"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]ResourceGroup)
 			require.Len(GinkgoT(), groups, 2)

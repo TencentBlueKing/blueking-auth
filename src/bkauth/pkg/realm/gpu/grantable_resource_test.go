@@ -68,7 +68,7 @@ var _ = Describe("gpuRealm grantable resources", func() {
 			page, err := r.ListGrantableResource(ctx, "", oauth.GrantableResourceQuery{Type: "resource"})
 			require.NoError(GinkgoT(), err)
 
-			display, err := r.ResolveResourceDisplay(ctx, "resource:all")
+			display, err := r.ResolveResourceDisplay(ctx, []string{"resource:all"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]gpu.ResourceDisplay)
 

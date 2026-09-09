@@ -61,8 +61,8 @@ var _ = Describe("DeviceAuthorizeRequest.Validate", func() {
 		util.SetClientID(c, clientID)
 
 		validReq = DeviceAuthorizeRequest{
-			ClientID: clientID,
-			Resource: "gateway:bk-paas/api:get_users",
+			ClientID:  clientID,
+			Resources: []string{"gateway:bk-paas/api:get_users"},
 		}
 	})
 
@@ -109,28 +109,44 @@ var _ = Describe("DeviceAuthorizeRequest.Validate", func() {
 
 	It("should reject empty resource", func() {
 		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), clientID).Return(validFlowSpec, nil)
-		validReq.Resource = ""
+		validReq.Resources = nil
 
 		err := validReq.Validate(c, clientSvc)
 
 		Expect(err).To(HaveOccurred())
 		oauthErr, ok := oauth.AsOAuthError(err)
 		Expect(ok).To(BeTrue())
-		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeInvalidRequest))
+		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeInvalidTarget))
 		Expect(oauthErr.Description).To(ContainSubstring("resource"))
 	})
 
 	It("should reject invalid resource format", func() {
 		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), clientID).Return(validFlowSpec, nil)
-		validReq.Resource = ":::invalid"
+		validReq.Resources = []string{":::invalid"}
 
 		err := validReq.Validate(c, clientSvc)
 
 		Expect(err).To(HaveOccurred())
 		oauthErr, ok := oauth.AsOAuthError(err)
 		Expect(ok).To(BeTrue())
-		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeInvalidRequest))
+		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeInvalidTarget))
 		Expect(oauthErr.Description).To(ContainSubstring("resource"))
+	})
+
+	It("should accept repeated resource parameters", func() {
+		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), clientID).Return(validFlowSpec, nil)
+		validReq.Resources = []string{"mcp:s1", "gateway:bk-paas/api:get_users"}
+
+		Expect(validReq.Validate(c, clientSvc)).To(Succeed())
+		Expect(validReq.Resources).To(Equal([]string{"mcp:s1", "gateway:bk-paas/api:get_users"}))
+	})
+
+	It("should hand the normalized resources to the device code row", func() {
+		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), clientID).Return(validFlowSpec, nil)
+		validReq.Resources = []string{" mcp:s1 ", "", "gateway:bk-paas/api:get_users", "mcp:s1"}
+
+		Expect(validReq.Validate(c, clientSvc)).To(Succeed())
+		Expect(validReq.Resources).To(Equal([]string{"mcp:s1", "gateway:bk-paas/api:get_users"}))
 	})
 
 	It("should pass with all valid parameters", func() {

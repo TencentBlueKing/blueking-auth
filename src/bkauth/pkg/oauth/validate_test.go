@@ -19,11 +19,24 @@
 package oauth_test
 
 import (
+	"fmt"
+	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
 
 	"bkauth/pkg/oauth"
 )
+
+// resourceList builds n distinct valid indicators, so a bound is exercised by
+// the count alone rather than by values that would be rejected anyway.
+func resourceList(n int) []string {
+	resources := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		resources = append(resources, fmt.Sprintf("mcp:s%d", i))
+	}
+	return resources
+}
 
 var _ = Describe("Validate", func() {
 	Describe("ValidateGrantTypes", func() {
@@ -82,5 +95,93 @@ var _ = Describe("Validate", func() {
 			Entry("custom app scheme",
 				"myapp://logo", false),
 		)
+	})
+
+	Describe("NormalizeResources", func() {
+		DescribeTable("bounds",
+			func(resources []string, wantOK bool) {
+				_, err := oauth.NormalizeResources(resources)
+				if wantOK {
+					assert.NoError(GinkgoT(), err)
+				} else {
+					assert.Error(GinkgoT(), err)
+				}
+			},
+			Entry("one indicator", []string{"mcp:s1"}, true),
+			Entry("several indicators, the RFC 8707 spelling",
+				[]string{"mcp:s1", "gateway:gw/api:a1"}, true),
+			Entry("exactly the count bound",
+				resourceList(oauth.MaxResourceCount), true),
+			Entry("exactly the length bound",
+				[]string{strings.Repeat("a", oauth.MaxResourceLength)}, true),
+			Entry("no indicator at all", nil, false),
+			Entry("one over the count bound",
+				resourceList(oauth.MaxResourceCount+1), false),
+			Entry("one over the length bound",
+				[]string{strings.Repeat("a", oauth.MaxResourceLength+1)}, false),
+			Entry("an indicator spelling is left to the realm",
+				[]string{"whatever the realm makes of this"}, true),
+		)
+
+		It("should strip surrounding whitespace", func() {
+			resources, err := oauth.NormalizeResources([]string{"  mcp:s1 ", "\tgateway:gw/api:a1\n"})
+
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), []string{"mcp:s1", "gateway:gw/api:a1"}, resources)
+		})
+
+		It("should drop an empty indicator rather than reject the request", func() {
+			resources, err := oauth.NormalizeResources([]string{"mcp:s1", "", "   "})
+
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), []string{"mcp:s1"}, resources)
+		})
+
+		It("should treat a list of nothing but empties as no indicator at all", func() {
+			_, err := oauth.NormalizeResources([]string{"", "  "})
+
+			assert.ErrorContains(GinkgoT(), err, "required")
+		})
+
+		It("should check the count bound against what survives", func() {
+			atBound := resourceList(oauth.MaxResourceCount)
+			resources, err := oauth.NormalizeResources(
+				append(append([]string{}, atBound...), "", " ", atBound[0]),
+			)
+
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), atBound, resources)
+		})
+
+		It("should check the length bound against the trimmed value", func() {
+			padded := "  " + strings.Repeat("a", oauth.MaxResourceLength) + "  "
+
+			resources, err := oauth.NormalizeResources([]string{padded})
+
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), []string{strings.Repeat("a", oauth.MaxResourceLength)}, resources)
+		})
+
+		It("should keep a byte-identical indicator once, where it first appeared", func() {
+			resources, err := oauth.NormalizeResources(
+				[]string{"mcp:s1", "gateway:gw/api:a1", " mcp:s1 "},
+			)
+
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), []string{"mcp:s1", "gateway:gw/api:a1"}, resources)
+		})
+
+		It("should leave two spellings of one resource for the realm to collapse", func() {
+			resources, err := oauth.NormalizeResources(
+				[]string{"mcp:s1", "https://bk.example.com/mcp-servers/s1/sse", "MCP:S1"},
+			)
+
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(
+				GinkgoT(),
+				[]string{"mcp:s1", "https://bk.example.com/mcp-servers/s1/sse", "MCP:S1"},
+				resources,
+			)
+		})
 	})
 })

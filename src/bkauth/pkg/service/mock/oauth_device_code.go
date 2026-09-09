@@ -56,18 +56,18 @@ func (mr *MockOAuthDeviceCodeServiceMockRecorder) ApproveByUserCode(ctx, tenantI
 }
 
 // CreateDeviceCode mocks base method.
-func (m *MockOAuthDeviceCodeService) CreateDeviceCode(ctx context.Context, realmName, clientID, resource string) (types.CreatedDeviceCode, error) {
+func (m *MockOAuthDeviceCodeService) CreateDeviceCode(ctx context.Context, realmName, clientID string, resources []string) (types.CreatedDeviceCode, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateDeviceCode", ctx, realmName, clientID, resource)
+	ret := m.ctrl.Call(m, "CreateDeviceCode", ctx, realmName, clientID, resources)
 	ret0, _ := ret[0].(types.CreatedDeviceCode)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateDeviceCode indicates an expected call of CreateDeviceCode.
-func (mr *MockOAuthDeviceCodeServiceMockRecorder) CreateDeviceCode(ctx, realmName, clientID, resource any) *gomock.Call {
+func (mr *MockOAuthDeviceCodeServiceMockRecorder) CreateDeviceCode(ctx, realmName, clientID, resources any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDeviceCode", reflect.TypeOf((*MockOAuthDeviceCodeService)(nil).CreateDeviceCode), ctx, realmName, clientID, resource)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDeviceCode", reflect.TypeOf((*MockOAuthDeviceCodeService)(nil).CreateDeviceCode), ctx, realmName, clientID, resources)
 }
 
 // DenyByUserCode mocks base method.

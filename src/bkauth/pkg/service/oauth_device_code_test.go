@@ -39,7 +39,7 @@ func newPendingDeviceCode() dao.OAuthDeviceCode {
 		UserCode:     "ABCD-EFGH",
 		ClientID:     "client-1",
 		RealmName:    "blueking",
-		Resource:     "bk_paas",
+		Resource:     `["mcp:s1","gateway:gw/api:a1"]`,
 		Status:       oauth.DeviceCodeStatusPending,
 		PollInterval: oauth.DeviceCodeInterval,
 		ExpiresAt:    time.Now().Add(time.Minute),
@@ -102,7 +102,17 @@ var _ = Describe("oauthDeviceCodeService", func() {
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), "client-1", result.ClientID)
 			assert.Equal(GinkgoT(), "blueking", result.RealmName)
-			assert.Equal(GinkgoT(), "bk_paas", result.Resource)
+			assert.Equal(GinkgoT(), []string{"mcp:s1", "gateway:gw/api:a1"}, result.Resources)
+		})
+
+		It("should fail when the resource column does not hold a JSON list", func() {
+			dc := newPendingDeviceCode()
+			dc.Resource = "mcp:s1"
+			mockManager.EXPECT().GetByUserCode(gomock.Any(), gomock.Any()).Return(dc, nil)
+
+			_, err := svc.GetByUserCode(context.Background(), "ABCD-EFGH")
+
+			assert.Error(GinkgoT(), err)
 		})
 	})
 
@@ -338,7 +348,7 @@ var _ = Describe("oauthDeviceCodeService.CreateDeviceCode", func() {
 				assert.NotEmpty(GinkgoT(), dc.UserCode)
 				assert.Equal(GinkgoT(), "client-1", dc.ClientID)
 				assert.Equal(GinkgoT(), "blueking", dc.RealmName)
-				assert.Equal(GinkgoT(), "bk_paas", dc.Resource)
+				assert.Equal(GinkgoT(), `["mcp:s1","gateway:gw/api:a1"]`, dc.Resource)
 				assert.Equal(GinkgoT(), oauth.DeviceCodeStatusPending, dc.Status)
 				assert.Equal(GinkgoT(), int64(oauth.DeviceCodeInterval), dc.PollInterval)
 
@@ -347,7 +357,9 @@ var _ = Describe("oauthDeviceCodeService.CreateDeviceCode", func() {
 				return int64(1), nil
 			})
 
-		result, err := svc.CreateDeviceCode(context.Background(), "blueking", "client-1", "bk_paas")
+		result, err := svc.CreateDeviceCode(
+			context.Background(), "blueking", "client-1", []string{"mcp:s1", "gateway:gw/api:a1"},
+		)
 
 		assert.NoError(GinkgoT(), err)
 		assert.NotEmpty(GinkgoT(), result.DeviceCode)
@@ -360,7 +372,7 @@ var _ = Describe("oauthDeviceCodeService.CreateDeviceCode", func() {
 			Create(gomock.Any(), gomock.AssignableToTypeOf(dao.OAuthDeviceCode{})).
 			Return(int64(0), errors.New("db connection lost"))
 
-		_, err := svc.CreateDeviceCode(context.Background(), "blueking", "client-1", "bk_paas")
+		_, err := svc.CreateDeviceCode(context.Background(), "blueking", "client-1", []string{"mcp:s1"})
 
 		assert.Error(GinkgoT(), err)
 		assert.Contains(GinkgoT(), err.Error(), "deviceCodeManager.Create fail")

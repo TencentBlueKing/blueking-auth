@@ -24,31 +24,31 @@ var _ = Describe("devopsRealm", func() {
 		})
 	})
 
-	Describe("ValidateResource", func() {
+	Describe("ValidateResources", func() {
 		It("should accept valid service resource", func() {
-			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "service:codecc"))
+			assert.NoError(GinkgoT(), r.ValidateResources(ctx, []string{"service:codecc"}))
 		})
 
 		It("should accept multiple services", func() {
-			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "service:codecc,service:pipeline"))
+			assert.NoError(GinkgoT(), r.ValidateResources(ctx, []string{"service:codecc", "service:pipeline"}))
 		})
 
 		It("should error on invalid prefix", func() {
-			assert.Error(GinkgoT(), r.ValidateResource(ctx, "mcp:foo"))
+			assert.Error(GinkgoT(), r.ValidateResources(ctx, []string{"mcp:foo"}))
 		})
 
 		It("should error on empty name", func() {
-			assert.Error(GinkgoT(), r.ValidateResource(ctx, "service:"))
+			assert.Error(GinkgoT(), r.ValidateResources(ctx, []string{"service:"}))
 		})
 
 		It("should error on empty input", func() {
-			assert.Error(GinkgoT(), r.ValidateResource(ctx, ""))
+			assert.Error(GinkgoT(), r.ValidateResources(ctx, nil))
 		})
 	})
 
 	Describe("ExtractAudiences", func() {
 		It("should dedup audiences", func() {
-			aud, err := r.ExtractAudiences(ctx, "service:codecc,service:pipeline,service:codecc")
+			aud, err := r.ExtractAudiences(ctx, []string{"service:codecc", "service:pipeline", "service:codecc"})
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []string{"service:codecc", "service:pipeline"}, aud)
 		})
@@ -56,7 +56,7 @@ var _ = Describe("devopsRealm", func() {
 
 	Describe("ResolveResourceDisplay", func() {
 		It("should parse a single service", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "service:codecc")
+			display, err := r.ResolveResourceDisplay(ctx, []string{"service:codecc"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]devops.ResourceDisplay)
 			require.Len(GinkgoT(), groups, 1)
@@ -67,22 +67,17 @@ var _ = Describe("devopsRealm", func() {
 		})
 
 		It("should parse multiple services", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "service:codecc,service:pipeline,service:turbo")
+			display, err := r.ResolveResourceDisplay(ctx,
+				[]string{"service:codecc", "service:pipeline", "service:turbo"},
+			)
 			require.NoError(GinkgoT(), err)
 			groups := display.([]devops.ResourceDisplay)
 			require.Len(GinkgoT(), groups, 1)
 			assert.Len(GinkgoT(), groups[0].Items, 3)
 		})
 
-		It("should tolerate spaces and trailing commas", func() {
-			display, err := r.ResolveResourceDisplay(ctx, " service:codecc , service:pipeline , ")
-			require.NoError(GinkgoT(), err)
-			groups := display.([]devops.ResourceDisplay)
-			assert.Len(GinkgoT(), groups[0].Items, 2)
-		})
-
 		It("should error on empty input", func() {
-			_, err := r.ResolveResourceDisplay(ctx, "")
+			_, err := r.ResolveResourceDisplay(ctx, nil)
 			assert.Error(GinkgoT(), err)
 		})
 	})

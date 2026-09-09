@@ -18,31 +18,6 @@
 
 package util
 
-import "strings"
-
-// SplitCommaList splits a comma-separated string into trimmed, non-empty items.
-// Leading/trailing whitespace around each item is stripped, and empty items
-// (including those produced by trailing commas) are discarded.
-//
-// Examples:
-//
-//	SplitCommaList("a, b, c")        => ["a", "b", "c"]
-//	SplitCommaList(" a , b , ")      => ["a", "b"]
-//	SplitCommaList("")               => []  (empty, length 0)
-//	SplitCommaList("  ,  , ")        => []  (all items empty after trim)
-//	SplitCommaList("single")         => ["single"]
-func SplitCommaList(s string) []string {
-	raw := strings.Split(s, ",")
-	items := make([]string, 0, len(raw))
-	for _, item := range raw {
-		item = strings.TrimSpace(item)
-		if item != "" {
-			items = append(items, item)
-		}
-	}
-	return items
-}
-
 // TruncateBytes truncate []byte to specific length
 func TruncateBytes(content []byte, length int) []byte {
 	if len(content) > length {

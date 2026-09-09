@@ -132,9 +132,16 @@ func (e Extras) MarshalJSON() ([]byte, error) {
 type Realm interface {
 	Name() string
 
-	ValidateResource(ctx context.Context, resource string) error
-	ExtractAudiences(ctx context.Context, resource string) ([]string, error)
-	ResolveResourceDisplay(ctx context.Context, resource string) (any, error)
+	// The three resource methods take the indicators of one request together,
+	// trimmed and free of empty and byte-identical entries by way of
+	// NormalizeResources, but otherwise spelled as the client sent them: what an
+	// indicator may say, and which two spellings name one resource, are the
+	// realm's to decide. A realm reads the list as one selection rather than one
+	// entry at a time: audiences are deduplicated across the whole list, and the
+	// display groups entries of the same kind.
+	ValidateResources(ctx context.Context, resources []string) error
+	ExtractAudiences(ctx context.Context, resources []string) ([]string, error)
+	ResolveResourceDisplay(ctx context.Context, resources []string) (any, error)
 
 	// ValidateAudiences reports whether every entry is a token this realm is
 	// willing to store. It is purely syntactic and makes no upstream call, so a

@@ -24,36 +24,40 @@ var _ = Describe("gpuRealm", func() {
 		})
 	})
 
-	Describe("ValidateResource", func() {
+	Describe("ValidateResources", func() {
 		It("should accept resource:all", func() {
-			assert.NoError(GinkgoT(), r.ValidateResource(ctx, "resource:all"))
+			assert.NoError(GinkgoT(), r.ValidateResources(ctx, []string{"resource:all"}))
 		})
 
 		It("should reject other resources", func() {
-			assert.Error(GinkgoT(), r.ValidateResource(ctx, "service:foo"))
+			assert.Error(GinkgoT(), r.ValidateResources(ctx, []string{"service:foo"}))
 		})
 
 		It("should reject empty input", func() {
-			assert.Error(GinkgoT(), r.ValidateResource(ctx, ""))
+			assert.Error(GinkgoT(), r.ValidateResources(ctx, nil))
+		})
+
+		It("should reject the one token repeated", func() {
+			assert.Error(GinkgoT(), r.ValidateResources(ctx, []string{"resource:all", "resource:all"}))
 		})
 	})
 
 	Describe("ExtractAudiences", func() {
 		It("should return resource:all", func() {
-			aud, err := r.ExtractAudiences(ctx, "resource:all")
+			aud, err := r.ExtractAudiences(ctx, []string{"resource:all"})
 			require.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), []string{"resource:all"}, aud)
 		})
 
 		It("should error on invalid resource", func() {
-			_, err := r.ExtractAudiences(ctx, "invalid")
+			_, err := r.ExtractAudiences(ctx, []string{"invalid"})
 			assert.Error(GinkgoT(), err)
 		})
 	})
 
 	Describe("ResolveResourceDisplay", func() {
 		It("should return correct display", func() {
-			display, err := r.ResolveResourceDisplay(ctx, "resource:all")
+			display, err := r.ResolveResourceDisplay(ctx, []string{"resource:all"})
 			require.NoError(GinkgoT(), err)
 			groups := display.([]gpu.ResourceDisplay)
 			require.Len(GinkgoT(), groups, 1)
@@ -65,7 +69,7 @@ var _ = Describe("gpuRealm", func() {
 		})
 
 		It("should error on invalid resource", func() {
-			_, err := r.ResolveResourceDisplay(ctx, "bad")
+			_, err := r.ResolveResourceDisplay(ctx, []string{"bad"})
 			assert.Error(GinkgoT(), err)
 		})
 	})

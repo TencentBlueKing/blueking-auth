@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"bkauth/pkg/oauth"
-	"bkauth/pkg/util"
 )
 
 // ServiceDisplay represents a single service entry for the devops realm.
@@ -98,12 +97,11 @@ func parseServiceItem(item string) (string, error) {
 	return name, nil
 }
 
-func (r *devopsRealm) ValidateResource(_ context.Context, resource string) error {
-	items := util.SplitCommaList(resource)
-	if len(items) == 0 {
-		return fmt.Errorf("empty resource string")
+func (r *devopsRealm) ValidateResources(_ context.Context, resources []string) error {
+	if len(resources) == 0 {
+		return fmt.Errorf("empty resource list")
 	}
-	for _, item := range items {
+	for _, item := range resources {
 		if _, err := parseServiceItem(item); err != nil {
 			return err
 		}
@@ -111,16 +109,15 @@ func (r *devopsRealm) ValidateResource(_ context.Context, resource string) error
 	return nil
 }
 
-func (r *devopsRealm) ExtractAudiences(_ context.Context, resource string) ([]string, error) {
-	items := util.SplitCommaList(resource)
-	if len(items) == 0 {
-		return nil, fmt.Errorf("empty resource string")
+func (r *devopsRealm) ExtractAudiences(_ context.Context, resources []string) ([]string, error) {
+	if len(resources) == 0 {
+		return nil, fmt.Errorf("empty resource list")
 	}
 
 	seen := make(map[string]bool)
 	var audiences []string
 
-	for _, item := range items {
+	for _, item := range resources {
 		name, err := parseServiceItem(item)
 		if err != nil {
 			return nil, err
@@ -135,14 +132,13 @@ func (r *devopsRealm) ExtractAudiences(_ context.Context, resource string) ([]st
 	return audiences, nil
 }
 
-func (r *devopsRealm) ResolveResourceDisplay(_ context.Context, resource string) (any, error) {
-	items := util.SplitCommaList(resource)
-	if len(items) == 0 {
-		return nil, fmt.Errorf("empty resource string")
+func (r *devopsRealm) ResolveResourceDisplay(_ context.Context, resources []string) (any, error) {
+	if len(resources) == 0 {
+		return nil, fmt.Errorf("empty resource list")
 	}
 
-	names := make([]string, 0, len(items))
-	for _, item := range items {
+	names := make([]string, 0, len(resources))
+	for _, item := range resources {
 		name, err := parseServiceItem(item)
 		if err != nil {
 			return nil, err
@@ -153,7 +149,7 @@ func (r *devopsRealm) ResolveResourceDisplay(_ context.Context, resource string)
 	return serviceDisplay(names), nil
 }
 
-// ValidateAudiences accepts the same tokens as ValidateResource. This realm
+// ValidateAudiences accepts the same tokens as ValidateResources. This realm
 // grants whole services, so a client asking for one and a user picking one name
 // the same thing; the two are still checked through separate entry points
 // because nothing guarantees that stays true.

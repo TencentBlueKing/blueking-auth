@@ -39,8 +39,9 @@ type OAuthDeviceCode struct {
 	ClientID   string `db:"client_id"`
 	TenantID   string `db:"tenant_id"`
 	Scope      string `db:"scope"`
-	Resource   string `db:"resource"`
-	RealmName  string `db:"realm_name"`
+	// JSON string
+	Resource  string `db:"resource"`
+	RealmName string `db:"realm_name"`
 	// JSON string
 	Audience *string `db:"audience"`
 	// pending, approved, denied, consumed

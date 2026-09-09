@@ -34,13 +34,13 @@ const consentTTL = 600
 // All fields are pre-validated by the /authorize endpoint before storage;
 // consumers can trust the data directly.
 type Consent struct {
-	RealmName           string `msgpack:"realm_name"`
-	ClientID            string `msgpack:"client_id"`
-	RedirectURI         string `msgpack:"redirect_uri"`
-	State               string `msgpack:"state,omitempty"`
-	CodeChallenge       string `msgpack:"code_challenge"`
-	CodeChallengeMethod string `msgpack:"code_challenge_method,omitempty"`
-	Resource            string `msgpack:"resource"`
+	RealmName           string   `msgpack:"realm_name"`
+	ClientID            string   `msgpack:"client_id"`
+	RedirectURI         string   `msgpack:"redirect_uri"`
+	State               string   `msgpack:"state,omitempty"`
+	CodeChallenge       string   `msgpack:"code_challenge"`
+	CodeChallengeMethod string   `msgpack:"code_challenge_method,omitempty"`
+	Resources           []string `msgpack:"resources"`
 }
 
 type consentKey struct {

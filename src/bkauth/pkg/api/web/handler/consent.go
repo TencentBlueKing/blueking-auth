@@ -83,7 +83,7 @@ func NewConsentInfoHandler() gin.HandlerFunc {
 		var resources any
 		realm := oauth.GetRealm(consent.RealmName)
 		if realm != nil {
-			resources, _ = realm.ResolveResourceDisplay(ctx, consent.Resource)
+			resources, _ = realm.ResolveResourceDisplay(ctx, consent.Resources)
 		}
 
 		util.WebSuccess(c, consentInfoResponse{
@@ -148,7 +148,7 @@ func NewConsentConfirmHandler(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		realm := oauth.GetRealm(consent.RealmName)
-		audience, err := realm.ExtractAudiences(ctx, consent.Resource)
+		audience, err := realm.ExtractAudiences(ctx, consent.Resources)
 		if err != nil {
 			util.WebInternalError(c, "Failed to process resource parameter")
 			return

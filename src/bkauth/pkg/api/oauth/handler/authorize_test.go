@@ -20,6 +20,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"net/http/httptest"
 
 	"github.com/gin-gonic/gin"
@@ -65,7 +66,7 @@ var _ = Describe("AuthorizeRequest.Validate", func() {
 			State:               "random-state",
 			CodeChallenge:       "challenge123",
 			CodeChallengeMethod: oauth.CodeChallengeMethodS256,
-			Resource:            "gateway:bk-paas/api:get_users",
+			Resources:           []string{"gateway:bk-paas/api:get_users"},
 		}
 	})
 
@@ -253,7 +254,7 @@ var _ = Describe("AuthorizeRequest.Validate", func() {
 
 	It("should reject empty resource", func() {
 		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), "test-client").Return(validFlowSpec, nil)
-		validReq.Resource = ""
+		validReq.Resources = nil
 
 		canRedirect, err := validReq.Validate(c, clientSvc)
 
@@ -261,13 +262,30 @@ var _ = Describe("AuthorizeRequest.Validate", func() {
 		Expect(err).To(HaveOccurred())
 		oauthErr, ok := oauth.AsOAuthError(err)
 		Expect(ok).To(BeTrue())
-		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeInvalidRequest))
+		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeInvalidTarget))
+		Expect(oauthErr.Description).To(ContainSubstring("resource"))
+	})
+
+	It("should reject more resources than the bound allows", func() {
+		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), "test-client").Return(validFlowSpec, nil)
+		validReq.Resources = nil
+		for i := 0; i <= oauth.MaxResourceCount; i++ {
+			validReq.Resources = append(validReq.Resources, fmt.Sprintf("mcp:s%d", i))
+		}
+
+		canRedirect, err := validReq.Validate(c, clientSvc)
+
+		Expect(canRedirect).To(BeTrue())
+		Expect(err).To(HaveOccurred())
+		oauthErr, ok := oauth.AsOAuthError(err)
+		Expect(ok).To(BeTrue())
+		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeInvalidTarget))
 		Expect(oauthErr.Description).To(ContainSubstring("resource"))
 	})
 
 	It("should reject invalid resource format", func() {
 		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), "test-client").Return(validFlowSpec, nil)
-		validReq.Resource = ":::invalid"
+		validReq.Resources = []string{":::invalid"}
 
 		canRedirect, err := validReq.Validate(c, clientSvc)
 
@@ -275,7 +293,7 @@ var _ = Describe("AuthorizeRequest.Validate", func() {
 		Expect(err).To(HaveOccurred())
 		oauthErr, ok := oauth.AsOAuthError(err)
 		Expect(ok).To(BeTrue())
-		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeInvalidRequest))
+		Expect(oauthErr.Code).To(Equal(oauth.ErrorCodeInvalidTarget))
 		Expect(oauthErr.Description).To(ContainSubstring("resource"))
 	})
 
@@ -286,5 +304,27 @@ var _ = Describe("AuthorizeRequest.Validate", func() {
 
 		Expect(canRedirect).To(BeTrue())
 		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("should accept repeated resource parameters", func() {
+		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), "test-client").Return(validFlowSpec, nil)
+		validReq.Resources = []string{"mcp:s1", "gateway:bk-paas/api:get_users"}
+
+		canRedirect, err := validReq.Validate(c, clientSvc)
+
+		Expect(canRedirect).To(BeTrue())
+		Expect(err).NotTo(HaveOccurred())
+		Expect(validReq.Resources).To(Equal([]string{"mcp:s1", "gateway:bk-paas/api:get_users"}))
+	})
+
+	It("should hand the normalized resources to the consent session", func() {
+		clientSvc.EXPECT().GetFlowSpec(gomock.Any(), "test-client").Return(validFlowSpec, nil)
+		validReq.Resources = []string{" mcp:s1 ", "", "gateway:bk-paas/api:get_users", "mcp:s1"}
+
+		canRedirect, err := validReq.Validate(c, clientSvc)
+
+		Expect(canRedirect).To(BeTrue())
+		Expect(err).NotTo(HaveOccurred())
+		Expect(validReq.Resources).To(Equal([]string{"mcp:s1", "gateway:bk-paas/api:get_users"}))
 	})
 })

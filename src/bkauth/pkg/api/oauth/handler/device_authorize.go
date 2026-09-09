@@ -41,7 +41,11 @@ type DeviceAuthorizationResponse struct {
 // DeviceAuthorizeRequest represents the device authorization request (RFC 8628 Section 3.1)
 type DeviceAuthorizeRequest struct {
 	ClientID string `form:"client_id"`
-	Resource string `form:"resource"`
+
+	// Resources carries the resource indicators of RFC 8707 Section 2, which the
+	// client repeats once per indicator. At least one is required here, where the
+	// RFC leaves the parameter optional.
+	Resources []string `form:"resource"`
 }
 
 // Validate validates the device authorization request parameters.
@@ -71,14 +75,16 @@ func (r *DeviceAuthorizeRequest) Validate(
 		)
 	}
 
-	if r.Resource == "" {
-		return oauth.NewInvalidRequestError("resource is required")
+	resources, err := oauth.NormalizeResources(r.Resources)
+	if err != nil {
+		return oauth.NewInvalidTargetError(err.Error())
 	}
+	r.Resources = resources
 
 	realmName := util.GetRealmName(c)
 	realm := oauth.GetRealm(realmName)
-	if err := realm.ValidateResource(c.Request.Context(), r.Resource); err != nil {
-		return oauth.NewInvalidRequestError("Invalid resource parameter: " + err.Error())
+	if err := realm.ValidateResources(c.Request.Context(), r.Resources); err != nil {
+		return oauth.NewInvalidTargetError("Invalid resource parameter: " + err.Error())
 	}
 
 	return nil
@@ -111,7 +117,7 @@ func NewDeviceAuthorizeHandler(cfg *config.Config) gin.HandlerFunc {
 
 		deviceCodeSvc := service.NewOAuthDeviceCodeService()
 		dc, err := deviceCodeSvc.CreateDeviceCode(
-			c.Request.Context(), util.GetRealmName(c), util.GetClientID(c), req.Resource,
+			c.Request.Context(), util.GetRealmName(c), util.GetClientID(c), req.Resources,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, oauth.NewServerError(
