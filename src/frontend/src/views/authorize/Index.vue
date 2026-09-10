@@ -83,7 +83,9 @@
       <!-- 描述 -->
       <p class="auth-desc">
         授权 <span class="highlight">{{ consentInfo?.client_name || '--' }}</span> 访问或操作您在
-        <span class="highlight">{{ realmNameMap[consentInfo?.realm_name as keyof typeof realmNameMap] || '--' }}</span> 上的资源
+        <span class="highlight">
+          {{ realmNameMap[consentInfo?.realm_name as keyof typeof realmNameMap] || '--' }}
+        </span> 上的资源
       </p>
 
       <!-- 警告 -->
@@ -295,8 +297,8 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
 .auth-page {
   display: flex;
   width: 100%;
-  height: calc(100vh - 48px);
-  padding: 40px 0;
+  min-height: calc(100dvh - 48px);
+  padding: 40px 16px;
   box-sizing: border-box;
   justify-content: center;
   align-items: center;
@@ -305,13 +307,18 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
 .auth-card {
   display: flex;
   width: clamp(516px, 25vw, 700px);
-  max-height: clamp(825.6px, 40vw, 1120px);
+  max-width: 100%;
+  max-height: min(clamp(825.6px, 40vw, 1120px), calc(100dvh - 128px));
   padding: 24px 32px 32px;
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 2px 12px 0 rgb(0 0 0 / 6%);
   box-sizing: border-box;
   flex-direction: column;
+
+  > :not(.auth-info) {
+    flex-shrink: 0;
+  }
 }
 
 /* 顶部 Logo */
@@ -341,7 +348,7 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
       font-size: 12px;
       color: #979ba5;
       text-align: center;
-      word-break: break-word;
+      overflow-wrap: anywhere;
     }
   }
 }
@@ -412,6 +419,10 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
   overflow: hidden;
   background: #f5f7fa;
   border-radius: 10px;
+
+  > :not(.info-row-resource) {
+    flex-shrink: 0;
+  }
 }
 
 .info-row {
@@ -431,7 +442,9 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
 }
 
 .info-value {
+  min-width: 0;
   color: #313238;
+  overflow-wrap: anywhere;
 }
 
 .info-row-resource {
@@ -451,6 +464,7 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
 
 .resource-section {
   align-self: stretch;
+  min-width: 0;
   min-height: 0;
   padding-right: 24px;
   padding-bottom: 12px;
@@ -476,6 +490,7 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .dot-blue {
@@ -525,6 +540,22 @@ const isResourceCollapsible = (items: ResourceItem['items'] = []) => {
     flex: 1;
     height: 40px;
     font-size: 14px;
+  }
+}
+
+// 较矮的窗口允许整页滚动，避免标题和操作按钮被裁切。
+@media (max-height: 800px) {
+
+  .auth-card {
+    max-height: none;
+  }
+
+  .auth-info {
+    flex: none;
+  }
+
+  .resource-section {
+    max-height: 240px;
   }
 }
 </style>

@@ -17,6 +17,7 @@
             >
               <BkTag
                 v-if="tag"
+                class="resource-tag"
                 :theme="theme"
                 type="stroke"
                 size="small"
@@ -31,7 +32,7 @@
                 {{ counter }}
               </div>
             </div>
-            <div class="ml-auto h-18px w-18px rounded-full bg-[#F5F7FA] flex items-center justify-center">
+            <div class="collapse-toggle">
               <CommonIcon
                 size="14"
                 color="#C4C6CC"
@@ -65,6 +66,7 @@
     class="static-resource-item"
   >
     <BkTag
+      class="resource-tag"
       :theme="theme"
       type="stroke"
       size="small"
@@ -140,55 +142,27 @@ defineExpose<Exposes>({
 </script>
 
 <style lang="scss" scoped>
-
 .wrapper {
   overflow: hidden;
   background-color: #fff;
-  border: 1px solid #DCDEE5;
+  border: 1px solid #dcdee5;
   border-radius: 8px;
-
-  :deep(.bk-collapse-item) {
-    margin-bottom: 0;
-  }
 }
 
 .collapse-panel-header {
-  position: relative;
   display: flex;
-  height: 36px;
-  margin-right: 12px;
+  min-height: 36px;
+  padding: 8px 12px;
   cursor: pointer;
   align-items: center;
-
-  :deep(.iamcenter-down-shape) {
-    color: #313238;
-    transform: rotateZ(0deg);
-    transition: all 0.5s;
-  }
+  gap: 8px;
 
   .panel-title {
     display: flex;
-    padding-left: 12px;
+    min-width: 0;
+    flex: 1;
     align-items: center;
     gap: 8px;
-
-    .resource-name {
-      font-size: 12px;
-    }
-
-    .counter {
-      display: flex;
-      height: 16px;
-      padding: 0 6px;
-      font-size: 10px;
-      color:#4D4F56;
-      background:  #F0F1F5;
-      border-radius: 8px;
-      align-items: center;
-      align-content: center;
-      gap: 0 4px;
-      flex-wrap: wrap;
-    }
   }
 
   .active-icon {
@@ -197,8 +171,57 @@ defineExpose<Exposes>({
   }
 }
 
+.collapse-toggle {
+  display: flex;
+  width: 18px;
+  height: 18px;
+  margin-left: auto;
+  background: #f5f7fa;
+  border-radius: 50%;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.static-resource-item {
+  display: flex;
+  min-height: 36px;
+  padding: 8px 12px;
+  color: #313238;
+  background-color: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 8px;
+  align-items: center;
+  gap: 8px;
+}
+
+.resource-name {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.resource-tag,
+.counter {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.counter {
+  display: flex;
+  height: 16px;
+  padding: 0 6px;
+  font-size: 10px;
+  line-height: 16px;
+  color: #4d4f56;
+  background: #f0f1f5;
+  border-radius: 8px;
+  align-items: center;
+}
+
 :deep(.bk-collapse-item) {
-  margin-bottom: 8px;
+  margin-bottom: 0;
   border: none;
 
   .bk-collapse-header {
@@ -217,12 +240,12 @@ defineExpose<Exposes>({
 }
 
 .content-wrapper {
-  background: #FAFBFD;
-  border-top: 1px solid #DCDEE5;
+  background: #fafbfd;
+  border-top: 1px solid #dcdee5;
 
   .api-sub-list {
     max-height: 100px;
-    padding: 4px 0 0 20px;
+    padding: 4px 12px 0 20px;
     margin: 0;
     overflow-y: auto;
     list-style: none;
@@ -232,55 +255,24 @@ defineExpose<Exposes>({
       padding: 6px 0;
       font-size: 12px;
       line-height: 20px;
-      color: #4D4F56;
-      align-items: center;
+      color: #4d4f56;
+      align-items: flex-start;
       gap: 4px;
+      overflow-wrap: anywhere;
 
       .dot {
         display: inline-block;
         width: 6px;
         height: 6px;
+        margin-top: 7px;
         border-radius: 50%;
-      }
-
-      .dot-blue {
-        background: #3a84ff;
+        flex-shrink: 0;
       }
 
       .dot-green {
-        background: #A1E3BA;
+        background: #a1e3ba;
       }
     }
-  }
-}
-
-.static-resource-item {
-  display: flex;
-  height: 36px;
-  padding: 9px 12px;
-  color: #313238;
-  background-color: #fff;
-  border: 1px solid #DCDEE5;
-  border-radius: 8px;
-  align-items: center;
-  gap: 8px;
-
-  .resource-name {
-    font-size: 12px;
-  }
-
-  .counter {
-    display: flex;
-    height: 16px;
-    padding: 0 6px;
-    font-size: 10px;
-    color:#4D4F56;
-    background:  #F0F1F5;
-    border-radius: 8px;
-    align-items: center;
-    align-content: center;
-    gap: 0 4px;
-    flex-wrap: wrap;
   }
 }
 </style>
