@@ -354,7 +354,27 @@ var _ = Describe("accessKeyService", func() {
 			defer restoreCrypto()
 
 			mockManager := mock.NewMockAccessKeyManager(ctl)
-			mockManager.EXPECT().Exists(gomock.Any(), "testApp", "enc:my-secret").Return(true, nil)
+			mockManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(
+				[]dao.AccessKey{
+					{ID: 1, AppSecret: "enc:other-secret", Enabled: true},
+					{ID: 2, AppSecret: "enc:my-secret", Enabled: true},
+				}, nil)
+
+			svc := accessKeyService{manager: mockManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "my-secret")
+			assert.NoError(GinkgoT(), err)
+			assert.True(GinkgoT(), exists)
+		})
+
+		It("ok when disabled", func() {
+			// Matching a disabled key still counts, matching the ciphertext-equality
+			// query this replaced. The enabled flag is enforced by the cache layer.
+			restoreCrypto := useDeterministicAppSecretCrypto()
+			defer restoreCrypto()
+
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(
+				[]dao.AccessKey{{ID: 1, AppSecret: "enc:my-secret", Enabled: false}}, nil)
 
 			svc := accessKeyService{manager: mockManager}
 			exists, err := svc.Verify(context.Background(), "testApp", "my-secret")
@@ -367,11 +387,47 @@ var _ = Describe("accessKeyService", func() {
 			defer restoreCrypto()
 
 			mockManager := mock.NewMockAccessKeyManager(ctl)
-			mockManager.EXPECT().Exists(gomock.Any(), "testApp", "enc:my-secret").Return(false, nil)
+			mockManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(
+				[]dao.AccessKey{{ID: 1, AppSecret: "enc:other-secret", Enabled: true}}, nil)
 
 			svc := accessKeyService{manager: mockManager}
 			exists, err := svc.Verify(context.Background(), "testApp", "my-secret")
 			assert.NoError(GinkgoT(), err)
+			assert.False(GinkgoT(), exists)
+		})
+
+		It("no access key", func() {
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(nil, nil)
+
+			svc := accessKeyService{manager: mockManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "my-secret")
+			assert.NoError(GinkgoT(), err)
+			assert.False(GinkgoT(), exists)
+		})
+
+		It("manager fail", func() {
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(
+				nil, errors.New("db fail"))
+
+			svc := accessKeyService{manager: mockManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "my-secret")
+			assert.Error(GinkgoT(), err)
+			assert.False(GinkgoT(), exists)
+		})
+
+		It("decrypt fail", func() {
+			restoreCrypto := useDeterministicAppSecretCrypto()
+			defer restoreCrypto()
+
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(
+				[]dao.AccessKey{{ID: 1, AppSecret: "corrupted", Enabled: true}}, nil)
+
+			svc := accessKeyService{manager: mockManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "my-secret")
+			assert.Error(GinkgoT(), err)
 			assert.False(GinkgoT(), exists)
 		})
 	})

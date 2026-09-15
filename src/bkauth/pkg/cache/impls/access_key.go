@@ -27,6 +27,7 @@ import (
 	"bkauth/pkg/cache"
 	"bkauth/pkg/errorx"
 	"bkauth/pkg/service"
+	"bkauth/pkg/service/types"
 )
 
 // AccessKeysKey ...
@@ -44,47 +45,46 @@ var retrieveAccessKeys = func(ctx context.Context, key cache.Key) (interface{}, 
 
 	svc := service.NewAccessKeyService()
 
-	secretList, err := svc.ListEncryptedAccessKeyByAppCode(ctx, k.AppCode)
-	if err != nil {
-		return nil, err
-	}
-	// map: appSecret -> enabled
-	secretsMap := make(map[string]bool)
-	for _, secret := range secretList {
-		secretsMap[secret.AppSecret] = secret.Enabled
-	}
-	return secretsMap, nil
+	return svc.ListEncryptedAccessKeyByAppCode(ctx, k.AppCode)
 }
 
 // VerifyAccessKey ...
+// Note: the cache holds ciphertexts so plaintext secrets never reach Redis. Each row
+// carries its own random nonce, so they cannot be looked up by ciphertext and are
+// decrypted one by one instead. An app is capped at MaxSecretsPreApp keys, so this
+// stays a constant, tiny amount of work per request.
 func VerifyAccessKey(ctx context.Context, appCode, appSecret string) (bool, error) {
 	key := AccessKeysKey{
 		AppCode: appCode,
 	}
-	// key: secret;value: enabled
-	var encryptedAppSecretsMap map[string]bool
-	err := AccessKeysCache.GetInto(ctx, key, &encryptedAppSecretsMap, retrieveAccessKeys)
+	var encryptedAccessKeys []types.EncryptedAccessKey
+	err := AccessKeysCache.GetInto(ctx, key, &encryptedAccessKeys, retrieveAccessKeys)
 	if err != nil {
 		err = errorx.Wrapf(err, CacheLayer, "VerifyAccessKey",
 			"AccessKeysCache.Get appCode=`%s` fail", appCode)
 		return false, err
 	}
-	// 空列表
-	if len(encryptedAppSecretsMap) == 0 {
-		return false, nil
-	}
 
-	encryptedAppSecret := app.EncryptSecret(appSecret)
+	for _, encryptedAccessKey := range encryptedAccessKeys {
+		plainSecret, err := app.DecryptSecret(encryptedAccessKey.AppSecret)
+		if err != nil {
+			err = errorx.Wrapf(err, CacheLayer, "VerifyAccessKey",
+				"app.DecryptSecret appCode=`%s` fail", appCode)
+			return false, err
+		}
 
-	// 每个密钥都进行对比
-	if enabled, ok := encryptedAppSecretsMap[encryptedAppSecret]; ok {
-		if enabled {
+		if !app.SecretEqual(plainSecret, appSecret) {
+			continue
+		}
+
+		if encryptedAccessKey.Enabled {
 			return true, nil
 		}
 		// 对于禁用的输出一下日志
 		zap.S().Errorf("verify app secret of app code[%s] fail since app secret has been disabled", appCode)
 		return false, nil
 	}
+
 	return false, nil
 }
 

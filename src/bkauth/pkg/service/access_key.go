@@ -48,7 +48,7 @@ type AccessKeyService interface {
 	DeleteByID(ctx context.Context, appCode string, id int64) error
 	ListWithCreatedAtByAppCode(ctx context.Context, appCode string) ([]types.AccessKeyWithCreatedAt, error)
 	Verify(ctx context.Context, appCode, appSecret string) (bool, error)
-	ListEncryptedAccessKeyByAppCode(ctx context.Context, appCode string) (appSecrets []types.AccessKey, err error)
+	ListEncryptedAccessKeyByAppCode(ctx context.Context, appCode string) ([]types.EncryptedAccessKey, error)
 	List(ctx context.Context) ([]types.AccessKey, error)
 	ExistsByAppCodeAndID(ctx context.Context, appCode string, id int64) (bool, error)
 }
@@ -78,14 +78,20 @@ func newDaoAccessKey(appCode, createdSource, description string) (dao.AccessKey,
 }
 
 // newDaoAccessKeyWithAppSecret is used for data migration with an existing client secret.
-func newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description string) dao.AccessKey {
+func newDaoAccessKeyWithAppSecret(
+	appCode, appSecret, createdSource, description string,
+) (dao.AccessKey, error) {
+	encryptedSecret, err := app.EncryptSecret(appSecret)
+	if err != nil {
+		return dao.AccessKey{}, err
+	}
 	return dao.AccessKey{
 		AppCode:       appCode,
-		AppSecret:     app.EncryptSecret(appSecret),
+		AppSecret:     encryptedSecret,
 		CreatedSource: createdSource,
 		Enabled:       true,
 		Description:   description,
-	}
+	}, nil
 }
 
 // validateSecretCount queries the current secret count and checks that the app has not reached MaxSecretsPreApp.
@@ -157,7 +163,10 @@ func (s *accessKeyService) CreateWithSecret(
 		return err
 	}
 
-	daoAccessKey := newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description)
+	daoAccessKey, err := newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description)
+	if err != nil {
+		return errorWrapf(err, "newDaoAccessKeyWithAppSecret fail")
+	}
 	_, err = s.manager.Create(ctx, daoAccessKey)
 	if err != nil {
 		return errorWrapf(err, "manager.Create accessKey=`%+v` fail", daoAccessKey)
@@ -248,24 +257,37 @@ func (s *accessKeyService) ListWithCreatedAtByAppCode(ctx context.Context, appCo
 	return
 }
 
-func (s *accessKeyService) Verify(ctx context.Context, appCode, appSecret string) (exists bool, err error) {
+// Verify reports whether appCode owns appSecret. Every row is sealed under its own
+// random nonce, so the stored ciphertext cannot be matched directly: each candidate
+// is decrypted and compared in memory.
+// Note: a match counts even when the key is disabled, preserving the behaviour of
+// the ciphertext-equality query this replaced.
+func (s *accessKeyService) Verify(ctx context.Context, appCode, appSecret string) (bool, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "Verify")
 
-	// DB 里存储的是加密后的密钥，需要对即将校验的 Secret 加密后查询
-	encryptedAppSecret := app.EncryptSecret(appSecret)
-
-	exists, err = s.manager.Exists(ctx, appCode, encryptedAppSecret)
+	daoAccessKeys, err := s.manager.ListAccessKeyByAppCode(ctx, appCode)
 	if err != nil {
-		return false, errorWrapf(err, "manager.Exists appCode=`%s` appSecret=`%s` fail", appCode, appSecret)
+		return false, errorWrapf(err, "manager.ListAccessKeyByAppCode appCode=`%s` fail", appCode)
 	}
 
-	return
+	for _, daoAccessKey := range daoAccessKeys {
+		plainSecret, err := app.DecryptSecret(daoAccessKey.AppSecret)
+		if err != nil {
+			return false, errorWrapf(err, "app.DecryptSecret accessKeyID=`%d` fail", daoAccessKey.ID)
+		}
+
+		if app.SecretEqual(plainSecret, appSecret) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (s *accessKeyService) ListEncryptedAccessKeyByAppCode(
 	ctx context.Context,
 	appCode string,
-) (appSecrets []types.AccessKey, err error) {
+) (appSecrets []types.EncryptedAccessKey, err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "ListEncryptedSecretByAppCode")
 
 	appSecretList, err := s.manager.ListAccessKeyByAppCode(ctx, appCode)
@@ -273,7 +295,7 @@ func (s *accessKeyService) ListEncryptedAccessKeyByAppCode(
 		return appSecrets, errorWrapf(err, "manager.ListAccessKeyByAppCode appCode=`%s` fail", appCode)
 	}
 	for _, appSecret := range appSecretList {
-		appSecrets = append(appSecrets, types.AccessKey{
+		appSecrets = append(appSecrets, types.EncryptedAccessKey{
 			AppSecret: appSecret.AppSecret,
 			Enabled:   appSecret.Enabled,
 		})
