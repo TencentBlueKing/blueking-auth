@@ -51,7 +51,6 @@ type AccessKeyManager interface {
 	DeleteByID(appCode string, id int64) (int64, error)
 	UpdateByID(id int64, updateFiledMap map[string]interface{}) (int64, error)
 	ListWithCreatedAtByAppCode(appCode string) ([]AccessKeyWithCreatedAt, error)
-	Exists(appCode, appSecret string) (bool, error)
 	Count(appCode string) (int64, error)
 	ListAccessKeyByAppCode(appCode string) ([]AccessKey, error)
 	List() ([]AccessKey, error)
@@ -136,24 +135,6 @@ func (m *accessKeyManager) selectAccessKeyWithCreatedAt(accessKeys *[]AccessKeyW
 		WHERE app_code = ?
 		ORDER BY id DESC`
 	return database.SqlxSelect(m.DB, accessKeys, query, appCode)
-}
-
-func (m *accessKeyManager) Exists(appCode, appSecret string) (bool, error) {
-	var id int64
-	err := m.selectExistence(&id, appCode, appSecret)
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func (m *accessKeyManager) selectExistence(id *int64, appCode, appSecret string) error {
-	query := `SELECT id FROM access_key WHERE app_code = ? AND app_secret = ? LIMIT 1`
-	return database.SqlxGet(m.DB, id, query, appCode, appSecret)
 }
 
 func (m *accessKeyManager) Count(appCode string) (count int64, err error) {

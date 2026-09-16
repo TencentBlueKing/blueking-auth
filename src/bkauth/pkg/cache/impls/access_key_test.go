@@ -19,20 +19,52 @@
 package impls
 
 import (
-	"bkauth/pkg/service"
 	"errors"
+	"strings"
 	"time"
 
-	"github.com/agiledragon/gomonkey"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
 
+	"bkauth/pkg/cache"
 	"bkauth/pkg/cache/redis"
+	"bkauth/pkg/cryptography"
+	"bkauth/pkg/service"
 	"bkauth/pkg/service/mock"
 	"bkauth/pkg/service/types"
 	"bkauth/pkg/util"
 )
+
+type deterministicCrypto struct{}
+
+func (deterministicCrypto) Encrypt(plaintext []byte) ([]byte, error) {
+	return []byte("enc:" + string(plaintext)), nil
+}
+
+func (deterministicCrypto) Decrypt(encryptedText []byte) ([]byte, error) {
+	if !strings.HasPrefix(string(encryptedText), "enc:") {
+		return nil, errors.New("invalid encrypted text")
+	}
+	return []byte(strings.TrimPrefix(string(encryptedText), "enc:")), nil
+}
+
+func (deterministicCrypto) EncryptToBase64(plaintext string) (string, error) {
+	return "enc:" + plaintext, nil
+}
+
+func (deterministicCrypto) DecryptFromBase64(encryptedTextB64 string) (string, error) {
+	if !strings.HasPrefix(encryptedTextB64, "enc:") {
+		return "", errors.New("invalid encrypted text")
+	}
+	return strings.TrimPrefix(encryptedTextB64, "enc:"), nil
+}
+
+func useDeterministicCrypto() func() {
+	old := cryptography.AppSecretCrypto
+	cryptography.AppSecretCrypto = deterministicCrypto{}
+	return func() { cryptography.AppSecretCrypto = old }
+}
 
 var _ = Describe("AccessKeysCache", func() {
 	BeforeEach(func() {
@@ -52,36 +84,39 @@ var _ = Describe("AccessKeysCache", func() {
 
 	Context("VerifyAccessKey", func() {
 		var ctl *gomock.Controller
-		var patches *gomonkey.Patches
 		BeforeEach(func() {
 			ctl = gomock.NewController(GinkgoT())
 		})
 		AfterEach(func() {
 			ctl.Finish()
-			patches.Reset()
 		})
 
+		// useMockRetrieve routes the cache miss path through mockService, mirroring
+		// what the production retrieveAccessKeys does.
+		useMockRetrieve := func(mockService *mock.MockAccessKeyService) func() {
+			orig := retrieveAccessKeys
+			retrieveAccessKeys = func(key cache.Key) (interface{}, error) {
+				k := key.(AccessKeysKey)
+				return mockService.ListEncryptedAccessKeyByAppCode(k.AppCode)
+			}
+			return func() { retrieveAccessKeys = orig }
+		}
+
 		It("AccessKeysCache Get ok", func() {
+			defer useDeterministicCrypto()()
+
+			enc1, err := service.ConvertToEncryptedAppSecret("secret1")
+			assert.NoError(GinkgoT(), err)
+			enc2, err := service.ConvertToEncryptedAppSecret("secret2")
+			assert.NoError(GinkgoT(), err)
+
 			mockService := mock.NewMockAccessKeyService(ctl)
-			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return([]types.AccessKey{
-				{
-					AppSecret: "secret1",
-					Enabled:   true,
-				},
-				{
-					AppSecret: "secret2",
-					Enabled:   true,
-				},
+			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return([]types.EncryptedAccessKey{
+				{AppSecret: enc1, Enabled: true},
+				{AppSecret: enc2, Enabled: true},
 			}, nil).AnyTimes()
 
-			patches = gomonkey.ApplyFunc(service.NewAccessKeyService,
-				func() service.AccessKeyService {
-					return mockService
-				})
-			patches.ApplyFunc(service.ConvertToEncryptedAppSecret,
-				func(secret string) string {
-					return secret
-				})
+			defer useMockRetrieve(mockService)()
 
 			exists, err := VerifyAccessKey("test", "secret1")
 			assert.NoError(GinkgoT(), err)
@@ -98,12 +133,10 @@ var _ = Describe("AccessKeysCache", func() {
 
 		It("AccessKeysCache Get fail", func() {
 			mockService := mock.NewMockAccessKeyService(ctl)
-			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return(nil, errors.New("error")).AnyTimes()
+			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").
+				Return(nil, errors.New("error")).AnyTimes()
 
-			patches = gomonkey.ApplyFunc(service.NewAccessKeyService,
-				func() service.AccessKeyService {
-					return mockService
-				})
+			defer useMockRetrieve(mockService)()
 
 			exists, err := VerifyAccessKey("test", "secret1")
 			assert.Error(GinkgoT(), err)
@@ -116,12 +149,10 @@ var _ = Describe("AccessKeysCache", func() {
 
 		It("AccessKeysCache Get empty secret", func() {
 			mockService := mock.NewMockAccessKeyService(ctl)
-			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return([]types.AccessKey{}, nil).AnyTimes()
+			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").
+				Return([]types.EncryptedAccessKey{}, nil).AnyTimes()
 
-			patches = gomonkey.ApplyFunc(service.NewAccessKeyService,
-				func() service.AccessKeyService {
-					return mockService
-				})
+			defer useMockRetrieve(mockService)()
 
 			exists, err := VerifyAccessKey("test", "secret1")
 			assert.NoError(GinkgoT(), err)
@@ -133,26 +164,21 @@ var _ = Describe("AccessKeysCache", func() {
 		})
 
 		It("AccessKeysCache Get disable secret", func() {
+			defer useDeterministicCrypto()()
+
+			enc1, err := service.ConvertToEncryptedAppSecret("secret1")
+			assert.NoError(GinkgoT(), err)
+			enc2, err := service.ConvertToEncryptedAppSecret("secret2")
+			assert.NoError(GinkgoT(), err)
+
 			mockService := mock.NewMockAccessKeyService(ctl)
-			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return([]types.AccessKey{
-				{
-					AppSecret: "secret1",
-					Enabled:   false,
-				},
-				{
-					AppSecret: "secret2",
-					Enabled:   true,
-				},
+			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return([]types.EncryptedAccessKey{
+				{AppSecret: enc1, Enabled: false},
+				{AppSecret: enc2, Enabled: true},
 			}, nil).AnyTimes()
 
-			patches = gomonkey.ApplyFunc(service.NewAccessKeyService,
-				func() service.AccessKeyService {
-					return mockService
-				})
-			patches.ApplyFunc(service.ConvertToEncryptedAppSecret,
-				func(secret string) string {
-					return secret
-				})
+			defer useMockRetrieve(mockService)()
+
 			exists, err := VerifyAccessKey("test", "secret1")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, false)
@@ -160,6 +186,21 @@ var _ = Describe("AccessKeysCache", func() {
 			exists, err = VerifyAccessKey("test", "secret2")
 			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, true)
+		})
+
+		It("AccessKeysCache Get undecryptable secret", func() {
+			defer useDeterministicCrypto()()
+
+			mockService := mock.NewMockAccessKeyService(ctl)
+			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return([]types.EncryptedAccessKey{
+				{AppSecret: "corrupted", Enabled: true},
+			}, nil).AnyTimes()
+
+			defer useMockRetrieve(mockService)()
+
+			exists, err := VerifyAccessKey("test", "secret1")
+			assert.Error(GinkgoT(), err)
+			assert.Equal(GinkgoT(), exists, false)
 		})
 	})
 

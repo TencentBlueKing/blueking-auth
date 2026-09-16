@@ -45,7 +45,7 @@ type AccessKeyService interface {
 	DeleteByID(appCode string, id int64) error
 	ListWithCreatedAtByAppCode(appCode string) ([]types.AccessKeyWithCreatedAt, error)
 	Verify(appCode, appSecret string) (bool, error)
-	ListEncryptedAccessKeyByAppCode(appCode string) (appSecrets []types.AccessKey, err error)
+	ListEncryptedAccessKeyByAppCode(appCode string) (appSecrets []types.EncryptedAccessKey, err error)
 	List() ([]types.AccessKey, error)
 	ExistsByAppCodeAndID(appCode string, id int64) (bool, error)
 }
@@ -77,18 +77,22 @@ func (s *accessKeyService) Create(appCode, createdSource string) (accessKey type
 		return accessKey, err
 	}
 
-	daoAccessKey := newDaoAccessKey(appCode, createdSource)
+	daoAccessKey, err := newDaoAccessKey(appCode, createdSource)
+	if err != nil {
+		return accessKey, errorWrapf(err, "newDaoAccessKey appCode=`%s` fail", appCode)
+	}
+
 	id, err := s.manager.Create(daoAccessKey)
 	if err != nil {
 		return accessKey, errorWrapf(err, "manager.Create accessKey=`%+v` fail", daoAccessKey)
 	}
 
 	// 获取明文密钥
-	appSecret, err := convertToPlainAppSecret(daoAccessKey.AppSecret)
+	appSecret, err := ConvertToPlainAppSecret(daoAccessKey.AppSecret)
 	if err != nil {
 		return accessKey, errorWrapf(
 			err,
-			"convertToPlainAppSecret encryptedAppSecret=`%s` fail",
+			"ConvertToPlainAppSecret encryptedAppSecret=`%s` fail",
 			daoAccessKey.AppSecret,
 		)
 	}
@@ -106,7 +110,11 @@ func (s *accessKeyService) Create(appCode, createdSource string) (accessKey type
 func (s *accessKeyService) CreateWithSecret(appCode, appSecret, createdSource string) (err error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "CreateWithSecret")
 
-	daoAccessKey := newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource)
+	daoAccessKey, err := newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource)
+	if err != nil {
+		return errorWrapf(err, "newDaoAccessKeyWithAppSecret appCode=`%s` fail", appCode)
+	}
+
 	_, err = s.manager.Create(daoAccessKey)
 	if err != nil {
 		return errorWrapf(err, "manager.Create accessKey=`%+v` fail", daoAccessKey)
@@ -165,11 +173,11 @@ func (s *accessKeyService) ListWithCreatedAtByAppCode(appCode string) (
 	accessKeys = make([]types.AccessKeyWithCreatedAt, 0, len(daoAccessKeys))
 	for _, accessKey := range daoAccessKeys {
 		// 获取明文密钥
-		appSecret, err := convertToPlainAppSecret(accessKey.AppSecret)
+		appSecret, err := ConvertToPlainAppSecret(accessKey.AppSecret)
 		if err != nil {
 			return accessKeys, errorWrapf(
 				err,
-				"convertToPlainAppSecret encryptedAppSecret=`%s` fail",
+				"ConvertToPlainAppSecret encryptedAppSecret=`%s` fail",
 				accessKey.AppSecret,
 			)
 		}
@@ -188,21 +196,36 @@ func (s *accessKeyService) ListWithCreatedAtByAppCode(appCode string) (
 	return
 }
 
-func (s *accessKeyService) Verify(appCode, appSecret string) (exists bool, err error) {
+// Verify reports whether appCode owns appSecret. Every row is sealed under its own
+// random nonce, so the stored ciphertext cannot be matched directly: each candidate
+// is decrypted and compared in memory.
+// Note: a match counts even when the key is disabled, preserving the behaviour of
+// the ciphertext-equality query this replaced.
+func (s *accessKeyService) Verify(appCode, appSecret string) (bool, error) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "Verify")
 
-	// DB 里存储的是加密后的密钥，需要对即将校验的 Secret 加密后查询
-	encryptedAppSecret := ConvertToEncryptedAppSecret(appSecret)
-
-	exists, err = s.manager.Exists(appCode, encryptedAppSecret)
+	daoAccessKeys, err := s.manager.ListAccessKeyByAppCode(appCode)
 	if err != nil {
-		return false, errorWrapf(err, "manager.Exists appCode=`%s` appSecret=`%s` fail", appCode, appSecret)
+		return false, errorWrapf(err, "manager.ListAccessKeyByAppCode appCode=`%s` fail", appCode)
 	}
 
-	return
+	for _, daoAccessKey := range daoAccessKeys {
+		plainSecret, err := ConvertToPlainAppSecret(daoAccessKey.AppSecret)
+		if err != nil {
+			return false, errorWrapf(err, "ConvertToPlainAppSecret accessKeyID=`%d` fail", daoAccessKey.ID)
+		}
+
+		if AppSecretEqual(plainSecret, appSecret) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
-func (s *accessKeyService) ListEncryptedAccessKeyByAppCode(appCode string) (appSecrets []types.AccessKey, err error) {
+func (s *accessKeyService) ListEncryptedAccessKeyByAppCode(appCode string) (
+	appSecrets []types.EncryptedAccessKey, err error,
+) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(AccessKeySVC, "ListEncryptedSecretByAppCode")
 
 	appSecretList, err := s.manager.ListAccessKeyByAppCode(appCode)
@@ -210,7 +233,7 @@ func (s *accessKeyService) ListEncryptedAccessKeyByAppCode(appCode string) (appS
 		return appSecrets, errorWrapf(err, "manager.ListAccessKeyByAppCode appCode=`%s` fail", appCode)
 	}
 	for _, appSecret := range appSecretList {
-		appSecrets = append(appSecrets, types.AccessKey{
+		appSecrets = append(appSecrets, types.EncryptedAccessKey{
 			AppSecret: appSecret.AppSecret,
 			Enabled:   appSecret.Enabled,
 		})
@@ -230,10 +253,10 @@ func (s *accessKeyService) List() (accessKeys []types.AccessKey, err error) {
 	accessKeys = make([]types.AccessKey, 0, len(daoAccessKeys))
 	for _, daoAccessKey := range daoAccessKeys {
 		// 获取明文密钥
-		appSecret, err := convertToPlainAppSecret(daoAccessKey.AppSecret)
+		appSecret, err := ConvertToPlainAppSecret(daoAccessKey.AppSecret)
 		if err != nil {
 			return accessKeys, errorWrapf(
-				err, "convertToPlainAppSecret encryptedAppSecret=`%s` fail", daoAccessKey.AppSecret)
+				err, "ConvertToPlainAppSecret encryptedAppSecret=`%s` fail", daoAccessKey.AppSecret)
 		}
 		accessKeys = append(accessKeys, types.AccessKey{
 			ID:        daoAccessKey.ID,

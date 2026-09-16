@@ -52,9 +52,12 @@ func InitCaches(disabled bool) {
 		5*time.Minute,
 	)
 
+	// "ak" rather than the previous "access_keys_map": the cached value changed from
+	// a map to a list, so the old entries can no longer be decoded. Renaming the cache
+	// retires them instead of letting deserialization fail after a rolling upgrade.
 	AccessKeysCache = redis.NewCache(
 		bkauthredis.GetDefaultRedisClient(),
-		"access_keys_map",
+		"ak",
 		5*time.Minute,
 	)
 }
