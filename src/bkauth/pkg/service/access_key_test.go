@@ -452,9 +452,7 @@ var _ = Describe("accessKeyService", func() {
 			assert.False(GinkgoT(), exists)
 		})
 
-		It("errors when no row decrypts", func() {
-			// Nothing readable points at a misconfigured encrypt key rather than one
-			// bad row, so this is surfaced instead of being reported as a mismatch.
+		It("no match when no row decrypts", func() {
 			restoreCrypto := useDeterministicAppSecretCrypto()
 			defer restoreCrypto()
 
@@ -467,7 +465,7 @@ var _ = Describe("accessKeyService", func() {
 
 			svc := accessKeyService{manager: mockManager}
 			exists, err := svc.Verify(context.Background(), "testApp", "my-secret")
-			assert.Error(GinkgoT(), err)
+			assert.NoError(GinkgoT(), err)
 			assert.False(GinkgoT(), exists)
 		})
 	})

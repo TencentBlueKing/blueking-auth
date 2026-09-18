@@ -243,7 +243,7 @@ var _ = Describe("AccessKeysCache", func() {
 			defer useMockRetrieve(mockService)()
 
 			exists, err := VerifyAccessKey(context.Background(), "test", "secret1")
-			assert.Error(GinkgoT(), err)
+			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, false)
 		})
 	})

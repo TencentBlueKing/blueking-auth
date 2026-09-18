@@ -265,8 +265,7 @@ func (s *accessKeyService) ListWithCreatedAtByAppCode(ctx context.Context, appCo
 // is decrypted and compared in memory.
 // A row that will not decrypt is logged and skipped rather than failing the call:
 // skipping can only deny access, never grant it, so one unreadable row must not lock
-// out the app's remaining keys. Only when nothing decrypts at all -- which points at
-// a misconfigured encrypt key rather than a single bad row -- is the failure raised.
+// out the app's remaining keys.
 // Note: a match counts even when the key is disabled, preserving the behaviour of
 // the ciphertext-equality query this replaced.
 func (s *accessKeyService) Verify(ctx context.Context, appCode, appSecret string) (bool, error) {
@@ -277,25 +276,17 @@ func (s *accessKeyService) Verify(ctx context.Context, appCode, appSecret string
 		return false, errorWrapf(err, "manager.ListAccessKeyByAppCode appCode=`%s` fail", appCode)
 	}
 
-	decrypted := 0
-	var decryptErr error
 	for _, daoAccessKey := range daoAccessKeys {
 		plainSecret, err := app.DecryptSecret(daoAccessKey.AppSecret)
 		if err != nil {
-			decryptErr = err
 			logging.GetSystemLogger().Error("verify app secret: decrypt stored secret fail",
 				zap.Error(err), zap.String("app_code", appCode), zap.Int64("access_key_id", daoAccessKey.ID))
 			continue
 		}
-		decrypted++
 
 		if app.SecretEqual(plainSecret, appSecret) {
 			return true, nil
 		}
-	}
-
-	if decrypted == 0 && decryptErr != nil {
-		return false, errorWrapf(decryptErr, "no access key of appCode=`%s` could be decrypted", appCode)
 	}
 
 	return false, nil
