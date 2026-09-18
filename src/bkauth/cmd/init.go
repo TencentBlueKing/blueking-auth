@@ -140,6 +140,8 @@ func initCryptos() {
 		panic("cryptoKey should be configured")
 	}
 
+	// Nonce is no longer used for encryption: every ciphertext now carries its own
+	// random nonce. It is still required to decrypt rows written before that change.
 	if globalConfig.Crypto.Nonce == "" {
 		panic("cryptoNonce should be configured")
 	}

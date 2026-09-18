@@ -137,6 +137,8 @@ type Sentry struct {
 }
 
 type Crypto struct {
+	// Nonce is legacy-only: it decrypts secrets stored before nonces were randomized.
+	// New ciphertexts embed their own random nonce and never read this value.
 	Nonce string
 	Key   string
 }

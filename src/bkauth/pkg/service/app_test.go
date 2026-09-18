@@ -37,8 +37,8 @@ import (
 
 type deterministicAppSecretCrypto struct{}
 
-func (deterministicAppSecretCrypto) Encrypt(plaintext []byte) []byte {
-	return []byte("enc:" + string(plaintext))
+func (deterministicAppSecretCrypto) Encrypt(plaintext []byte) ([]byte, error) {
+	return []byte("enc:" + string(plaintext)), nil
 }
 
 func (deterministicAppSecretCrypto) Decrypt(encryptedText []byte) ([]byte, error) {
@@ -48,15 +48,29 @@ func (deterministicAppSecretCrypto) Decrypt(encryptedText []byte) ([]byte, error
 	return []byte(strings.TrimPrefix(string(encryptedText), "enc:")), nil
 }
 
-func (deterministicAppSecretCrypto) EncryptToBase64(plaintext string) string {
-	return "enc:" + plaintext
+func (deterministicAppSecretCrypto) EncryptToBase64(plaintext string) (string, error) {
+	return "enc:" + plaintext, nil
 }
 
 func (deterministicAppSecretCrypto) DecryptFromBase64(encryptedTextB64 string) (string, error) {
-	if !strings.HasPrefix(encryptedTextB64, "enc:") {
-		return "", errors.New("invalid encrypted text")
+	for _, prefix := range []string{"enc:", "legacy:"} {
+		if strings.HasPrefix(encryptedTextB64, prefix) {
+			return strings.TrimPrefix(encryptedTextB64, prefix), nil
+		}
 	}
-	return strings.TrimPrefix(encryptedTextB64, "enc:"), nil
+	return "", errors.New("invalid encrypted text")
+}
+
+// IsLegacyFormatBase64 marks the "legacy:" prefix as the pre-migration layout so
+// tests can exercise the re-encryption path without real AES-GCM.
+func (deterministicAppSecretCrypto) IsLegacyFormatBase64(encryptedTextB64 string) (bool, error) {
+	if strings.HasPrefix(encryptedTextB64, "legacy:") {
+		return true, nil
+	}
+	if !strings.HasPrefix(encryptedTextB64, "enc:") {
+		return false, errors.New("invalid encrypted text")
+	}
+	return false, nil
 }
 
 func useDeterministicAppSecretCrypto() func() {

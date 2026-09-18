@@ -31,8 +31,8 @@ import (
 
 type deterministicCrypto struct{}
 
-func (deterministicCrypto) Encrypt(plaintext []byte) []byte {
-	return []byte("enc:" + string(plaintext))
+func (deterministicCrypto) Encrypt(plaintext []byte) ([]byte, error) {
+	return []byte("enc:" + string(plaintext)), nil
 }
 
 func (deterministicCrypto) Decrypt(encryptedText []byte) ([]byte, error) {
@@ -42,8 +42,8 @@ func (deterministicCrypto) Decrypt(encryptedText []byte) ([]byte, error) {
 	return []byte(strings.TrimPrefix(string(encryptedText), "enc:")), nil
 }
 
-func (deterministicCrypto) EncryptToBase64(plaintext string) string {
-	return "enc:" + plaintext
+func (deterministicCrypto) EncryptToBase64(plaintext string) (string, error) {
+	return "enc:" + plaintext, nil
 }
 
 func (deterministicCrypto) DecryptFromBase64(encryptedTextB64 string) (string, error) {
@@ -51,6 +51,18 @@ func (deterministicCrypto) DecryptFromBase64(encryptedTextB64 string) (string, e
 		return "", errors.New("invalid encrypted text")
 	}
 	return strings.TrimPrefix(encryptedTextB64, "enc:"), nil
+}
+
+// IsLegacyFormatBase64 marks the "legacy:" prefix as the pre-migration layout so
+// tests can exercise the detection path without real AES-GCM.
+func (deterministicCrypto) IsLegacyFormatBase64(encryptedTextB64 string) (bool, error) {
+	if strings.HasPrefix(encryptedTextB64, "legacy:") {
+		return true, nil
+	}
+	if !strings.HasPrefix(encryptedTextB64, "enc:") {
+		return false, errors.New("invalid encrypted text")
+	}
+	return false, nil
 }
 
 func useDeterministicCrypto() func() {
@@ -83,8 +95,56 @@ var _ = Describe("EncryptSecret", func() {
 		restoreCrypto := useDeterministicCrypto()
 		defer restoreCrypto()
 
-		result := app.EncryptSecret("my-plain-secret")
+		result, err := app.EncryptSecret("my-plain-secret")
+		assert.NoError(GinkgoT(), err)
 		assert.Equal(GinkgoT(), "enc:my-plain-secret", result)
+	})
+})
+
+var _ = Describe("SecretEqual", func() {
+	It("equal", func() {
+		assert.True(GinkgoT(), app.SecretEqual("my-plain-secret", "my-plain-secret"))
+	})
+
+	It("different value", func() {
+		assert.False(GinkgoT(), app.SecretEqual("my-plain-secret", "other-secret"))
+	})
+
+	It("different length", func() {
+		assert.False(GinkgoT(), app.SecretEqual("my-plain-secret", "my-plain-secret-longer"))
+	})
+
+	It("empty", func() {
+		assert.True(GinkgoT(), app.SecretEqual("", ""))
+		assert.False(GinkgoT(), app.SecretEqual("", "my-plain-secret"))
+	})
+})
+
+var _ = Describe("IsLegacyEncryptedSecret", func() {
+	It("current layout", func() {
+		restoreCrypto := useDeterministicCrypto()
+		defer restoreCrypto()
+
+		legacy, err := app.IsLegacyEncryptedSecret("enc:my-plain-secret")
+		assert.NoError(GinkgoT(), err)
+		assert.False(GinkgoT(), legacy)
+	})
+
+	It("legacy layout", func() {
+		restoreCrypto := useDeterministicCrypto()
+		defer restoreCrypto()
+
+		legacy, err := app.IsLegacyEncryptedSecret("legacy:my-plain-secret")
+		assert.NoError(GinkgoT(), err)
+		assert.True(GinkgoT(), legacy)
+	})
+
+	It("invalid encrypted text", func() {
+		restoreCrypto := useDeterministicCrypto()
+		defer restoreCrypto()
+
+		_, err := app.IsLegacyEncryptedSecret("invalid-text")
+		assert.Error(GinkgoT(), err)
 	})
 })
 
