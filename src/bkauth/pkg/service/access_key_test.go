@@ -137,6 +137,22 @@ var _ = Describe("accessKeyService", func() {
 			assert.False(GinkgoT(), exists)
 		})
 
+		// One unreadable row must not lock the app out of its remaining keys.
+		It("skips an undecryptable row and matches a readable one", func() {
+			defer useDeterministicAppSecretCrypto()()
+
+			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAppKeyManager.EXPECT().ListAccessKeyByAppCode("testApp").Return([]dao.AccessKey{
+				{ID: 1, AppCode: "testApp", AppSecret: "corrupted", Enabled: true},
+				{ID: 2, AppCode: "testApp", AppSecret: "enc:secret2", Enabled: true},
+			}, nil)
+
+			svc := accessKeyService{manager: mockAppKeyManager}
+			exists, err := svc.Verify("testApp", "secret2")
+			assert.NoError(GinkgoT(), err)
+			assert.True(GinkgoT(), exists)
+		})
+
 		It("undecryptable row", func() {
 			defer useDeterministicAppSecretCrypto()()
 
@@ -147,7 +163,7 @@ var _ = Describe("accessKeyService", func() {
 
 			svc := accessKeyService{manager: mockAppKeyManager}
 			exists, err := svc.Verify("testApp", "secret1")
-			assert.Error(GinkgoT(), err)
+			assert.NoError(GinkgoT(), err)
 			assert.False(GinkgoT(), exists)
 		})
 

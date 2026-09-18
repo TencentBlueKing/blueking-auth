@@ -23,8 +23,11 @@ package service
 import (
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"bkauth/pkg/database/dao"
 	"bkauth/pkg/errorx"
+	"bkauth/pkg/logging"
 	"bkauth/pkg/service/types"
 	"bkauth/pkg/util"
 )
@@ -199,6 +202,9 @@ func (s *accessKeyService) ListWithCreatedAtByAppCode(appCode string) (
 // Verify reports whether appCode owns appSecret. Every row is sealed under its own
 // random nonce, so the stored ciphertext cannot be matched directly: each candidate
 // is decrypted and compared in memory.
+// A row that will not decrypt is logged and skipped rather than failing the call:
+// skipping can only deny access, never grant it, so one unreadable row must not lock
+// out the app's remaining keys.
 // Note: a match counts even when the key is disabled, preserving the behaviour of
 // the ciphertext-equality query this replaced.
 func (s *accessKeyService) Verify(appCode, appSecret string) (bool, error) {
@@ -212,7 +218,9 @@ func (s *accessKeyService) Verify(appCode, appSecret string) (bool, error) {
 	for _, daoAccessKey := range daoAccessKeys {
 		plainSecret, err := ConvertToPlainAppSecret(daoAccessKey.AppSecret)
 		if err != nil {
-			return false, errorWrapf(err, "ConvertToPlainAppSecret accessKeyID=`%d` fail", daoAccessKey.ID)
+			logging.GetSystemLogger().Error("verify app secret: decrypt stored secret fail",
+				zap.Error(err), zap.String("app_code", appCode), zap.Int64("access_key_id", daoAccessKey.ID))
+			continue
 		}
 
 		if AppSecretEqual(plainSecret, appSecret) {

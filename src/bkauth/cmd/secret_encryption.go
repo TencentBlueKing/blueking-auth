@@ -41,27 +41,36 @@ var secretEncryptionCmd = &cobra.Command{
 	Long:  "",
 }
 
+// Both subcommands use RunE rather than the Run the other commands use: they are
+// driven by deployment scripts, which need a non-zero exit code to tell a failed
+// migration from a finished one. Execute already turns a returned error into
+// os.Exit(1); SilenceErrors avoids printing it a second time there, and SilenceUsage
+// keeps a runtime failure from burying itself under the usage text.
 var checkSecretEncryptionCmd = &cobra.Command{
-	Use:   "check",
-	Short: "report access keys still encrypted with the deprecated fixed nonce (read-only)",
-	Long:  "",
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:           "check",
+	Short:         "report access keys still encrypted with the deprecated fixed nonce (read-only)",
+	Long:          "",
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		secretEncryptionStart()
 		defer secretEncryptionFinish()
 
-		cli.CheckSecretEncryption()
+		return cli.CheckSecretEncryption()
 	},
 }
 
 var migrateSecretEncryptionCmd = &cobra.Command{
-	Use:   "migrate",
-	Short: "re-encrypt access keys stored with the deprecated fixed nonce, example: secret_encryption migrate --dry-run",
-	Long:  "",
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:           "migrate",
+	Short:         "re-encrypt access keys stored with the deprecated fixed nonce",
+	Long:          "example: secret_encryption migrate -c config.yaml --dry-run",
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		secretEncryptionStart()
 		defer secretEncryptionFinish()
 
-		cli.MigrateSecretEncryption(secretEncryptionDryRunParam)
+		return cli.MigrateSecretEncryption(secretEncryptionDryRunParam)
 	},
 }
 

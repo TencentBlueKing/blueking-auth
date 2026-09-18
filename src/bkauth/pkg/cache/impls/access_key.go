@@ -52,6 +52,9 @@ var retrieveAccessKeys = func(key cache.Key) (interface{}, error) {
 // carries its own random nonce, so they cannot be looked up by ciphertext and are
 // decrypted one by one instead. An app is capped at MaxSecretsPreApp keys, so this
 // stays a constant, tiny amount of work per request.
+// A row that will not decrypt is logged and skipped, for the same reason as in
+// accessKeyService.Verify: skipping can only deny access, never grant it, so one
+// unreadable row must not lock out the app's remaining keys.
 func VerifyAccessKey(appCode, appSecret string) (bool, error) {
 	key := AccessKeysKey{
 		AppCode: appCode,
@@ -67,9 +70,9 @@ func VerifyAccessKey(appCode, appSecret string) (bool, error) {
 	for _, encryptedAccessKey := range encryptedAccessKeys {
 		plainSecret, err := service.ConvertToPlainAppSecret(encryptedAccessKey.AppSecret)
 		if err != nil {
-			err = errorx.Wrapf(err, CacheLayer, "VerifyAccessKey",
-				"service.ConvertToPlainAppSecret appCode=`%s` fail", appCode)
-			return false, err
+			zap.S().Errorf("verify app secret of app code[%s] fail since one stored secret "+
+				"cannot be decrypted, err=%v", appCode, err)
+			continue
 		}
 
 		if !service.AppSecretEqual(plainSecret, appSecret) {

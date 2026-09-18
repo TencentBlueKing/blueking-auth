@@ -188,7 +188,31 @@ var _ = Describe("AccessKeysCache", func() {
 			assert.Equal(GinkgoT(), exists, true)
 		})
 
-		It("AccessKeysCache Get undecryptable secret", func() {
+		// One unreadable row must not lock the app out of its remaining keys.
+		It("AccessKeysCache Get skips undecryptable secret", func() {
+			defer useDeterministicCrypto()()
+
+			enc2, err := service.ConvertToEncryptedAppSecret("secret2")
+			assert.NoError(GinkgoT(), err)
+
+			mockService := mock.NewMockAccessKeyService(ctl)
+			mockService.EXPECT().ListEncryptedAccessKeyByAppCode("test").Return([]types.EncryptedAccessKey{
+				{AppSecret: "corrupted", Enabled: true},
+				{AppSecret: enc2, Enabled: true},
+			}, nil).AnyTimes()
+
+			defer useMockRetrieve(mockService)()
+
+			exists, err := VerifyAccessKey("test", "secret2")
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), exists, true)
+
+			exists, err = VerifyAccessKey("test", "secret1")
+			assert.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), exists, false)
+		})
+
+		It("AccessKeysCache Get all secrets undecryptable", func() {
 			defer useDeterministicCrypto()()
 
 			mockService := mock.NewMockAccessKeyService(ctl)
@@ -199,7 +223,7 @@ var _ = Describe("AccessKeysCache", func() {
 			defer useMockRetrieve(mockService)()
 
 			exists, err := VerifyAccessKey("test", "secret1")
-			assert.Error(GinkgoT(), err)
+			assert.NoError(GinkgoT(), err)
 			assert.Equal(GinkgoT(), exists, false)
 		})
 	})

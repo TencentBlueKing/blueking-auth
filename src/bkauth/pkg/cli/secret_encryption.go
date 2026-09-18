@@ -32,19 +32,21 @@ import (
 
 // CheckSecretEncryption reports which stored secrets still use the deprecated fixed
 // nonce. Read-only: it never writes to the database.
-func CheckSecretEncryption() {
+// Finding legacy rows is a successful audit, not a failure, so only a genuine error
+// is returned: callers driving this from a script read the count off the summary line
+// and keep a non-zero exit reserved for "the check could not run".
+func CheckSecretEncryption() error {
 	svc := service.NewSecretEncryptionService()
 
 	statuses, err := svc.ListEncryptionStatus()
 	if err != nil {
 		zap.S().Error(err, "svc.ListEncryptionStatus fail")
-		fmt.Println("check fail, see logs for detail")
-		return
+		return fmt.Errorf("check fail, see logs for detail: %w", err)
 	}
 
 	if len(statuses) == 0 {
 		fmt.Println("no accessKey")
-		return
+		return nil
 	}
 
 	legacyCount := 0
@@ -62,19 +64,20 @@ func CheckSecretEncryption() {
 	if legacyCount > 0 {
 		fmt.Println("run `secret_encryption migrate` to re-encrypt the legacy rows")
 	}
+
+	return nil
 }
 
 // MigrateSecretEncryption re-encrypts every secret still sealed under the fixed
 // nonce. Safe to re-run: rows already migrated are skipped.
-func MigrateSecretEncryption(dryRun bool) {
+func MigrateSecretEncryption(dryRun bool) error {
 	svc := service.NewSecretEncryptionService()
 
 	if dryRun {
 		statuses, err := svc.ListEncryptionStatus()
 		if err != nil {
 			zap.S().Error(err, "svc.ListEncryptionStatus fail")
-			fmt.Println("dry run fail, see logs for detail")
-			return
+			return fmt.Errorf("dry run fail, see logs for detail: %w", err)
 		}
 
 		legacyCount := 0
@@ -86,7 +89,8 @@ func MigrateSecretEncryption(dryRun bool) {
 			fmt.Printf("would re-encrypt: id=%d app_code=%s\n", status.ID, status.AppCode)
 		}
 		fmt.Printf("\ndry run: %d of %d access keys would be re-encrypted\n", legacyCount, len(statuses))
-		return
+
+		return nil
 	}
 
 	reencrypted, err := svc.ReencryptLegacySecret()
@@ -96,8 +100,7 @@ func MigrateSecretEncryption(dryRun bool) {
 	}
 	if err != nil {
 		zap.S().Error(err, "svc.ReencryptLegacySecret fail")
-		fmt.Printf("\nmigrate fail after %d access keys, re-run to resume\n", len(reencrypted))
-		return
+		return fmt.Errorf("migrate fail after %d access keys, re-run to resume: %w", len(reencrypted), err)
 	}
 
 	// Cached entries are deliberately left alone. They hold the pre-migration
@@ -106,4 +109,6 @@ func MigrateSecretEncryption(dryRun bool) {
 	// instead push them all back to the database together; the 5 minute TTL retires
 	// them gradually for free.
 	fmt.Printf("\nmigrate success: %d access keys re-encrypted\n", len(reencrypted))
+
+	return nil
 }
