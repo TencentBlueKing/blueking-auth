@@ -19,9 +19,16 @@
 package cryptography
 
 type Crypto interface {
-	Encrypt(plaintext []byte) []byte
+	Encrypt(plaintext []byte) ([]byte, error)
 	Decrypt(encryptedText []byte) ([]byte, error)
 
-	EncryptToBase64(plaintext string) string
+	EncryptToBase64(plaintext string) (string, error)
 	DecryptFromBase64(encryptedTextB64 string) (string, error)
+}
+
+// LegacyNonceDetector reports whether a stored ciphertext predates nonce
+// randomization. Implemented by backends that keep decrypting the old layout;
+// consumed by the offline re-encryption tooling, not by the request path.
+type LegacyNonceDetector interface {
+	IsLegacyFormatBase64(encryptedTextB64 string) (bool, error)
 }

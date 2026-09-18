@@ -63,7 +63,9 @@ func InitCaches(disabled bool) {
 
 	AccessKeysCache = redis.NewCache(
 		bkauthredis.GetDefaultRedisClient(),
-		"access_keys_map",
+		// ak = access keys; renamed from access_keys_map to drop the old
+		// map[ciphertext]enabled payload, which random nonces made unusable
+		"ak",
 		5*time.Minute,
 	)
 
