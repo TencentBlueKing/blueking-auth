@@ -417,13 +417,53 @@ var _ = Describe("accessKeyService", func() {
 			assert.False(GinkgoT(), exists)
 		})
 
-		It("decrypt fail", func() {
+		It("skips an undecryptable row and matches a readable one", func() {
+			// One unreadable row must not lock the app out of its remaining keys.
 			restoreCrypto := useDeterministicAppSecretCrypto()
 			defer restoreCrypto()
 
 			mockManager := mock.NewMockAccessKeyManager(ctl)
 			mockManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(
-				[]dao.AccessKey{{ID: 1, AppSecret: "corrupted", Enabled: true}}, nil)
+				[]dao.AccessKey{
+					{ID: 1, AppSecret: "corrupted", Enabled: true},
+					{ID: 2, AppSecret: "enc:my-secret", Enabled: true},
+				}, nil)
+
+			svc := accessKeyService{manager: mockManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "my-secret")
+			assert.NoError(GinkgoT(), err)
+			assert.True(GinkgoT(), exists)
+		})
+
+		It("skips an undecryptable row and reports no match", func() {
+			restoreCrypto := useDeterministicAppSecretCrypto()
+			defer restoreCrypto()
+
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(
+				[]dao.AccessKey{
+					{ID: 1, AppSecret: "corrupted", Enabled: true},
+					{ID: 2, AppSecret: "enc:other-secret", Enabled: true},
+				}, nil)
+
+			svc := accessKeyService{manager: mockManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "my-secret")
+			assert.NoError(GinkgoT(), err)
+			assert.False(GinkgoT(), exists)
+		})
+
+		It("errors when no row decrypts", func() {
+			// Nothing readable points at a misconfigured encrypt key rather than one
+			// bad row, so this is surfaced instead of being reported as a mismatch.
+			restoreCrypto := useDeterministicAppSecretCrypto()
+			defer restoreCrypto()
+
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(
+				[]dao.AccessKey{
+					{ID: 1, AppSecret: "corrupted", Enabled: true},
+					{ID: 2, AppSecret: "also-corrupted", Enabled: true},
+				}, nil)
 
 			svc := accessKeyService{manager: mockManager}
 			exists, err := svc.Verify(context.Background(), "testApp", "my-secret")

@@ -271,10 +271,10 @@ func benchmarkAESGCMDecryptFromBase64(b *testing.B) {
 }
 
 func BenchmarkAESGCMEncryptDecrypt(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	b.Run("cipher", func(b *testing.B) {
 		b.Run("Encrypt", benchmarkAESGCMEncrypt)
 		b.Run("Decrypt", benchmarkAESGCMDecrypt)
 		b.Run("EncryptToBase64", benchmarkAESGCMEncryptToBase64)
 		b.Run("DecryptFromBase64", benchmarkAESGCMDecryptFromBase64)
-	}
+	})
 }

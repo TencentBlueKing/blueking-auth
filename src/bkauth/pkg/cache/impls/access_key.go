@@ -53,6 +53,10 @@ var retrieveAccessKeys = func(ctx context.Context, key cache.Key) (interface{}, 
 // carries its own random nonce, so they cannot be looked up by ciphertext and are
 // decrypted one by one instead. An app is capped at MaxSecretsPreApp keys, so this
 // stays a constant, tiny amount of work per request.
+// A row that will not decrypt is logged and skipped, for the same reason as in
+// accessKeyService.Verify: skipping can only deny access, never grant it, so one
+// unreadable row must not lock out the app's remaining keys. Only a batch where
+// nothing decrypts is reported as an error.
 func VerifyAccessKey(ctx context.Context, appCode, appSecret string) (bool, error) {
 	key := AccessKeysKey{
 		AppCode: appCode,
@@ -65,13 +69,17 @@ func VerifyAccessKey(ctx context.Context, appCode, appSecret string) (bool, erro
 		return false, err
 	}
 
+	decrypted := 0
+	var decryptErr error
 	for _, encryptedAccessKey := range encryptedAccessKeys {
 		plainSecret, err := app.DecryptSecret(encryptedAccessKey.AppSecret)
 		if err != nil {
-			err = errorx.Wrapf(err, CacheLayer, "VerifyAccessKey",
-				"app.DecryptSecret appCode=`%s` fail", appCode)
-			return false, err
+			decryptErr = err
+			zap.S().Errorf("verify app secret of app code[%s] fail since one stored secret "+
+				"cannot be decrypted, err=%v", appCode, err)
+			continue
 		}
+		decrypted++
 
 		if !app.SecretEqual(plainSecret, appSecret) {
 			continue
@@ -83,6 +91,12 @@ func VerifyAccessKey(ctx context.Context, appCode, appSecret string) (bool, erro
 		// 对于禁用的输出一下日志
 		zap.S().Errorf("verify app secret of app code[%s] fail since app secret has been disabled", appCode)
 		return false, nil
+	}
+
+	if decrypted == 0 && decryptErr != nil {
+		err = errorx.Wrapf(decryptErr, CacheLayer, "VerifyAccessKey",
+			"no access key of appCode=`%s` could be decrypted", appCode)
+		return false, err
 	}
 
 	return false, nil
