@@ -148,12 +148,12 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKey, func(_, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKey, func(_, _ string) (dao.AccessKey, error) {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
-				}
+				}, nil
 			})
 
 			svc := appService{
@@ -213,12 +213,12 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKey, func(_, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKey, func(_, _ string) (dao.AccessKey, error) {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
-				}
+				}, nil
 			})
 
 			svc := appService{
@@ -263,12 +263,12 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _ string) (dao.AccessKey, error) {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
-				}
+				}, nil
 			})
 
 			svc := appService{
@@ -336,12 +336,12 @@ var _ = Describe("App", func() {
 			patches := gomonkey.ApplyFunc(database.GenerateDefaultDBTx, db.Beginx)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _ string) (dao.AccessKey, error) {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
-				}
+				}, nil
 			})
 
 			svc := appService{
