@@ -19,6 +19,9 @@
 package app
 
 import (
+	"crypto/subtle"
+	"errors"
+
 	"bkauth/pkg/cryptography"
 	"bkauth/pkg/util"
 )
@@ -41,7 +44,7 @@ func GenerateEncryptedSecret(n int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return cryptography.AppSecretCrypto.EncryptToBase64(token), nil
+	return cryptography.AppSecretCrypto.EncryptToBase64(token)
 }
 
 // DecryptSecret decrypts an encrypted app secret to plaintext.
@@ -50,6 +53,22 @@ func DecryptSecret(encryptedSecret string) (string, error) {
 }
 
 // EncryptSecret encrypts a plaintext app secret.
-func EncryptSecret(plainSecret string) string {
+func EncryptSecret(plainSecret string) (string, error) {
 	return cryptography.AppSecretCrypto.EncryptToBase64(plainSecret)
+}
+
+// SecretEqual compares two plaintext app secrets without leaking the position of
+// the first differing byte through timing.
+func SecretEqual(a, b string) bool {
+	return subtle.ConstantTimeCompare(util.StringToBytes(a), util.StringToBytes(b)) == 1
+}
+
+// IsLegacyEncryptedSecret reports whether a stored secret predates nonce
+// randomization, i.e. whether the offline re-encryption tooling should rewrite it.
+func IsLegacyEncryptedSecret(encryptedSecret string) (bool, error) {
+	detector, ok := cryptography.AppSecretCrypto.(cryptography.LegacyNonceDetector)
+	if !ok {
+		return false, errors.New("app secret crypto does not support legacy nonce detection")
+	}
+	return detector.IsLegacyFormatBase64(encryptedSecret)
 }
