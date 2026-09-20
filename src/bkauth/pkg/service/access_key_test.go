@@ -20,12 +20,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
+	"bkauth/pkg/database/dao"
 	"bkauth/pkg/database/dao/mock"
 )
 
@@ -56,6 +58,127 @@ var _ = Describe("accessKeyService", func() {
 })
 
 var _ = Describe("accessKeyService", func() {
+	Describe("Verify cases", func() {
+		var ctl *gomock.Controller
+
+		BeforeEach(func() {
+			ctl = gomock.NewController(GinkgoT())
+		})
+
+		AfterEach(func() {
+			ctl.Finish()
+		})
+
+		It("match", func() {
+			defer useDeterministicAppSecretCrypto()()
+
+			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAppKeyManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return([]dao.AccessKey{
+				{ID: 1, AppCode: "testApp", AppSecret: "enc:secret1", Enabled: true},
+				{ID: 2, AppCode: "testApp", AppSecret: "enc:secret2", Enabled: true},
+			}, nil)
+
+			svc := accessKeyService{manager: mockAppKeyManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "secret2")
+			assert.NoError(GinkgoT(), err)
+			assert.True(GinkgoT(), exists)
+		})
+
+		// A disabled key still matches here; impls.VerifyAccessKey is what rejects it.
+		It("match disabled", func() {
+			defer useDeterministicAppSecretCrypto()()
+
+			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAppKeyManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return([]dao.AccessKey{
+				{ID: 1, AppCode: "testApp", AppSecret: "enc:secret1", Enabled: false},
+			}, nil)
+
+			svc := accessKeyService{manager: mockAppKeyManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "secret1")
+			assert.NoError(GinkgoT(), err)
+			assert.True(GinkgoT(), exists)
+		})
+
+		// Legacy rows are still readable, so verification must not depend on migration.
+		It("match legacy nonce row", func() {
+			defer useDeterministicAppSecretCrypto()()
+
+			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAppKeyManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return([]dao.AccessKey{
+				{ID: 1, AppCode: "testApp", AppSecret: "legacy:secret1", Enabled: true},
+			}, nil)
+
+			svc := accessKeyService{manager: mockAppKeyManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "secret1")
+			assert.NoError(GinkgoT(), err)
+			assert.True(GinkgoT(), exists)
+		})
+
+		It("no match", func() {
+			defer useDeterministicAppSecretCrypto()()
+
+			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAppKeyManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return([]dao.AccessKey{
+				{ID: 1, AppCode: "testApp", AppSecret: "enc:secret1", Enabled: true},
+			}, nil)
+
+			svc := accessKeyService{manager: mockAppKeyManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "wrong")
+			assert.NoError(GinkgoT(), err)
+			assert.False(GinkgoT(), exists)
+		})
+
+		It("no access key", func() {
+			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAppKeyManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(nil, nil)
+
+			svc := accessKeyService{manager: mockAppKeyManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "secret1")
+			assert.NoError(GinkgoT(), err)
+			assert.False(GinkgoT(), exists)
+		})
+
+		// One unreadable row must not lock the app out of its remaining keys.
+		It("skips an undecryptable row and matches a readable one", func() {
+			defer useDeterministicAppSecretCrypto()()
+
+			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAppKeyManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return([]dao.AccessKey{
+				{ID: 1, AppCode: "testApp", AppSecret: "corrupted", Enabled: true},
+				{ID: 2, AppCode: "testApp", AppSecret: "enc:secret2", Enabled: true},
+			}, nil)
+
+			svc := accessKeyService{manager: mockAppKeyManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "secret2")
+			assert.NoError(GinkgoT(), err)
+			assert.True(GinkgoT(), exists)
+		})
+
+		It("undecryptable row", func() {
+			defer useDeterministicAppSecretCrypto()()
+
+			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAppKeyManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return([]dao.AccessKey{
+				{ID: 1, AppCode: "testApp", AppSecret: "corrupted", Enabled: true},
+			}, nil)
+
+			svc := accessKeyService{manager: mockAppKeyManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "secret1")
+			assert.NoError(GinkgoT(), err)
+			assert.False(GinkgoT(), exists)
+		})
+
+		It("manager fail", func() {
+			mockAppKeyManager := mock.NewMockAccessKeyManager(ctl)
+			mockAppKeyManager.EXPECT().ListAccessKeyByAppCode(gomock.Any(), "testApp").Return(nil, errors.New("db fail"))
+
+			svc := accessKeyService{manager: mockAppKeyManager}
+			exists, err := svc.Verify(context.Background(), "testApp", "secret1")
+			assert.Error(GinkgoT(), err)
+			assert.False(GinkgoT(), exists)
+		})
+	})
+
 	Describe("ExistsByAppCodeAndID cases", func() {
 		var ctl *gomock.Controller
 

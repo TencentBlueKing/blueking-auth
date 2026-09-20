@@ -26,6 +26,7 @@ import (
 	"bkauth/pkg/cache"
 	"bkauth/pkg/errorx"
 	"bkauth/pkg/service"
+	"bkauth/pkg/service/types"
 )
 
 // AccessKeysKey ...
@@ -38,53 +39,56 @@ func (k AccessKeysKey) Key() string {
 	return k.AppCode
 }
 
-func retrieveAccessKeys(ctx context.Context, key cache.Key) (interface{}, error) {
+// retrieveAccessKeys is a package variable so tests can swap in a stub service
+// without patching NewAccessKeyService at runtime.
+var retrieveAccessKeys = func(ctx context.Context, key cache.Key) (interface{}, error) {
 	k := key.(AccessKeysKey)
 
 	svc := service.NewAccessKeyService()
 
-	secretList, err := svc.ListEncryptedAccessKeyByAppCode(ctx, k.AppCode)
-	if err != nil {
-		return nil, err
-	}
-	// 构造 map: appSecret:enabled，方便查询校验
-	secretsMap := make(map[string]bool)
-	for _, secret := range secretList {
-		secretsMap[secret.AppSecret] = secret.Enabled
-	}
-	return secretsMap, nil
+	return svc.ListEncryptedAccessKeyByAppCode(ctx, k.AppCode)
 }
 
 // VerifyAccessKey ...
+// Note: the cache holds ciphertexts so plaintext secrets never reach Redis. Each row
+// carries its own random nonce, so they cannot be looked up by ciphertext and are
+// decrypted one by one instead. An app is capped at MaxSecretsPreApp keys, so this
+// stays a constant, tiny amount of work per request.
+// A row that will not decrypt is logged and skipped, for the same reason as in
+// accessKeyService.Verify: skipping can only deny access, never grant it, so one
+// unreadable row must not lock out the app's remaining keys.
 func VerifyAccessKey(ctx context.Context, appCode, appSecret string) (bool, error) {
 	key := AccessKeysKey{
 		AppCode: appCode,
 	}
-	// key: secret;value: enabled
-	var encryptedAppSecretsMap map[string]bool
-	err := AccessKeysCache.GetInto(ctx, key, &encryptedAppSecretsMap, retrieveAccessKeys)
+	var encryptedAccessKeys []types.EncryptedAccessKey
+	err := AccessKeysCache.GetInto(ctx, key, &encryptedAccessKeys, retrieveAccessKeys)
 	if err != nil {
 		err = errorx.Wrapf(err, CacheLayer, "VerifyAccessKey",
 			"AccessKeysCache.Get appCode=`%s` fail", appCode)
 		return false, err
 	}
-	// 空列表
-	if len(encryptedAppSecretsMap) == 0 {
-		return false, nil
-	}
 
-	// 将明文密钥加密后才能进行对比校验
-	encryptedAppSecret := service.ConvertToEncryptedAppSecret(appSecret)
+	for _, encryptedAccessKey := range encryptedAccessKeys {
+		plainSecret, err := service.ConvertToPlainAppSecret(encryptedAccessKey.AppSecret)
+		if err != nil {
+			zap.S().Errorf("verify app secret of app code[%s] fail since one stored secret "+
+				"cannot be decrypted, err=%v", appCode, err)
+			continue
+		}
 
-	// 每个密钥都进行对比
-	if enabled, ok := encryptedAppSecretsMap[encryptedAppSecret]; ok {
-		if enabled {
+		if !service.AppSecretEqual(plainSecret, appSecret) {
+			continue
+		}
+
+		if encryptedAccessKey.Enabled {
 			return true, nil
 		}
 		// 对于禁用的输出一下日志
 		zap.S().Errorf("verify app secret of app code[%s] fail since app secret has been disabled", appCode)
 		return false, nil
 	}
+
 	return false, nil
 }
 

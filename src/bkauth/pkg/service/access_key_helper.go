@@ -19,6 +19,9 @@
 package service
 
 import (
+	"crypto/subtle"
+	"errors"
+
 	"bkauth/pkg/cryptography"
 	"bkauth/pkg/database/dao"
 	"bkauth/pkg/util"
@@ -33,36 +36,63 @@ const SecretLength = 36
 // CE/EE版：由uuid4生成hex字符串，小写字母、数字、连接符
 const LetterBytes = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
-func newDaoAccessKey(appCode, createdSource, description string) dao.AccessKey {
+func newDaoAccessKey(appCode, createdSource, description string) (dao.AccessKey, error) {
+	appSecret, err := generateEncryptedAppSecret(SecretLength)
+	if err != nil {
+		return dao.AccessKey{}, err
+	}
+
 	return dao.AccessKey{
 		AppCode:       appCode,
-		AppSecret:     generateEncryptedAppSecret(SecretLength),
+		AppSecret:     appSecret,
 		CreatedSource: createdSource,
 		Enabled:       true,
 		Description:   description,
-	}
+	}, nil
 }
 
 // newDaoAccessKeyWithAppSecret : 用于数据迁移时使用已有client secret
-func newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description string) dao.AccessKey {
+func newDaoAccessKeyWithAppSecret(appCode, appSecret, createdSource, description string) (dao.AccessKey, error) {
+	encryptedAppSecret, err := ConvertToEncryptedAppSecret(appSecret)
+	if err != nil {
+		return dao.AccessKey{}, err
+	}
+
 	return dao.AccessKey{
 		AppCode:       appCode,
-		AppSecret:     ConvertToEncryptedAppSecret(appSecret),
+		AppSecret:     encryptedAppSecret,
 		CreatedSource: createdSource,
 		Enabled:       true,
 		Description:   description,
-	}
+	}, nil
 }
 
-func generateEncryptedAppSecret(n int) string {
+func generateEncryptedAppSecret(n int) (string, error) {
 	token := util.RandString(LetterBytes, n)
 	return cryptography.AppSecretCrypto.EncryptToBase64(token)
 }
 
-func convertToPlainAppSecret(encryptedAppSecret string) (string, error) {
+func ConvertToPlainAppSecret(encryptedAppSecret string) (string, error) {
 	return cryptography.AppSecretCrypto.DecryptFromBase64(encryptedAppSecret)
 }
 
-func ConvertToEncryptedAppSecret(plainAppSecret string) string {
+func ConvertToEncryptedAppSecret(plainAppSecret string) (string, error) {
 	return cryptography.AppSecretCrypto.EncryptToBase64(plainAppSecret)
+}
+
+// AppSecretEqual compares two plaintext app secrets without leaking the position of
+// the first differing byte through timing.
+func AppSecretEqual(a, b string) bool {
+	return subtle.ConstantTimeCompare(util.StringToBytes(a), util.StringToBytes(b)) == 1
+}
+
+// IsLegacyEncryptedAppSecret reports whether a stored secret predates nonce
+// randomization, i.e. whether the offline re-encryption tooling should rewrite it.
+func IsLegacyEncryptedAppSecret(encryptedAppSecret string) (bool, error) {
+	detector, ok := cryptography.AppSecretCrypto.(cryptography.LegacyNonceDetector)
+	if !ok {
+		return false, errors.New("app secret crypto does not support legacy nonce detection")
+	}
+
+	return detector.IsLegacyFormatBase64(encryptedAppSecret)
 }

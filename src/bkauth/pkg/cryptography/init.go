@@ -24,8 +24,10 @@ import (
 
 var AppSecretCrypto Crypto
 
-func Init(encryptKey string, nonce string) (err error) {
-	AppSecretCrypto, err = NewAESGcm([]byte(encryptKey), []byte(nonce))
+// Init wires up the app secret crypto. legacyNonce is only used to decrypt data
+// written before nonces were randomized; encryption always draws its own nonce.
+func Init(encryptKey string, legacyNonce string) (err error) {
+	AppSecretCrypto, err = NewAESGcm([]byte(encryptKey), []byte(legacyNonce))
 	if err != nil {
 		return fmt.Errorf("cryptos[id=app_secret_key] key error: %w", err)
 	}

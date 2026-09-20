@@ -117,21 +117,6 @@ func (mr *MockAccessKeyManagerMockRecorder) DeleteByID(ctx, appCode, id any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByID", reflect.TypeOf((*MockAccessKeyManager)(nil).DeleteByID), ctx, appCode, id)
 }
 
-// Exists mocks base method.
-func (m *MockAccessKeyManager) Exists(ctx context.Context, appCode, appSecret string) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Exists", ctx, appCode, appSecret)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Exists indicates an expected call of Exists.
-func (mr *MockAccessKeyManagerMockRecorder) Exists(ctx, appCode, appSecret any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockAccessKeyManager)(nil).Exists), ctx, appCode, appSecret)
-}
-
 // ExistsByAppCodeAndID mocks base method.
 func (m *MockAccessKeyManager) ExistsByAppCodeAndID(ctx context.Context, appCode string, id int64) (bool, error) {
 	m.ctrl.T.Helper()

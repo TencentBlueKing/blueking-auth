@@ -55,7 +55,6 @@ type AccessKeyManager interface {
 	DeleteByAppCodeWithTx(ctx context.Context, tx *sqlx.Tx, appCode string) (int64, error)
 	UpdateByID(ctx context.Context, id int64, updateFieldMap map[string]interface{}) (int64, error)
 	ListWithCreatedAtByAppCode(ctx context.Context, appCode string) ([]AccessKeyWithCreatedAt, error)
-	Exists(ctx context.Context, appCode, appSecret string) (bool, error)
 	Count(ctx context.Context, appCode string) (int64, error)
 	ListAccessKeyByAppCode(ctx context.Context, appCode string) ([]AccessKey, error)
 	List(ctx context.Context) ([]AccessKey, error)
@@ -161,24 +160,6 @@ func (m *accessKeyManager) selectAccessKeyWithCreatedAt(
 		WHERE app_code = ?
 		ORDER BY id DESC`
 	return database.SqlxSelect(ctx, m.DB, accessKeys, query, appCode)
-}
-
-func (m *accessKeyManager) Exists(ctx context.Context, appCode, appSecret string) (bool, error) {
-	var id int64
-	err := m.selectExistence(ctx, &id, appCode, appSecret)
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func (m *accessKeyManager) selectExistence(ctx context.Context, id *int64, appCode, appSecret string) error {
-	query := `SELECT id FROM access_key WHERE app_code = ? AND app_secret = ? LIMIT 1`
-	return database.SqlxGet(ctx, m.DB, id, query, appCode, appSecret)
 }
 
 func (m *accessKeyManager) Count(ctx context.Context, appCode string) (count int64, err error) {
