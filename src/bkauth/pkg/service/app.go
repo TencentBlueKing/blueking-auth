@@ -115,7 +115,11 @@ func (s *appService) Create(app types.App, createdSource string) (err error) {
 	}
 
 	// 创建应用对应 Secret
-	daoAccessKey := newDaoAccessKey(app.Code, createdSource)
+	daoAccessKey, err := newDaoAccessKey(app.Code, createdSource)
+	if err != nil {
+		return errorWrapf(err, "newDaoAccessKey appCode=`%s` fail", app.Code)
+	}
+
 	_, err = s.accessKeyManager.CreateWithTx(tx, daoAccessKey)
 	if err != nil {
 		return errorWrapf(err, "accessKeyManager.CreateWithTx secret=`%+v` fail", daoAccessKey)
@@ -151,7 +155,11 @@ func (s *appService) CreateWithSecret(app types.App, appSecret, createdSource st
 	}
 
 	// 创建应用对应 Secret
-	daoAccessKey := newDaoAccessKeyWithAppSecret(app.Code, appSecret, createdSource)
+	daoAccessKey, err := newDaoAccessKeyWithAppSecret(app.Code, appSecret, createdSource)
+	if err != nil {
+		return errorWrapf(err, "newDaoAccessKeyWithAppSecret appCode=`%s` fail", app.Code)
+	}
+
 	_, err = s.accessKeyManager.CreateWithTx(tx, daoAccessKey)
 	if err != nil {
 		return errorWrapf(err, "accessKeyManager.CreateWithTx secret=`%+v` fail", daoAccessKey)

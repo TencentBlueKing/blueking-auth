@@ -127,6 +127,8 @@ type Sentry struct {
 }
 
 type Crypto struct {
+	// Nonce is only used to decrypt app secrets written before every encryption
+	// started carrying its own nonce. Encryption no longer reads it.
 	Nonce string
 	Key   string
 }

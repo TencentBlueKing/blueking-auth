@@ -114,10 +114,10 @@ func (mr *MockAccessKeyServiceMockRecorder) List() *gomock.Call {
 }
 
 // ListEncryptedAccessKeyByAppCode mocks base method.
-func (m *MockAccessKeyService) ListEncryptedAccessKeyByAppCode(appCode string) ([]types.AccessKey, error) {
+func (m *MockAccessKeyService) ListEncryptedAccessKeyByAppCode(appCode string) ([]types.EncryptedAccessKey, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListEncryptedAccessKeyByAppCode", appCode)
-	ret0, _ := ret[0].([]types.AccessKey)
+	ret0, _ := ret[0].([]types.EncryptedAccessKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
