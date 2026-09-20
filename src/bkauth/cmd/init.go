@@ -134,6 +134,8 @@ func initCryptos() {
 		panic("cryptoKey should be configured")
 	}
 
+	// Still required: existing deployments hold secrets sealed under this nonce, and
+	// they stay unreadable without it. New ciphertexts no longer use it.
 	if globalConfig.Crypto.Nonce == "" {
 		panic("cryptoNonce should be configured")
 	}

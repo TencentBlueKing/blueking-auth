@@ -19,9 +19,15 @@
 package cryptography
 
 type Crypto interface {
-	Encrypt(plaintext []byte) []byte
+	Encrypt(plaintext []byte) ([]byte, error)
 	Decrypt(encryptedText []byte) ([]byte, error)
 
-	EncryptToBase64(plaintext string) string
+	EncryptToBase64(plaintext string) (string, error)
 	DecryptFromBase64(encryptedTextB64 string) (string, error)
+}
+
+// LegacyNonceDetector is kept out of Crypto because only the one-off re-encryption
+// tooling needs it; regular callers must not branch on how a ciphertext was sealed.
+type LegacyNonceDetector interface {
+	IsLegacyFormatBase64(encryptedTextB64 string) (bool, error)
 }

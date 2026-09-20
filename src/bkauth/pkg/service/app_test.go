@@ -154,13 +154,13 @@ var _ = Describe("App", func() {
 			)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) (dao.AccessKey, error) {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
 					Description:   "",
-				}
+				}, nil
 			})
 
 			svc := appService{
@@ -235,13 +235,13 @@ var _ = Describe("App", func() {
 			)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKey, func(_, _, _ string) (dao.AccessKey, error) {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
 					Description:   "secret of bkauth",
-				}
+				}, nil
 			})
 
 			svc := appService{
@@ -294,13 +294,13 @@ var _ = Describe("App", func() {
 			)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) (dao.AccessKey, error) {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
 					Description:   "",
-				}
+				}, nil
 			})
 
 			svc := appService{
@@ -377,13 +377,13 @@ var _ = Describe("App", func() {
 			)
 			defer patches.Reset()
 
-			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) dao.AccessKey {
+			patches.ApplyFunc(newDaoAccessKeyWithAppSecret, func(_, _, _, _ string) (dao.AccessKey, error) {
 				return dao.AccessKey{
 					AppCode:       "bkauth",
 					AppSecret:     "4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
 					CreatedSource: "bk_paas",
 					Description:   "secret of bkauth",
-				}
+				}, nil
 			})
 
 			svc := appService{

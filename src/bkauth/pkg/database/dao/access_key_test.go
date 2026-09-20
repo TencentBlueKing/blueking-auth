@@ -138,21 +138,6 @@ func Test_ListWithCreatedAtByAppCode(t *testing.T) {
 	})
 }
 
-func Test_Exists(t *testing.T) {
-	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
-		mockQuery := `^SELECT id FROM access_key WHERE app_code = (.*) AND app_secret = (.*) LIMIT 1$`
-		mockRows := sqlmock.NewRows([]string{"id"}).AddRow(int64(1))
-		mock.ExpectQuery(mockQuery).WithArgs("bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041").WillReturnRows(mockRows)
-
-		manager := &accessKeyManager{DB: db}
-
-		exists, err := manager.Exists(context.Background(), "bkauth", "a59ddb37-94ae-4d7a-b6b8-f3c255fff041")
-
-		assert.NoError(t, err, "query from db fail.")
-		assert.Equal(t, exists, true)
-	})
-}
-
 func Test_Count(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mockQuery := `^SELECT COUNT\(1\) FROM access_key WHERE app_code = (.*)$`

@@ -31,3 +31,13 @@ type AccessKeyWithCreatedAt struct {
 	AccessKey
 	CreatedAt int64 `json:"created_at"`
 }
+
+// EncryptedAccessKey carries a secret as stored at rest. Since every row now embeds
+// its own random nonce, the ciphertext is not comparable and callers must decrypt
+// before matching.
+// Untagged on purpose: this never crosses an HTTP boundary, and its only serializer
+// is the msgpack codec behind AccessKeysCache, which keys off field names.
+type EncryptedAccessKey struct {
+	AppSecret string
+	Enabled   bool
+}
