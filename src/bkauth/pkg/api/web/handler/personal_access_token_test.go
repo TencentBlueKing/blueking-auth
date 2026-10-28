@@ -96,6 +96,22 @@ func TestPersonalAccessTokenDeleteHandlerReturnsNoContent(t *testing.T) {
 		_ = db.Close()
 	})
 
+	now := time.Now().UTC()
+	mock.ExpectQuery(
+		`SELECT .+ FROM personal_access_token WHERE id = .+ AND sub = .+ AND realm_name = .+`,
+	).
+		WithArgs(int64(1), "u-1", "blueking").
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "name", "description", "token_hash", "token_mask",
+			"realm_name", "tenant_id", "sub", "username",
+			"audience", "scope", "expires_at", "revoked", "revoked_at",
+			"created_at", "updated_at",
+		}).AddRow(
+			int64(1), "ci", "", "h", "bk_****",
+			"blueking", "default", "u-1", "u-1",
+			`["mcp:demo"]`, "", now.Add(time.Hour), true, now,
+			now, now,
+		))
 	mock.ExpectExec(
 		`DELETE FROM personal_access_token `+
 			`WHERE id = .+ AND sub = .+ AND realm_name = .+ AND revoked = 1`,

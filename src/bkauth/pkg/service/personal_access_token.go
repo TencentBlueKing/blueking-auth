@@ -486,21 +486,10 @@ func (s *personalAccessTokenService) Revoke(
 	return daoToken.TokenHash, nil
 }
 
-// Delete issues the guarded DELETE first and reads the row only when it matched
-// nothing. The read never decides whether the delete happens -- the statement's
-// own revoked = 1 guard does -- it only tells the two failures apart.
 func (s *personalAccessTokenService) Delete(
 	ctx context.Context, realmName string, id int64, sub string,
 ) error {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf(PersonalAccessTokenSVC, "Delete")
-
-	rows, err := s.manager.DeleteByIDAndSub(ctx, realmName, id, sub)
-	if err != nil {
-		return errorWrapf(err, "manager.DeleteByIDAndSub fail")
-	}
-	if rows > 0 {
-		return nil
-	}
 
 	daoToken, err := s.manager.GetByIDAndSub(ctx, realmName, id, sub)
 	if err != nil {
@@ -509,9 +498,19 @@ func (s *personalAccessTokenService) Delete(
 	if daoToken.ID == 0 {
 		return ErrPersonalTokenNotFound
 	}
-	// The row is the caller's and survived a DELETE that matched every other
-	// predicate, so it was not revoked when the statement ran.
-	return ErrPersonalTokenNotRevoked
+	if !daoToken.Revoked {
+		return ErrPersonalTokenNotRevoked
+	}
+
+	rows, err := s.manager.DeleteRevoked(ctx, realmName, id, sub)
+	if err != nil {
+		return errorWrapf(err, "manager.DeleteRevoked fail")
+	}
+	if rows == 0 {
+		return ErrPersonalTokenNotFound
+	}
+
+	return nil
 }
 
 func (s *personalAccessTokenService) GetByTokenHash(

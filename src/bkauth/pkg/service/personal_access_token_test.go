@@ -401,17 +401,21 @@ var _ = Describe("PersonalAccessTokenService", func() {
 	})
 
 	Describe("Delete", func() {
-		// gomock fails on any unexpected call, so the missing GetByIDAndSub
-		// expectation pins that the happy path costs one statement.
-		It("deletes a revoked token without reading it first", func() {
-			manager.EXPECT().DeleteByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(int64(1), nil)
+		revoked := dao.PersonalAccessToken{
+			ID: 1, ExpiresAt: time.Now().UTC().Add(time.Hour), Revoked: true,
+		}
+
+		It("deletes a revoked token", func() {
+			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(revoked, nil)
+			manager.EXPECT().DeleteRevoked(gomock.Any(), realm, int64(1), sub).Return(int64(1), nil)
 
 			err := svc.Delete(ctx, realm, 1, sub)
 			assert.NoError(GinkgoT(), err)
 		})
 
-		It("refuses a token that is not revoked, pointing the user at revoking it", func() {
-			manager.EXPECT().DeleteByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(int64(0), nil)
+		// gomock fails the test if DeleteRevoked is called, which is the assertion
+		// that an unrevoked token is refused before the DELETE is issued.
+		It("refuses a token that is not revoked without issuing the DELETE", func() {
 			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(
 				dao.PersonalAccessToken{ID: 1, ExpiresAt: time.Now().UTC().Add(time.Hour)}, nil)
 
@@ -422,7 +426,6 @@ var _ = Describe("PersonalAccessTokenService", func() {
 		// Expiry is not a stand-in for revocation: an expired token can still be
 		// renewed back to life, so it must be revoked before it can be deleted.
 		It("refuses an expired token that was never revoked", func() {
-			manager.EXPECT().DeleteByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(int64(0), nil)
 			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(
 				dao.PersonalAccessToken{ID: 1, ExpiresAt: time.Now().UTC().Add(-time.Hour)}, nil)
 
@@ -431,7 +434,6 @@ var _ = Describe("PersonalAccessTokenService", func() {
 		})
 
 		It("maps a token that does not exist to not found", func() {
-			manager.EXPECT().DeleteByIDAndSub(gomock.Any(), realm, int64(404), sub).Return(int64(0), nil)
 			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(404), sub).
 				Return(dao.PersonalAccessToken{}, nil)
 
@@ -439,13 +441,12 @@ var _ = Describe("PersonalAccessTokenService", func() {
 			assert.ErrorIs(GinkgoT(), err, ErrPersonalTokenNotFound)
 		})
 
-		// Both statements are scoped by the caller's sub, so another user's row is
+		// The read is scoped by the caller's sub, so another user's row is
 		// invisible to them and the answer is indistinguishable from a missing id
 		// -- even when that row is not revoked, which must not leak as
 		// ErrPersonalTokenNotRevoked.
 		It("maps another user's token to not found, whatever its state", func() {
 			const other = "u-2"
-			manager.EXPECT().DeleteByIDAndSub(gomock.Any(), realm, int64(1), other).Return(int64(0), nil)
 			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), other).
 				Return(dao.PersonalAccessToken{}, nil)
 
@@ -454,8 +455,30 @@ var _ = Describe("PersonalAccessTokenService", func() {
 			assert.NotErrorIs(GinkgoT(), err, ErrPersonalTokenNotRevoked)
 		})
 
+		// Revocation is one-way, so a row read as revoked that the DELETE then
+		// misses can only have been removed in between, by a concurrent delete or
+		// the retention sweep.
+		It("maps a revoked token removed before the DELETE to not found", func() {
+			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(revoked, nil)
+			manager.EXPECT().DeleteRevoked(gomock.Any(), realm, int64(1), sub).Return(int64(0), nil)
+
+			err := svc.Delete(ctx, realm, 1, sub)
+			assert.ErrorIs(GinkgoT(), err, ErrPersonalTokenNotFound)
+		})
+
+		It("reports a failed read as an internal error", func() {
+			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), sub).
+				Return(dao.PersonalAccessToken{}, errors.New("db down"))
+
+			err := svc.Delete(ctx, realm, 1, sub)
+			assert.Error(GinkgoT(), err)
+			assert.NotErrorIs(GinkgoT(), err, ErrPersonalTokenNotFound)
+			assert.NotErrorIs(GinkgoT(), err, ErrPersonalTokenNotRevoked)
+		})
+
 		It("reports a failed DELETE as an internal error", func() {
-			manager.EXPECT().DeleteByIDAndSub(gomock.Any(), realm, int64(1), sub).
+			manager.EXPECT().GetByIDAndSub(gomock.Any(), realm, int64(1), sub).Return(revoked, nil)
+			manager.EXPECT().DeleteRevoked(gomock.Any(), realm, int64(1), sub).
 				Return(int64(0), errors.New("db down"))
 
 			err := svc.Delete(ctx, realm, 1, sub)

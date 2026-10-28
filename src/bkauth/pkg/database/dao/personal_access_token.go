@@ -115,14 +115,10 @@ type PersonalAccessTokenManager interface {
 	// already holds changes no column, and MySQL counts changed rows.
 	Renew(ctx context.Context, realmName string, id int64, sub string, expiresAt time.Time) (int64, error)
 	Revoke(ctx context.Context, realmName string, id int64, sub string) (int64, error)
-	// DeleteByIDAndSub inverts the guard every other owner-scoped write carries:
-	// it requires `revoked = 1`, so an active or merely expired credential can
-	// never be destroyed in one step. Revocation stays the only path that makes a
-	// token unusable; this only removes the record and frees its name.
-	//
-	// Unlike an UPDATE, its row count is reliable: a DELETE either removes the row
-	// or matched nothing.
-	DeleteByIDAndSub(ctx context.Context, realmName string, id int64, sub string) (int64, error)
+	// DeleteRevoked never matches an unrevoked row, expired ones included, so a
+	// renewable credential cannot be destroyed in one step. Unlike an UPDATE's,
+	// its row count is reliable: zero means nothing matched.
+	DeleteRevoked(ctx context.Context, realmName string, id int64, sub string) (int64, error)
 	// UpdateByIDAndSub edits name / description / audience and expires_at together
 	// -- the PUT contract, which replaces every mutable field. There is no "leave
 	// this column alone" encoding: deciding what the expiry should be, including
@@ -327,7 +323,7 @@ func (m *personalAccessTokenManager) Revoke(
 	return result.RowsAffected()
 }
 
-func (m *personalAccessTokenManager) DeleteByIDAndSub(
+func (m *personalAccessTokenManager) DeleteRevoked(
 	ctx context.Context, realmName string, id int64, sub string,
 ) (int64, error) {
 	query := `DELETE FROM personal_access_token
