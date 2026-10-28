@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -100,6 +101,34 @@ func TestPersonalAccessTokenExpiresAtBinding(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, int64(1786521750), req.ExpiresAt)
+	})
+}
+
+// Create and update share one audience ceiling; if they drifted apart, a token
+// created at the limit could not be saved back unchanged.
+func TestPersonalAccessTokenAudienceCountBinding(t *testing.T) {
+	audienceBody := func(n int) string {
+		audience := make([]string, n)
+		for i := range audience {
+			audience[i] = `"mcp:s` + strconv.Itoa(i) + `"`
+		}
+		return `{"name":"ci","audience":[` + strings.Join(audience, ",") + `],"expires_at":1786521750}`
+	}
+
+	t.Run("create accepts 100 and rejects 101", func(t *testing.T) {
+		var req createPersonalAccessTokenRequest
+		require.NoError(t, bindJSON(t, audienceBody(100), &req))
+		assert.Len(t, req.Audience, 100)
+
+		assert.Error(t, bindJSON(t, audienceBody(101), &createPersonalAccessTokenRequest{}))
+	})
+
+	t.Run("update accepts 100 and rejects 101", func(t *testing.T) {
+		var req updatePersonalAccessTokenRequest
+		require.NoError(t, bindJSON(t, audienceBody(100), &req))
+		assert.Len(t, req.Audience, 100)
+
+		assert.Error(t, bindJSON(t, audienceBody(101), &updatePersonalAccessTokenRequest{}))
 	})
 }
 
