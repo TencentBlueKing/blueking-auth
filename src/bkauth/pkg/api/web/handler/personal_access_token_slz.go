@@ -29,6 +29,11 @@ import (
 // length bounds mirror the column widths so an over-long value is rejected here
 // rather than truncated by MySQL.
 //
+// The audience count has no column behind it: max=100 is a ceiling on what one
+// token renders on the list page, which resolves every token at once. The
+// update request repeats it and the two must move together, or a token created
+// here could not be saved back unchanged.
+//
 // ExpiresAt is an absolute Unix-second timestamp rather than a lifetime. The
 // client picks a date; sending a duration would have it computed against the
 // client's clock and re-anchored to the server's, storing an expiry a round trip
@@ -43,7 +48,7 @@ import (
 type createPersonalAccessTokenRequest struct {
 	Name        string   `json:"name" binding:"required,max=64"`
 	Description string   `json:"description" binding:"omitempty,max=255"`
-	Audience    []string `json:"audience" binding:"required,min=1,max=20,dive,max=128"`
+	Audience    []string `json:"audience" binding:"required,min=1,max=100,dive,max=128"`
 	ExpiresAt   int64    `json:"expires_at"`
 }
 
@@ -67,7 +72,7 @@ type createPersonalAccessTokenRequest struct {
 type updatePersonalAccessTokenRequest struct {
 	Name        string   `json:"name" binding:"required,max=64"`
 	Description string   `json:"description" binding:"omitempty,max=255"`
-	Audience    []string `json:"audience" binding:"required,min=1,max=20,dive,max=128"`
+	Audience    []string `json:"audience" binding:"required,min=1,max=100,dive,max=128"`
 	ExpiresAt   int64    `json:"expires_at"`
 }
 
