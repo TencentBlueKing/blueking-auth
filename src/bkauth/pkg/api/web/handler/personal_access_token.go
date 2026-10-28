@@ -337,6 +337,33 @@ func NewPersonalAccessTokenRevokeHandler(cfg *config.Config) gin.HandlerFunc {
 	}
 }
 
+// NewPersonalAccessTokenDeleteHandler creates a handler for
+// DELETE /realms/:realm_name/personal-tokens/:id.
+//
+// Only a revoked token can be deleted. Revocation is the single path that makes
+// a token unusable and invalidates its cache entry; deletion just removes the
+// record, which is why there is no cache invalidation here. Requiring the two
+// steps also gives the user a window, with the token still listed as revoked,
+// to confirm nothing depended on it before its record is gone for good.
+func NewPersonalAccessTokenDeleteHandler(cfg *config.Config) gin.HandlerFunc {
+	policy := personalTokenPolicy(cfg)
+
+	return func(c *gin.Context) {
+		id, ok := parsePersonalAccessTokenID(c)
+		if !ok {
+			return
+		}
+
+		svc := service.NewPersonalAccessTokenService()
+		if err := svc.Delete(c.Request.Context(), util.GetRealmName(c), id, util.GetSub(c)); err != nil {
+			handlePersonalAccessTokenError(c, err, policy)
+			return
+		}
+
+		util.WebSuccess(c, gin.H{})
+	}
+}
+
 // parsePersonalAccessTokenID reads the :id path parameter, writing the error
 // response itself and reporting whether the caller should continue.
 //
@@ -436,6 +463,12 @@ func handlePersonalAccessTokenError(c *gin.Context, err error, policy types.Pers
 		// the rejection reads as pointing at a token that is not there.
 		util.WebAlreadyExistsError(c,
 			"a personal access token with this name already exists, expired and revoked ones included")
+
+	case errors.Is(err, service.ErrPersonalTokenNotRevoked):
+		// 400 like any other broken business rule. The message carries the way
+		// out, since the user cannot fix this by editing the request.
+		util.WebInvalidArgumentError(c,
+			"only a revoked personal access token can be deleted, revoke it first")
 
 	case errors.Is(err, service.ErrPersonalTokenQuotaExceeded):
 		// 429 RESOURCE_EXHAUSTED: the request is well formed, the account is at

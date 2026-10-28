@@ -74,7 +74,8 @@ type PersonalAccessToken struct {
 //
 // Every owner-scoped write encodes its guards in a single SQL statement: the
 // WHERE clause always carries both `sub` (ownership) and the state precondition
-// (`revoked = 0`), never a read-then-check-then-write in Go. That closes the
+// (`revoked = 0`, or `revoked = 1` for the delete), never a
+// read-then-check-then-write in Go. That closes the
 // TOCTOU window and keeps the authorization check in one place that cannot be
 // refactored away into a privilege-escalation bug.
 type PersonalAccessTokenManager interface {
@@ -114,6 +115,14 @@ type PersonalAccessTokenManager interface {
 	// already holds changes no column, and MySQL counts changed rows.
 	Renew(ctx context.Context, realmName string, id int64, sub string, expiresAt time.Time) (int64, error)
 	Revoke(ctx context.Context, realmName string, id int64, sub string) (int64, error)
+	// DeleteByIDAndSub inverts the guard every other owner-scoped write carries:
+	// it requires `revoked = 1`, so an active or merely expired credential can
+	// never be destroyed in one step. Revocation stays the only path that makes a
+	// token unusable; this only removes the record and frees its name.
+	//
+	// Unlike an UPDATE, its row count is reliable: a DELETE either removes the row
+	// or matched nothing.
+	DeleteByIDAndSub(ctx context.Context, realmName string, id int64, sub string) (int64, error)
 	// UpdateByIDAndSub edits name / description / audience and expires_at together
 	// -- the PUT contract, which replaces every mutable field. There is no "leave
 	// this column alone" encoding: deciding what the expiry should be, including
@@ -312,6 +321,18 @@ func (m *personalAccessTokenManager) Revoke(
 	SET revoked = 1, revoked_at = ?
 	WHERE id = ? AND sub = ? AND realm_name = ? AND revoked = 0`
 	result, err := m.DB.ExecContext(ctx, query, time.Now().UTC(), id, sub, realmName)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+func (m *personalAccessTokenManager) DeleteByIDAndSub(
+	ctx context.Context, realmName string, id int64, sub string,
+) (int64, error) {
+	query := `DELETE FROM personal_access_token
+	WHERE id = ? AND sub = ? AND realm_name = ? AND revoked = 1`
+	result, err := m.DB.ExecContext(ctx, query, id, sub, realmName)
 	if err != nil {
 		return 0, err
 	}

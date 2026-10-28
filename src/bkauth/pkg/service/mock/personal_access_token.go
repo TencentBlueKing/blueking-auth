@@ -56,6 +56,20 @@ func (mr *MockPersonalAccessTokenServiceMockRecorder) Create(ctx, input, policy 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockPersonalAccessTokenService)(nil).Create), ctx, input, policy)
 }
 
+// Delete mocks base method.
+func (m *MockPersonalAccessTokenService) Delete(ctx context.Context, realmName string, id int64, sub string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", ctx, realmName, id, sub)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockPersonalAccessTokenServiceMockRecorder) Delete(ctx, realmName, id, sub any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockPersonalAccessTokenService)(nil).Delete), ctx, realmName, id, sub)
+}
+
 // GetByIDAndSub mocks base method.
 func (m *MockPersonalAccessTokenService) GetByIDAndSub(ctx context.Context, realmName string, id int64, sub string) (types.PersonalAccessToken, error) {
 	m.ctrl.T.Helper()

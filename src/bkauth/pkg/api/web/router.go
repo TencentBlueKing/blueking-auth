@@ -115,6 +115,8 @@ func Register(cfg *config.Config, r *gin.RouterGroup) {
 			// POST action rather than DELETE on the resource.
 			patWriteGroup.POST("/:id/renew", handler.NewPersonalAccessTokenRenewHandler(cfg))
 			patWriteGroup.POST("/:id/revoke", handler.NewPersonalAccessTokenRevokeHandler(cfg))
+			// The physical delete, refused unless the token is already revoked.
+			patWriteGroup.DELETE("/:id", handler.NewPersonalAccessTokenDeleteHandler(cfg))
 		}
 	}
 }

@@ -147,6 +147,21 @@ func TestHandlePersonalAccessTokenError(t *testing.T) {
 		assert.NotContains(t, errObj, "data")
 	})
 
+	// The message is the only guidance the user gets, so it has to name the step
+	// that unblocks the delete.
+	t.Run("not revoked", func(t *testing.T) {
+		c, w := testGinContext(t)
+		handlePersonalAccessTokenError(c, service.ErrPersonalTokenNotRevoked, policy)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		errObj := decodeBody(t, w)["error"].(map[string]any)
+		assert.Equal(t, "INVALID_ARGUMENT", errObj["code"])
+		assert.Equal(t,
+			"only a revoked personal access token can be deleted, revoke it first",
+			errObj["message"])
+		assert.NotContains(t, errObj, "data")
+	})
+
 	t.Run("quota exceeded names the ceiling in the message", func(t *testing.T) {
 		c, w := testGinContext(t)
 		handlePersonalAccessTokenError(c, service.ErrPersonalTokenQuotaExceeded, policy)
