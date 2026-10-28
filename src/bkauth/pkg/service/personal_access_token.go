@@ -486,7 +486,7 @@ func (s *personalAccessTokenService) Revoke(
 	return daoToken.TokenHash, nil
 }
 
-// revoked never goes back to 0, so a zero row count after reading the row as
+// Delete revoked never goes back to 0, so a zero row count after reading the row as
 // revoked can only mean it was removed in between.
 func (s *personalAccessTokenService) Delete(
 	ctx context.Context, realmName string, id int64, sub string,
