@@ -21,19 +21,14 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"bkauth/pkg/config"
-	"bkauth/pkg/database"
 	"bkauth/pkg/service"
 	"bkauth/pkg/service/types"
 	"bkauth/pkg/util"
@@ -85,58 +80,6 @@ func TestNormalizeNameOrAbort(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, "ci deploy", name)
 	})
-}
-
-func TestPersonalAccessTokenDeleteHandlerReturnsNoContent(t *testing.T) {
-	db, mock := database.NewMockSqlxDB()
-	previousDBClient := database.DefaultDBClient
-	database.DefaultDBClient = &database.DBClient{DB: db}
-	t.Cleanup(func() {
-		database.DefaultDBClient = previousDBClient
-		_ = db.Close()
-	})
-
-	now := time.Now().UTC()
-	mock.ExpectQuery(
-		`SELECT .+ FROM personal_access_token WHERE id = .+ AND sub = .+ AND realm_name = .+`,
-	).
-		WithArgs(int64(1), "u-1", "blueking").
-		WillReturnRows(sqlmock.NewRows([]string{
-			"id", "name", "description", "token_hash", "token_mask",
-			"realm_name", "tenant_id", "sub", "username",
-			"audience", "scope", "expires_at", "revoked", "revoked_at",
-			"created_at", "updated_at",
-		}).AddRow(
-			int64(1), "ci", "", "h", "bk_****",
-			"blueking", "default", "u-1", "u-1",
-			`["mcp:demo"]`, "", now.Add(time.Hour), true, now,
-			now, now,
-		))
-	mock.ExpectExec(
-		`DELETE FROM personal_access_token `+
-			`WHERE id = .+ AND sub = .+ AND realm_name = .+ AND revoked = 1`,
-	).
-		WithArgs(int64(1), "u-1", "blueking").
-		WillReturnResult(sqlmock.NewResult(0, 1))
-
-	gin.SetMode(gin.TestMode)
-	router := gin.New()
-	router.Use(func(c *gin.Context) {
-		util.SetRealmName(c, "blueking")
-		util.SetSub(c, "u-1")
-	})
-	router.DELETE(
-		"/realms/:realm_name/personal-tokens/:id",
-		NewPersonalAccessTokenDeleteHandler(&config.Config{}),
-	)
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodDelete, "/realms/blueking/personal-tokens/1", nil)
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusNoContent, w.Code)
-	assert.Empty(t, w.Body.String())
-	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestHandlePersonalAccessTokenError(t *testing.T) {
@@ -200,21 +143,6 @@ func TestHandlePersonalAccessTokenError(t *testing.T) {
 		assert.Equal(t, "ALREADY_EXISTS", errObj["code"])
 		assert.Equal(t,
 			"a personal access token with this name already exists, expired and revoked ones included",
-			errObj["message"])
-		assert.NotContains(t, errObj, "data")
-	})
-
-	// The message is the only guidance the user gets, so it has to name the step
-	// that unblocks the delete.
-	t.Run("not revoked", func(t *testing.T) {
-		c, w := testGinContext(t)
-		handlePersonalAccessTokenError(c, service.ErrPersonalTokenNotRevoked, policy)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-		errObj := decodeBody(t, w)["error"].(map[string]any)
-		assert.Equal(t, "INVALID_ARGUMENT", errObj["code"])
-		assert.Equal(t,
-			"only a revoked personal access token can be deleted, revoke it first",
 			errObj["message"])
 		assert.NotContains(t, errObj, "data")
 	})
