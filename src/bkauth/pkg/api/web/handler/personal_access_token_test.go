@@ -21,14 +21,19 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"bkauth/pkg/config"
+	"bkauth/pkg/database"
 	"bkauth/pkg/service"
 	"bkauth/pkg/service/types"
 	"bkauth/pkg/util"
@@ -80,6 +85,42 @@ func TestNormalizeNameOrAbort(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, "ci deploy", name)
 	})
+}
+
+func TestPersonalAccessTokenDeleteHandlerReturnsNoContent(t *testing.T) {
+	db, mock := database.NewMockSqlxDB()
+	previousDBClient := database.DefaultDBClient
+	database.DefaultDBClient = &database.DBClient{DB: db}
+	t.Cleanup(func() {
+		database.DefaultDBClient = previousDBClient
+		_ = db.Close()
+	})
+
+	mock.ExpectExec(
+		`DELETE FROM personal_access_token `+
+			`WHERE id = .+ AND sub = .+ AND realm_name = .+ AND revoked = 1`,
+	).
+		WithArgs(int64(1), "u-1", "blueking").
+		WillReturnResult(sqlmock.NewResult(0, 1))
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		util.SetRealmName(c, "blueking")
+		util.SetSub(c, "u-1")
+	})
+	router.DELETE(
+		"/realms/:realm_name/personal-tokens/:id",
+		NewPersonalAccessTokenDeleteHandler(&config.Config{}),
+	)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, "/realms/blueking/personal-tokens/1", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Empty(t, w.Body.String())
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestHandlePersonalAccessTokenError(t *testing.T) {

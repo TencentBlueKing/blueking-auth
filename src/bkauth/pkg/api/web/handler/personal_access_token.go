@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -360,7 +361,7 @@ func NewPersonalAccessTokenDeleteHandler(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		util.WebSuccess(c, gin.H{})
+		c.Status(http.StatusNoContent)
 	}
 }
 
