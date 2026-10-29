@@ -120,6 +120,10 @@ export const renewPersonalToken = (
 export const revokePersonalToken = (realm: PersonalTokenRealm, id: number) =>
   http.post<Record<string, never>>(`/api/v1/web/realms/${realm}/personal-tokens/${id}/revoke`);
 
+/** 物理删除已撤销的令牌；成功返回 204，无响应体。 */
+export const deletePersonalToken = (realm: PersonalTokenRealm, id: number) =>
+  http.delete<void>(`/api/v1/web/realms/${realm}/personal-tokens/${id}`);
+
 /** 获取可授予资源类型；静态元数据按 realm 缓存。 */
 export const getGrantableResourceTypes = (realm: PersonalTokenRealm) => {
   const cachedRequest = resourceTypeRequestCache.get(realm);

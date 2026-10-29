@@ -44,7 +44,7 @@ export interface Config {
   } & AxiosRequestConfig
 }
 
-/* @ts-expect-error */
+/* @ts-expect-error Axios 类型未公开拦截器 handlers 字段 */
 if (axios.interceptors.response.handlers.length < 1) {
   // @ts-expect-error unknown
   requestMiddleware(axios.interceptors.request);
@@ -155,7 +155,7 @@ export default class Request {
       cancelToken: source.token,
     }).then((data) => {
       this.setCache(requestHandler);
-      return data.data;
+      return data?.data;
     });
     this.setCache(requestHandler);
     return requestHandler;

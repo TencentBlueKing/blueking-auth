@@ -26,7 +26,6 @@ import { showLoginModal } from '@blueking/login-modal';
 import RequestError from '../lib/request-error';
 
 import { t } from '@/locales';
-import { useEnv } from '@/stores';
 
 // 首次登录不弹小窗
 let hasLoggedIn = false;
@@ -51,10 +50,8 @@ const redirectLogin = (loginUrl: string) => {
   const { protocol, host, pathname } = parseURL(loginUrl);
   const domain = `${protocol}://${host}${pathname}`;
 
-  const envStore = useEnv();
-
   if (hasLoggedIn) {
-    const loginSuccessURL = `${envStore.env.BK_DASHBOARD_FE_URL || window.location.origin}/login-success.html`;
+    const loginSuccessURL = `${window.location.origin}/login-success.html`;
     showLoginModal({
       loginUrl:
         `${domain}?is_from_logout=1&c_url=${decodeURIComponent(loginSuccessURL)}`,
@@ -68,16 +65,17 @@ const redirectLogin = (loginUrl: string) => {
 export default (interceptors: AxiosInterceptorManager<AxiosResponse>) => {
   interceptors.use(
     (response: AxiosResponse) => {
-      if (['application/octet-stream'].includes(response.headers['content-type'])) {
+      if (response.headers['content-type'] === 'application/octet-stream') {
         downloadFile(response);
         return response.data;
       }
-      if (response.data.data !== undefined || response.status < 400) {
+      if (response.status === 204 || response.data.data !== undefined || response.status < 400) {
         // 以下接口不鉴权，即使请求成功也不判定为已登录状态
         if (!['/version-log/', '/ping/', '/healthz/'].includes(response.config?.url || '')) {
           hasLoggedIn = true;
         }
-        return response.data;
+        // 204 只根据状态码判定成功，不读取响应体。
+        return response.status === 204 ? undefined : response.data;
       }
       // 后端逻辑处理报错
       const { code, message = '系统错误' } = response.data;
