@@ -124,6 +124,7 @@ import { messageSuccess } from '@/utils';
 import {
   type IGrantableResourceType,
   type IPersonalToken,
+  deletePersonalToken,
   getGrantableResourceTypes,
   getPersonalTokenList,
   revokePersonalToken,
@@ -472,16 +473,25 @@ const columns: any[] = [
     colKey: 'operation',
     width: 160,
     cell: (_h: any, { row }: { row: IPersonalTokenTableItem }) => {
-      // 已撤销：仅查看
-      if (row.status === 'revoked') {
+      // 已撤销：允许查看和删除
+      if (row.revoked === true) {
         return (
-          <BkButton
-            theme="primary"
-            text
-            onClick={() => handleView(row)}
-          >
-            查看
-          </BkButton>
+          <div class="operation-cell">
+            <BkButton
+              theme="primary"
+              text
+              onClick={() => handleView(row)}
+            >
+              查看
+            </BkButton>
+            <BkButton
+              theme="primary"
+              text
+              onClick={() => handleDelete(row)}
+            >
+              { t('删除') }
+            </BkButton>
+          </div>
         );
       }
       return (
@@ -626,6 +636,30 @@ const handleRevoke = (row: IPersonalTokenTableItem) => {
       await revokePersonalToken(realm.value, row.id);
       messageSuccess(t('撤销成功，5 分钟内失效'));
       fetchList({ resetPage: false });
+    },
+  });
+};
+
+const handleDelete = (row: IPersonalTokenTableItem) => {
+  if (row.revoked !== true) {
+    return;
+  }
+  const currentRealm = realm.value;
+  const { id, name } = row;
+  usePopInfoBox({
+    type: 'warning',
+    isShow: true,
+    title: t('确认删除该个人令牌？'),
+    subTitle: t('删除后令牌【{name}】的记录将无法恢复，名称可以重新使用。', { name }),
+    confirmText: t('删除'),
+    cancelText: t('取消'),
+    confirmButtonTheme: 'danger',
+    onConfirm: async () => {
+      await deletePersonalToken(currentRealm, id);
+      messageSuccess(t('删除成功'));
+      if (realm.value === currentRealm) {
+        fetchList({ resetPage: true });
+      }
     },
   });
 };
