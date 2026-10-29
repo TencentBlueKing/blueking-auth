@@ -102,6 +102,21 @@ func (mr *MockPersonalAccessTokenManagerMockRecorder) DeleteOldestInactiveByOwne
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOldestInactiveByOwner", reflect.TypeOf((*MockPersonalAccessTokenManager)(nil).DeleteOldestInactiveByOwner), ctx, realmName, sub, limit)
 }
 
+// DeleteRevoked mocks base method.
+func (m *MockPersonalAccessTokenManager) DeleteRevoked(ctx context.Context, realmName string, id int64, sub string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRevoked", ctx, realmName, id, sub)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteRevoked indicates an expected call of DeleteRevoked.
+func (mr *MockPersonalAccessTokenManagerMockRecorder) DeleteRevoked(ctx, realmName, id, sub any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRevoked", reflect.TypeOf((*MockPersonalAccessTokenManager)(nil).DeleteRevoked), ctx, realmName, id, sub)
+}
+
 // ExistsByOwnerAndName mocks base method.
 func (m *MockPersonalAccessTokenManager) ExistsByOwnerAndName(ctx context.Context, realmName, sub, name string, excludeID int64) (bool, error) {
 	m.ctrl.T.Helper()

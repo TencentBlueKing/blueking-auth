@@ -51,6 +51,23 @@ func Test_personalAccessTokenManager_Revoke(t *testing.T) {
 	})
 }
 
+// The guard is inverted here: `revoked = 1` is what stops this from destroying a
+// live credential in one step, so it is asserted alongside ownership.
+func Test_personalAccessTokenManager_DeleteRevoked(t *testing.T) {
+	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
+		query := `DELETE FROM personal_access_token ` +
+			`WHERE id = .+ AND sub = .+ AND realm_name = .+ AND revoked = 1`
+		mock.ExpectExec(query).
+			WithArgs(int64(1), "u-1", "blueking").
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		manager := &personalAccessTokenManager{DB: db}
+		rows, err := manager.DeleteRevoked(context.Background(), "blueking", 1, "u-1")
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), rows)
+	})
+}
+
 func Test_personalAccessTokenManager_Renew(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		// Note: no `expires_at > NOW()` guard — resurrecting an expired token via

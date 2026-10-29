@@ -44,12 +44,17 @@ const PersonalAccessTokenSVC = "PersonalAccessTokenSVC"
 // "not found" is deliberately overloaded: a token that does not exist, belongs to
 // someone else, or is in a state the operation forbids all collapse to it, so the
 // API never reveals whether a given id exists under another user's account.
+//
+// ErrPersonalTokenNotRevoked is the one state rejection kept apart. It is only
+// ever returned for a row the caller owns, so it reveals nothing about anyone
+// else's ids, and the user needs it to learn that revoking comes first.
 var (
 	ErrPersonalTokenNotFound         = errors.New("personal access token not found")
 	ErrPersonalTokenQuotaExceeded    = errors.New("personal access token active quota exceeded")
 	ErrPersonalTokenInvalidExpiresAt = errors.New(
 		"personal access token expires_at is outside the (now, now+max_ttl] window")
 	ErrPersonalTokenNameConflict = errors.New("personal access token name already exists")
+	ErrPersonalTokenNotRevoked   = errors.New("personal access token must be revoked before deletion")
 )
 
 // PersonalAccessTokenService defines personal access token operations.
@@ -81,6 +86,10 @@ type PersonalAccessTokenService interface {
 		expiresAt int64, policy types.PersonalTokenPolicy,
 	) (string, error)
 	Revoke(ctx context.Context, realmName string, id int64, sub string) (string, error)
+	// Delete physically removes a revoked token, freeing its name for reuse. It
+	// returns no token_hash: the token was made unusable, and its cache entry
+	// invalidated, when it was revoked, so there is nothing left to invalidate.
+	Delete(ctx context.Context, realmName string, id int64, sub string) error
 	// GetByTokenHash resolves a token for introspection. Callers hash the raw
 	// token first so it never enters this layer. A miss returns a zero-value
 	// ResolvedAccessToken (ClientID == "") which is cacheable as a negative entry.
@@ -475,6 +484,35 @@ func (s *personalAccessTokenService) Revoke(
 		return "", ErrPersonalTokenNotFound
 	}
 	return daoToken.TokenHash, nil
+}
+
+// Delete revoked never goes back to 0, so a zero row count after reading the row as
+// revoked can only mean it was removed in between.
+func (s *personalAccessTokenService) Delete(
+	ctx context.Context, realmName string, id int64, sub string,
+) error {
+	errorWrapf := errorx.NewLayerFunctionErrorWrapf(PersonalAccessTokenSVC, "Delete")
+
+	daoToken, err := s.manager.GetByIDAndSub(ctx, realmName, id, sub)
+	if err != nil {
+		return errorWrapf(err, "manager.GetByIDAndSub fail")
+	}
+	if daoToken.ID == 0 {
+		return ErrPersonalTokenNotFound
+	}
+	if !daoToken.Revoked {
+		return ErrPersonalTokenNotRevoked
+	}
+
+	rows, err := s.manager.DeleteRevoked(ctx, realmName, id, sub)
+	if err != nil {
+		return errorWrapf(err, "manager.DeleteRevoked fail")
+	}
+	if rows == 0 {
+		return ErrPersonalTokenNotFound
+	}
+
+	return nil
 }
 
 func (s *personalAccessTokenService) GetByTokenHash(
