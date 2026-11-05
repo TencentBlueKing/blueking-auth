@@ -39,13 +39,19 @@ func checkDatabase(dbConfig *config.Database) error {
 }
 
 func checkRedis(redisConfig *config.Redis) error {
+	tlsConfig, err := pkgredis.NewTLSConfig(redisConfig)
+	if err != nil {
+		return err
+	}
+
 	var rds *redis.Client
 	switch redisConfig.ID {
 	case pkgredis.ModeStandalone:
 		opt := &redis.Options{
-			Addr:     redisConfig.Addr,
-			Password: redisConfig.Password,
-			DB:       redisConfig.DB,
+			Addr:      redisConfig.Addr,
+			Password:  redisConfig.Password,
+			DB:        redisConfig.DB,
+			TLSConfig: tlsConfig,
 			// just for live test
 			PoolSize: 1,
 		}
@@ -58,6 +64,7 @@ func checkRedis(redisConfig *config.Redis) error {
 			SentinelAddrs: sentinelAddrs,
 			DB:            redisConfig.DB,
 			Password:      redisConfig.Password,
+			TLSConfig:     tlsConfig,
 			PoolSize:      1,
 		}
 
@@ -71,8 +78,28 @@ func checkRedis(redisConfig *config.Redis) error {
 	}
 
 	defer rds.Close()
-	_, err := rds.Ping(context.TODO()).Result()
+	_, err = rds.Ping(context.TODO()).Result()
 	return err
+}
+
+// checkRedisInstances checks every configured redis mode and reports the first failure,
+// so a broken instance cannot be masked by a later healthy one.
+func checkRedisInstances(redisMap map[string]config.Redis) error {
+	for _, mode := range []string{pkgredis.ModeStandalone, pkgredis.ModeSentinel} {
+		redisConfig, ok := redisMap[mode]
+		if !ok {
+			continue
+		}
+
+		if err := checkRedis(&redisConfig); err != nil {
+			addr := redisConfig.Addr
+			if mode == pkgredis.ModeSentinel {
+				addr = redisConfig.SentinelAddr
+			}
+			return fmt.Errorf("redis(mode=%s) connect fail: %w [addr=%s]", mode, err, addr)
+		}
+	}
+	return nil
 }
 
 // Healthz godoc
@@ -108,27 +135,12 @@ func NewHealthzHandleFunc(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		// 2. check redis
-		var err error
-		var addr string
-		redisConfig, ok := cfg.RedisMap[pkgredis.ModeStandalone]
-		if ok {
-			addr = redisConfig.Addr
-			err = checkRedis(&redisConfig)
-		}
-
-		redisConfig, ok = cfg.RedisMap[pkgredis.ModeSentinel]
-		if ok {
-			addr = redisConfig.SentinelAddr
-			err = checkRedis(&redisConfig)
-		}
-
-		if err != nil {
-			message := fmt.Sprintf("redis(mode=%s) connect fail: %s [addr=%s]", redisConfig.ID, err.Error(), addr)
-			c.String(http.StatusInternalServerError, message)
+		if err := checkRedisInstances(cfg.RedisMap); err != nil {
+			c.String(http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		// 4. return ok
+		// 3. return ok
 		c.String(http.StatusOK, "ok")
 	}
 }

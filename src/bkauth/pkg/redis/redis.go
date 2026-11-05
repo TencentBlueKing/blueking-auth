@@ -19,6 +19,8 @@
 package redis
 
 import (
+	"crypto/tls"
+	"fmt"
 	"runtime"
 	"strings"
 	"time"
@@ -29,6 +31,21 @@ import (
 	"bkauth/pkg/config"
 	"bkauth/pkg/util"
 )
+
+// NewTLSConfig builds the client TLS config for cfg, or returns nil when TLS is disabled.
+func NewTLSConfig(cfg *config.Redis) (*tls.Config, error) {
+	if !cfg.TLS.Enabled {
+		return nil, nil
+	}
+
+	tlsConfig, err := util.NewTLSConfig(
+		cfg.TLS.CertCaFile, cfg.TLS.CertFile, cfg.TLS.CertKeyFile, cfg.TLS.InsecureSkipVerify,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("redis tls config init: %w", err)
+	}
+	return tlsConfig, nil
+}
 
 func newStandaloneClient(cfg *config.Redis) *redis.Client {
 	opt := &redis.Options{
@@ -63,16 +80,11 @@ func newStandaloneClient(cfg *config.Redis) *redis.Client {
 		opt.MinIdleConns = cfg.MinIdleConns
 	}
 
-	// TLS configuration
-	if cfg.TLS.Enabled {
-		tlsConfig, err := util.NewTLSConfig(
-			cfg.TLS.CertCaFile, cfg.TLS.CertFile, cfg.TLS.CertKeyFile, cfg.TLS.InsecureSkipVerify,
-		)
-		if err != nil {
-			zap.S().Fatalf("redis tls config init: %s", err)
-		}
-		opt.TLSConfig = tlsConfig
+	tlsConfig, err := NewTLSConfig(cfg)
+	if err != nil {
+		zap.S().Fatal(err)
 	}
+	opt.TLSConfig = tlsConfig
 
 	zap.S().Infof(
 		"connect to redis: %s[dialTimeout=%s, readTimeout=%s, writeTimeout=%s, poolSize=%d, minIdleConns=%d, idleTimeout=%s]",
@@ -120,17 +132,12 @@ func newSentinelClient(cfg *config.Redis) *redis.Client {
 		opt.MinIdleConns = cfg.MinIdleConns
 	}
 
-	// TLS configuration
 	// Note: TLS for Client To Sentinel、TLS for Client To Master are shared
-	if cfg.TLS.Enabled {
-		tlsConfig, err := util.NewTLSConfig(
-			cfg.TLS.CertCaFile, cfg.TLS.CertFile, cfg.TLS.CertKeyFile, cfg.TLS.InsecureSkipVerify,
-		)
-		if err != nil {
-			zap.S().Fatalf("redis tls config init: %s", err)
-		}
-		opt.TLSConfig = tlsConfig
+	tlsConfig, err := NewTLSConfig(cfg)
+	if err != nil {
+		zap.S().Fatal(err)
 	}
+	opt.TLSConfig = tlsConfig
 
 	return redis.NewFailoverClient(opt)
 }
