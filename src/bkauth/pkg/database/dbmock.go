@@ -59,7 +59,7 @@ func NewMockRowsWithoutData(mock sqlmock.Sqlmock, arg interface{}) *sqlmock.Rows
 
 	// 根据 Struct 的 db 标签，获取 columns
 	objType := reflect.TypeOf(arg)
-	if objType.Kind() == reflect.Ptr {
+	if objType.Kind() == reflect.Pointer {
 		objType = objType.Elem()
 	}
 	var columns []string
@@ -84,7 +84,7 @@ func NewMockRows(mock sqlmock.Sqlmock, args ...interface{}) *sqlmock.Rows {
 	// 获取数据并写入
 	for _, obj := range args {
 		objValue := reflect.ValueOf(obj)
-		if objType.Kind() == reflect.Ptr {
+		if objType.Kind() == reflect.Pointer {
 			objValue = objValue.Elem()
 		}
 		values := []driver.Value{}

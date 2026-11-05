@@ -4,7 +4,7 @@ init:
 	#pip install pre-commit
 	pre-commit install
 	# go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.3.0
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.15.0
 	# for make doc
 	go get -u -d github.com/swaggo/swag/cmd/swag@latest
 	# for make mock
@@ -36,12 +36,7 @@ lint-dupl:
 	golangci-lint run --no-config --disable-all --enable=dupl
 
 test:
-# Apple Silicon
-ifeq ($(shell go env GOOS)-$(shell go env GOARCH),darwin-arm64)
-		GOARCH=amd64 go test -gcflags=all=-l $(shell go list ./... | grep -v mock | grep -v docs) -covermode=count -coverprofile .coverage.cov
-else
-		go test -gcflags=all=-l $(shell go list ./... | grep -v mock | grep -v docs) -covermode=count -coverprofile .coverage.cov
-endif
+	go test $(shell go list ./... | grep -v mock | grep -v docs) -covermode=count -coverprofile .coverage.cov
 
 cov:
 	go tool cover -html=.coverage.cov
