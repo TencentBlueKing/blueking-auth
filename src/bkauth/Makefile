@@ -8,7 +8,7 @@ init:
 	# for make doc
 	go get -u -d github.com/swaggo/swag/cmd/swag@latest
 	# for make mock
-	go install go.uber.org/mock/mockgen@latest
+	go install go.uber.org/mock/mockgen@$(shell go list -m -f '{{.Version}}' go.uber.org/mock)
 	# for goimports
 	go install -v github.com/incu6us/goimports-reviser/v3@latest
 
