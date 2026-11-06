@@ -26,17 +26,22 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/alicebob/miniredis"
+	"github.com/alicebob/miniredis/server"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	"bkauth/pkg/config"
 	pkgredis "bkauth/pkg/redis"
 )
+
+const testMasterName = "mymaster"
 
 // writeTestCA writes a self-signed CA certificate to dir and returns its path.
 func writeTestCA(dir string) string {
@@ -60,6 +65,42 @@ func writeTestCA(dir string) string {
 	return path
 }
 
+// startFakeSentinel serves just enough of the sentinel protocol for a go-redis
+// failover client: master discovery points at masterAddr, sentinel discovery
+// finds no peers, and the +switch-master subscription is acknowledged.
+func startFakeSentinel(masterAddr string) *server.Server {
+	host, port, err := net.SplitHostPort(masterAddr)
+	Expect(err).NotTo(HaveOccurred())
+
+	s, err := server.NewServer("127.0.0.1:0")
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(s.Close)
+
+	Expect(s.Register("SENTINEL", func(c *server.Peer, _ string, args []string) {
+		switch {
+		case len(args) == 2 && strings.EqualFold(args[0], "get-master-addr-by-name") && args[1] == testMasterName:
+			c.WriteLen(2)
+			c.WriteBulk(host)
+			c.WriteBulk(port)
+		case len(args) == 2 && strings.EqualFold(args[0], "sentinels"):
+			c.WriteLen(0)
+		default:
+			c.WriteError("ERR unsupported sentinel command")
+		}
+	})).To(Succeed())
+
+	Expect(s.Register("SUBSCRIBE", func(c *server.Peer, _ string, channels []string) {
+		for i, channel := range channels {
+			c.WriteLen(3)
+			c.WriteBulk("subscribe")
+			c.WriteBulk(channel)
+			c.WriteInt(i + 1)
+		}
+	})).To(Succeed())
+
+	return s
+}
+
 var _ = Describe("checkRedisInstances", func() {
 	var mr *miniredis.Miniredis
 
@@ -67,75 +108,109 @@ var _ = Describe("checkRedisInstances", func() {
 		var err error
 		mr, err = miniredis.Run()
 		Expect(err).NotTo(HaveOccurred())
-	})
-
-	AfterEach(func() {
-		mr.Close()
+		DeferCleanup(mr.Close)
 	})
 
 	It("passes when no redis is configured", func() {
 		Expect(checkRedisInstances(map[string]config.Redis{})).To(Succeed())
 	})
 
-	It("passes for a reachable standalone redis without TLS", func() {
-		redisMap := map[string]config.Redis{
-			pkgredis.ModeStandalone: {ID: pkgredis.ModeStandalone, Addr: mr.Addr()},
-		}
+	Context("standalone", func() {
+		It("passes for a reachable redis without TLS", func() {
+			redisMap := map[string]config.Redis{
+				pkgredis.ModeStandalone: {ID: pkgredis.ModeStandalone, Addr: mr.Addr()},
+			}
 
-		Expect(checkRedisInstances(redisMap)).To(Succeed())
+			Expect(checkRedisInstances(redisMap)).To(Succeed())
+		})
+
+		It("negotiates TLS when TLS is enabled", func() {
+			// miniredis speaks plaintext only, so a successful ping here would mean
+			// the check ignored the TLS settings.
+			redisMap := map[string]config.Redis{
+				pkgredis.ModeStandalone: {
+					ID:   pkgredis.ModeStandalone,
+					Addr: mr.Addr(),
+					TLS:  config.TLS{Enabled: true, CertCaFile: writeTestCA(GinkgoT().TempDir())},
+				},
+			}
+
+			err := checkRedisInstances(redisMap)
+
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("redis(mode=standalone) connect fail"))
+			Expect(err.Error()).To(ContainSubstring("[addr=" + mr.Addr() + "]"))
+		})
+
+		It("returns an error instead of exiting when the TLS files are invalid", func() {
+			redisMap := map[string]config.Redis{
+				pkgredis.ModeStandalone: {
+					ID:   pkgredis.ModeStandalone,
+					Addr: mr.Addr(),
+					TLS:  config.TLS{Enabled: true, CertCaFile: "/not/exists/ca.pem"},
+				},
+			}
+
+			err := checkRedisInstances(redisMap)
+
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("redis tls config init"))
+		})
 	})
 
-	It("negotiates TLS when TLS is enabled", func() {
-		// miniredis speaks plaintext only, so a successful ping here would mean
-		// the check ignored the TLS settings.
-		redisMap := map[string]config.Redis{
-			pkgredis.ModeStandalone: {
-				ID:   pkgredis.ModeStandalone,
-				Addr: mr.Addr(),
-				TLS:  config.TLS{Enabled: true, CertCaFile: writeTestCA(GinkgoT().TempDir())},
-			},
-		}
+	Context("sentinel", func() {
+		var sentinelAddr string
 
-		err := checkRedisInstances(redisMap)
+		BeforeEach(func() {
+			sentinelAddr = startFakeSentinel(mr.Addr()).Addr().String()
+		})
 
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("redis(mode=standalone) connect fail"))
-		Expect(err.Error()).To(ContainSubstring("[addr=" + mr.Addr() + "]"))
-	})
+		It("passes for a reachable sentinel without TLS", func() {
+			redisMap := map[string]config.Redis{
+				pkgredis.ModeSentinel: {
+					ID:           pkgredis.ModeSentinel,
+					SentinelAddr: sentinelAddr,
+					MasterName:   testMasterName,
+				},
+			}
 
-	It("returns an error instead of exiting when the TLS files are invalid", func() {
-		redisMap := map[string]config.Redis{
-			pkgredis.ModeStandalone: {
-				ID:   pkgredis.ModeStandalone,
-				Addr: mr.Addr(),
-				TLS:  config.TLS{Enabled: true, CertCaFile: "/not/exists/ca.pem"},
-			},
-		}
+			Expect(checkRedisInstances(redisMap)).To(Succeed())
+		})
 
-		err := checkRedisInstances(redisMap)
+		It("negotiates TLS when TLS is enabled", func() {
+			// The same plaintext sentinel passes above, so the failure here can
+			// only come from the TLS handshake.
+			redisMap := map[string]config.Redis{
+				pkgredis.ModeSentinel: {
+					ID:           pkgredis.ModeSentinel,
+					SentinelAddr: sentinelAddr,
+					MasterName:   testMasterName,
+					TLS:          config.TLS{Enabled: true, CertCaFile: writeTestCA(GinkgoT().TempDir())},
+				},
+			}
 
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("redis tls config init"))
-	})
+			err := checkRedisInstances(redisMap)
 
-	It("reports the failing mode even when another mode is configured after it", func() {
-		redisMap := map[string]config.Redis{
-			pkgredis.ModeStandalone: {
-				ID:          pkgredis.ModeStandalone,
-				Addr:        "127.0.0.1:1",
-				DialTimeout: 1,
-			},
-			pkgredis.ModeSentinel: {
-				ID:           pkgredis.ModeSentinel,
-				SentinelAddr: mr.Addr(),
-				MasterName:   "mymaster",
-			},
-		}
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("redis(mode=sentinel) connect fail"))
+			Expect(err.Error()).To(ContainSubstring("[addr=" + sentinelAddr + "]"))
+		})
 
-		err := checkRedisInstances(redisMap)
+		It("still reports a failing standalone when the sentinel is healthy", func() {
+			redisMap := map[string]config.Redis{
+				pkgredis.ModeStandalone: {ID: pkgredis.ModeStandalone, Addr: "127.0.0.1:1"},
+				pkgredis.ModeSentinel: {
+					ID:           pkgredis.ModeSentinel,
+					SentinelAddr: sentinelAddr,
+					MasterName:   testMasterName,
+				},
+			}
 
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("redis(mode=standalone) connect fail"))
-		Expect(err.Error()).To(ContainSubstring("[addr=127.0.0.1:1]"))
+			err := checkRedisInstances(redisMap)
+
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("redis(mode=standalone) connect fail"))
+			Expect(err.Error()).To(ContainSubstring("[addr=127.0.0.1:1]"))
+		})
 	})
 })
