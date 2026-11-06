@@ -6,6 +6,7 @@ toolchain go1.27.3
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/TencentBlueKing/bk-kms-sdk/go v1.0.0
 	github.com/XSAM/otelsql v0.32.0
 	github.com/alicebob/miniredis v2.5.0+incompatible
 	github.com/dlmiddlecote/sqlstats v1.0.2
@@ -44,7 +45,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.32.0
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/sync v0.16.0
+	golang.org/x/sync v0.19.0
 	google.golang.org/grpc v1.67.1
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
@@ -62,6 +63,7 @@ require (
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
+	github.com/emmansun/gmsm v0.41.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.6 // indirect
@@ -118,13 +120,13 @@ require (
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.12.0 // indirect
-	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
-	golang.org/x/mod v0.27.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
-	golang.org/x/tools v0.36.0 // indirect
+	golang.org/x/mod v0.32.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/tools v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241104194629-dd2ea8efbc28 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241104194629-dd2ea8efbc28 // indirect
 	google.golang.org/protobuf v1.35.2 // indirect
