@@ -148,9 +148,10 @@ type Crypto struct {
 type KMSConfig struct {
 	Enabled bool
 	// PrivateKeyFile is the path of the base64-encoded PEM private key.
-	// Empty means defaultKMSPrivateKeyFile.
+	// Required when Enabled is true; there is no default path.
 	PrivateKeyFile string
-	// EnvelopeFile is the path of the envelope. Empty means defaultKMSEnvelopeFile.
+	// EnvelopeFile is the path of the envelope.
+	// Required when Enabled is true; there is no default path.
 	EnvelopeFile string
 }
 

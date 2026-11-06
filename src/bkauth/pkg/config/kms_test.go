@@ -266,14 +266,14 @@ var _ = Describe("KMS", Ordered, func() {
 			Expect(cfg.applyKMS()).To(MatchError(ContainSubstring("read KMS envelope")))
 		})
 
-		It("uses the default file paths when none are configured", func() {
+		It("fails when the file paths are not configured", func() {
 			cfg := newKMSTestConfig()
 			cfg.KMS.Enabled = true
 
-			Expect(cfg.applyKMS()).To(MatchError(ContainSubstring(defaultKMSPrivateKeyFile)))
+			Expect(cfg.applyKMS()).To(MatchError("KMS private key file is not configured"))
 
 			cfg.KMS.PrivateKeyFile = writeKMSFile("private-key", encodeKMSPrivateKey(key))
-			Expect(cfg.applyKMS()).To(MatchError(ContainSubstring(defaultKMSEnvelopeFile)))
+			Expect(cfg.applyKMS()).To(MatchError("KMS envelope file is not configured"))
 		})
 
 		It("tolerates surrounding whitespace in the private key file", func() {

@@ -20,8 +20,8 @@ monitoringToken: "YbqrbLCTcbZyCHS82JDqYvMpuDuM3t2Dq4iF"
 
 # kms:
 #   enabled: false
-#   privateKeyFile: "/etc/secrets/bkauth-kms-private-key"
-#   envelopeFile: "/etc/secrets/bkauth-kms"
+#   privateKeyFile: ""
+#   envelopeFile: ""
 
 crypto:
   # contains letters(a-z, A-Z), numbers(0-9), length should be 32 bit

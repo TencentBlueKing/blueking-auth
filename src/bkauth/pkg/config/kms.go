@@ -30,10 +30,6 @@ import (
 )
 
 const (
-	// Default mount paths used by the Helm chart. Each is one key of the KMS Secret.
-	defaultKMSPrivateKeyFile = "/etc/secrets/bkauth-kms-private-key"
-	defaultKMSEnvelopeFile   = "/etc/secrets/bkauth-kms"
-
 	// Must match redis.ModeSentinel; pkg/redis imports this package, so it cannot be referenced here.
 	redisSentinelID = "sentinel"
 )
@@ -92,11 +88,11 @@ func (cfg *Config) kmsBindings() []kmsBinding {
 // loadKMSCredentials decrypts the envelope into its JSON object. Errors name the failing
 // stage only and never carry credential material.
 func (cfg *Config) loadKMSCredentials() (map[string]any, error) {
-	privateKey, err := readKMSFile(cfg.KMS.PrivateKeyFile, defaultKMSPrivateKeyFile, "private key")
+	privateKey, err := readKMSFile(cfg.KMS.PrivateKeyFile, "private key")
 	if err != nil {
 		return nil, err
 	}
-	envelope, err := readKMSFile(cfg.KMS.EnvelopeFile, defaultKMSEnvelopeFile, "envelope")
+	envelope, err := readKMSFile(cfg.KMS.EnvelopeFile, "envelope")
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +110,12 @@ func (cfg *Config) loadKMSCredentials() (map[string]any, error) {
 	return credentials, nil
 }
 
-// readKMSFile reads path, or fallback when path is empty, and trims surrounding whitespace.
-// The error names the file but never includes its content.
-func readKMSFile(path, fallback, name string) (string, error) {
-	if strings.TrimSpace(path) == "" {
-		path = fallback
+// readKMSFile reads path and trims surrounding whitespace.
+// The path has no default: the config file must name it. The error names the file but never includes its content.
+func readKMSFile(path, name string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", fmt.Errorf("KMS %s file is not configured", name)
 	}
 
 	content, err := os.ReadFile(path)
