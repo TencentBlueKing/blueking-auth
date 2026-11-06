@@ -133,8 +133,8 @@ var _ = Describe("checkRedisInstances", func() {
 			err := checkRedisInstances(redisConfigs)
 
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("redis(mode=standalone) connect fail"))
-			Expect(err.Error()).To(ContainSubstring("[id=default addr=" + mr.Addr() + "]"))
+			Expect(err.Error()).To(ContainSubstring("redis connect fail"))
+			Expect(err.Error()).To(ContainSubstring("[id=default sentinelEnabled=false addr=" + mr.Addr() + "]"))
 		})
 
 		It("returns an error instead of exiting when the TLS files are invalid", func() {
@@ -183,8 +183,8 @@ var _ = Describe("checkRedisInstances", func() {
 			err := checkRedisInstances(redisConfigs)
 
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("redis(mode=sentinel) connect fail"))
-			Expect(err.Error()).To(ContainSubstring("[id=default addr=" + sentinelAddr + "]"))
+			Expect(err.Error()).To(ContainSubstring("redis connect fail"))
+			Expect(err.Error()).To(ContainSubstring("[id=default sentinelEnabled=true addr=" + sentinelAddr + "]"))
 		})
 
 		It("uses the sentinel even when addr is also set", func() {
@@ -214,8 +214,8 @@ var _ = Describe("checkRedisInstances", func() {
 			err := checkRedisInstances(redisConfigs)
 
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("redis(mode=standalone) connect fail"))
-			Expect(err.Error()).To(ContainSubstring("[id=cache addr=127.0.0.1:1]"))
+			Expect(err.Error()).To(ContainSubstring("redis connect fail"))
+			Expect(err.Error()).To(ContainSubstring("[id=cache sentinelEnabled=false addr=127.0.0.1:1]"))
 		})
 	})
 })

@@ -82,12 +82,13 @@ func checkRedis(redisConfig *config.Redis) error {
 // failure, so a broken instance cannot be masked by a healthy one.
 func checkRedisInstances(redisConfigs []config.Redis) error {
 	for _, redisConfig := range redisConfigs {
-		mode, addr := "standalone", redisConfig.Addr
-		if redisConfig.SentinelEnabled {
-			mode, addr = "sentinel", redisConfig.SentinelAddr
-		}
 		if err := checkRedis(&redisConfig); err != nil {
-			return fmt.Errorf("redis(mode=%s) connect fail: %w [id=%s addr=%s]", mode, err, redisConfig.ID, addr)
+			addr := redisConfig.Addr
+			if redisConfig.SentinelEnabled {
+				addr = redisConfig.SentinelAddr
+			}
+			return fmt.Errorf("redis connect fail: %w [id=%s sentinelEnabled=%t addr=%s]",
+				err, redisConfig.ID, redisConfig.SentinelEnabled, addr)
 		}
 	}
 	return nil

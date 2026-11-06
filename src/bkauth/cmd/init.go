@@ -102,14 +102,10 @@ func initRedis() {
 		panic("redis id=default should be configured")
 	}
 
-	mode := "standalone"
-	if redisConfig.SentinelEnabled {
-		if redisConfig.MasterName == "" {
-			panic("redis sentinelEnabled=true, the `masterName` required")
-		}
-		mode = "sentinel"
+	if redisConfig.SentinelEnabled && redisConfig.MasterName == "" {
+		panic("redis sentinelEnabled=true, the `masterName` required")
 	}
-	zap.S().Infof("init Redis id=%s mode=%s", redisConfig.ID, mode)
+	zap.S().Infof("init Redis id=%s sentinelEnabled=%t", redisConfig.ID, redisConfig.SentinelEnabled)
 	redis.InitRedisClient(globalConfig.Debug, &redisConfig)
 
 	zap.S().Info("init Redis success")
