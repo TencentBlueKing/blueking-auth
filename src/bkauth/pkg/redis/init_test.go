@@ -35,7 +35,7 @@ func TestGetDefaultRedisClient(t *testing.T) {
 func TestInitRedisClient(t *testing.T) {
 	// wrong config
 	redisConfig := &config.Redis{
-		ID:       ModeStandalone,
+		ID:       "default",
 		Addr:     "1.1.1.1",
 		PoolSize: 3,
 	}

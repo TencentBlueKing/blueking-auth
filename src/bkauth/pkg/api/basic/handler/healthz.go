@@ -45,19 +45,7 @@ func checkRedis(redisConfig *config.Redis) error {
 	}
 
 	var rds *redis.Client
-	switch redisConfig.ID {
-	case pkgredis.ModeStandalone:
-		opt := &redis.Options{
-			Addr:      redisConfig.Addr,
-			Password:  redisConfig.Password,
-			DB:        redisConfig.DB,
-			TLSConfig: tlsConfig,
-			// just for live test
-			PoolSize: 1,
-		}
-
-		rds = redis.NewClient(opt)
-	case pkgredis.ModeSentinel:
+	if redisConfig.SentinelEnabled {
 		sentinelAddrs := strings.Split(redisConfig.SentinelAddr, ",")
 		opt := &redis.FailoverOptions{
 			MasterName:    redisConfig.MasterName,
@@ -73,8 +61,17 @@ func checkRedis(redisConfig *config.Redis) error {
 		}
 
 		rds = redis.NewFailoverClient(opt)
-	default:
-		return errors.New("invalid redis ID, should be `standalone` or `sentinel`")
+	} else {
+		opt := &redis.Options{
+			Addr:      redisConfig.Addr,
+			Password:  redisConfig.Password,
+			DB:        redisConfig.DB,
+			TLSConfig: tlsConfig,
+			// just for live test
+			PoolSize: 1,
+		}
+
+		rds = redis.NewClient(opt)
 	}
 
 	defer rds.Close()
@@ -82,22 +79,20 @@ func checkRedis(redisConfig *config.Redis) error {
 	return err
 }
 
-// checkRedisInstances checks every configured redis mode and reports the first failure,
-// so a broken instance cannot be masked by a later healthy one.
-func checkRedisInstances(redisMap map[string]config.Redis) error {
-	for _, mode := range []string{pkgredis.ModeStandalone, pkgredis.ModeSentinel} {
-		redisConfig, ok := redisMap[mode]
-		if !ok {
-			continue
-		}
+// checkDefaultRedis checks the redis the service connects to. Other entries are not used,
+// so they cannot fail the health check.
+func checkDefaultRedis(redisMap map[string]config.Redis) error {
+	redisConfig, ok := redisMap[pkgredis.DefaultID]
+	if !ok {
+		return errors.New("redis id=" + pkgredis.DefaultID + " is not configured")
+	}
 
-		if err := checkRedis(&redisConfig); err != nil {
-			addr := redisConfig.Addr
-			if mode == pkgredis.ModeSentinel {
-				addr = redisConfig.SentinelAddr
-			}
-			return fmt.Errorf("redis(mode=%s) connect fail: %w [addr=%s]", mode, err, addr)
-		}
+	mode, addr := "standalone", redisConfig.Addr
+	if redisConfig.SentinelEnabled {
+		mode, addr = "sentinel", redisConfig.SentinelAddr
+	}
+	if err := checkRedis(&redisConfig); err != nil {
+		return fmt.Errorf("redis(mode=%s) connect fail: %w [addr=%s]", mode, err, addr)
 	}
 	return nil
 }
@@ -135,7 +130,7 @@ func NewHealthzHandleFunc(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		// 2. check redis
-		if err := checkRedisInstances(cfg.RedisMap); err != nil {
+		if err := checkDefaultRedis(cfg.RedisMap); err != nil {
 			c.String(http.StatusInternalServerError, err.Error())
 			return
 		}

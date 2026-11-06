@@ -97,7 +97,7 @@ func newKMSTestConfig() *Config {
 		AppSecret: "file-app-secret",
 		Crypto:    Crypto{Key: "file-crypto-key", Nonce: "fileNonce123"},
 		Databases: []Database{{ID: "bkauth", Host: "db.example.com", User: "file-user", Password: "file-password"}},
-		Redis:     []Redis{{ID: "standalone", Addr: "redis.example.com:6379", Password: "file-redis-password"}},
+		Redis:     []Redis{{ID: "default", Addr: "redis.example.com:6379", Password: "file-redis-password"}},
 	}
 }
 
@@ -178,7 +178,12 @@ var _ = Describe("KMS", Ordered, func() {
 		It("binds the sentinel password for a sentinel redis", func() {
 			cfg := newKMSTestConfig()
 			enableKMS(cfg, sealKMSCredentials(&key.PublicKey, newKMSTestCredentials()))
-			cfg.Redis = []Redis{{ID: "sentinel", SentinelAddr: "sentinel.example.com:26379", MasterName: "mymaster"}}
+			cfg.Redis = []Redis{{
+				ID:              "default",
+				SentinelEnabled: true,
+				SentinelAddr:    "sentinel.example.com:26379",
+				MasterName:      "mymaster",
+			}}
 
 			Expect(cfg.applyKMS()).To(Succeed())
 
@@ -190,7 +195,7 @@ var _ = Describe("KMS", Ordered, func() {
 			credentials := newKMSTestCredentials()
 			delete(nestedKMSObject(credentials, "redis", "default"), "sentinel_password")
 			cfg := newKMSTestConfig()
-			cfg.Redis = []Redis{{ID: "sentinel", SentinelPassword: "file-sentinel-password"}}
+			cfg.Redis = []Redis{{ID: "default", SentinelEnabled: true, SentinelPassword: "file-sentinel-password"}}
 			enableKMS(cfg, sealKMSCredentials(&key.PublicKey, credentials))
 
 			err := cfg.applyKMS()
@@ -331,7 +336,12 @@ crypto: {key: "file-crypto-key", nonce: "fileNonce123"}
 databases:
   - {id: "bkauth", host: "db.example.com", user: "file-user", password: "file-password"}
 redis:
-  - {id: "standalone", addr: "redis.example.com:6379", password: "file-redis-password"}
+  - id: "default"
+    sentinelEnabled: true
+    password: "file-redis-password"
+    sentinelAddr: "sentinel.example.com:26379"
+    masterName: "mymaster"
+    sentinelPassword: "file-sentinel-password"
 `, privateKeyFile, envelopeFile)))).To(Succeed())
 
 			cfg, err := Load(v)
@@ -339,7 +349,9 @@ redis:
 			Expect(err).NotTo(HaveOccurred())
 			Expect(cfg.DatabaseMap["bkauth"].User).To(Equal("kms-user"))
 			Expect(cfg.DatabaseMap["bkauth"].Password).To(Equal(" kms $db password "))
-			Expect(cfg.RedisMap["standalone"].Password).To(Equal("kms-redis-password"))
+			Expect(cfg.RedisMap["default"].SentinelEnabled).To(BeTrue())
+			Expect(cfg.RedisMap["default"].Password).To(Equal("kms-redis-password"))
+			Expect(cfg.RedisMap["default"].SentinelPassword).To(Equal("kms-sentinel-password"))
 			Expect(cfg.AppSecret).To(Equal("kms-app-secret"))
 		})
 	})

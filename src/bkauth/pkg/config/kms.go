@@ -29,11 +29,6 @@ import (
 	"github.com/TencentBlueKing/bk-kms-sdk/go/decrypt"
 )
 
-const (
-	// Must match redis.ModeSentinel; pkg/redis imports this package, so it cannot be referenced here.
-	redisSentinelID = "sentinel"
-)
-
 // kmsBinding copies the string found at path in the decrypted credentials into target.
 type kmsBinding struct {
 	target *string
@@ -74,7 +69,7 @@ func (cfg *Config) kmsBindings() []kmsBinding {
 	for i := range cfg.Redis {
 		rds := &cfg.Redis[i]
 		bindings = append(bindings, kmsBinding{target: &rds.Password, path: []string{"redis", "default", "password"}})
-		if rds.ID == redisSentinelID {
+		if rds.SentinelEnabled {
 			bindings = append(bindings, kmsBinding{
 				target: &rds.SentinelPassword,
 				path:   []string{"redis", "default", "sentinel_password"},

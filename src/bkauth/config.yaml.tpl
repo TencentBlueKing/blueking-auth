@@ -100,7 +100,8 @@ databases:
     connMaxLifetimeSecond: 600
 
 redis:
-  - id: "standalone"
+  - id: "default"
+    sentinelEnabled: false
     addr: "localhost:6379"
     password: ""
     db: 0
