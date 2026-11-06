@@ -21,7 +21,6 @@ package config
 import (
 	"bytes"
 	"crypto/aes"
-	"fmt"
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
@@ -31,6 +30,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,9 +84,10 @@ func sealKMSCredentials(pub *rsa.PublicKey, credentials map[string]any) string {
 	return sealKMSEnvelope(pub, string(plaintext))
 }
 
-// writeKMSEnvelope stores content in a temporary file and returns its path.
-func writeKMSEnvelope(content string) string {
-	path := filepath.Join(GinkgoT().TempDir(), "bkauth-kms")
+// writeKMSFile stores content in a temporary file and returns its path.
+// name keeps two files written in the same spec from overwriting each other.
+func writeKMSFile(name, content string) string {
+	path := filepath.Join(GinkgoT().TempDir(), name)
 	Expect(os.WriteFile(path, []byte(content), 0o600)).To(Succeed())
 	return path
 }
@@ -140,9 +141,9 @@ var _ = Describe("KMS", Ordered, func() {
 	// enableKMS turns KMS on for cfg, taking the private key and envelope path from the config itself.
 	enableKMS := func(cfg *Config, envelope string) {
 		cfg.KMS = KMSConfig{
-			Enabled:      true,
-			PrivateKey:   encodeKMSPrivateKey(key),
-			EnvelopeFile: writeKMSEnvelope(envelope),
+			Enabled:        true,
+			PrivateKeyFile: writeKMSFile("private-key", encodeKMSPrivateKey(key)),
+			EnvelopeFile:   writeKMSFile("envelope", envelope),
 		}
 	}
 
@@ -238,30 +239,49 @@ var _ = Describe("KMS", Ordered, func() {
 				"redis.default.password"),
 		)
 
-		It("fails when the private key is empty", func() {
+		It("fails when the private key file is empty", func() {
 			cfg := newKMSTestConfig()
 			enableKMS(cfg, sealKMSCredentials(&key.PublicKey, newKMSTestCredentials()))
-			cfg.KMS.PrivateKey = " "
+			cfg.KMS.PrivateKeyFile = writeKMSFile("empty-private-key", " \n")
 
-			Expect(cfg.applyKMS()).To(MatchError(ContainSubstring("kms.privateKey is empty")))
+			Expect(cfg.applyKMS()).To(MatchError(ContainSubstring("KMS private key " + cfg.KMS.PrivateKeyFile + " is empty")))
+		})
+
+		It("fails when the private key file is missing", func() {
+			cfg := newKMSTestConfig()
+			enableKMS(cfg, sealKMSCredentials(&key.PublicKey, newKMSTestCredentials()))
+			cfg.KMS.PrivateKeyFile = filepath.Join(GinkgoT().TempDir(), "missing")
+
+			Expect(cfg.applyKMS()).To(MatchError(ContainSubstring("read KMS private key")))
 		})
 
 		It("fails when the envelope file is missing", func() {
 			cfg := newKMSTestConfig()
 			cfg.KMS = KMSConfig{
-				Enabled:      true,
-				PrivateKey:   encodeKMSPrivateKey(key),
-				EnvelopeFile: filepath.Join(GinkgoT().TempDir(), "missing"),
+				Enabled:        true,
+				PrivateKeyFile: writeKMSFile("private-key", encodeKMSPrivateKey(key)),
+				EnvelopeFile:   filepath.Join(GinkgoT().TempDir(), "missing"),
 			}
 
 			Expect(cfg.applyKMS()).To(MatchError(ContainSubstring("read KMS envelope")))
 		})
 
-		It("uses the default envelope path when none is configured", func() {
+		It("uses the default file paths when none are configured", func() {
 			cfg := newKMSTestConfig()
-			cfg.KMS = KMSConfig{Enabled: true, PrivateKey: encodeKMSPrivateKey(key)}
+			cfg.KMS.Enabled = true
 
+			Expect(cfg.applyKMS()).To(MatchError(ContainSubstring(defaultKMSPrivateKeyFile)))
+
+			cfg.KMS.PrivateKeyFile = writeKMSFile("private-key", encodeKMSPrivateKey(key))
 			Expect(cfg.applyKMS()).To(MatchError(ContainSubstring(defaultKMSEnvelopeFile)))
+		})
+
+		It("tolerates surrounding whitespace in the private key file", func() {
+			cfg := newKMSTestConfig()
+			enableKMS(cfg, sealKMSCredentials(&key.PublicKey, newKMSTestCredentials()))
+			cfg.KMS.PrivateKeyFile = writeKMSFile("padded-private-key", "\n"+encodeKMSPrivateKey(key)+"\n")
+
+			Expect(cfg.applyKMS()).To(Succeed())
 		})
 
 		It("fails to decrypt with a different private key", func() {
@@ -297,13 +317,14 @@ var _ = Describe("KMS", Ordered, func() {
 
 	Describe("Load", func() {
 		It("applies KMS before building DatabaseMap and RedisMap", func() {
-			envelopeFile := writeKMSEnvelope(sealKMSCredentials(&key.PublicKey, newKMSTestCredentials()))
+			privateKeyFile := writeKMSFile("private-key", encodeKMSPrivateKey(key))
+			envelopeFile := writeKMSFile("envelope", sealKMSCredentials(&key.PublicKey, newKMSTestCredentials()))
 			v := viper.New()
 			v.SetConfigType("yaml")
 			Expect(v.ReadConfig(strings.NewReader(fmt.Sprintf(`
 kms:
   enabled: true
-  privateKey: %q
+  privateKeyFile: %q
   envelopeFile: %q
 appSecret: "file-app-secret"
 crypto: {key: "file-crypto-key", nonce: "fileNonce123"}
@@ -311,7 +332,7 @@ databases:
   - {id: "bkauth", host: "db.example.com", user: "file-user", password: "file-password"}
 redis:
   - {id: "standalone", addr: "redis.example.com:6379", password: "file-redis-password"}
-`, encodeKMSPrivateKey(key), envelopeFile)))).To(Succeed())
+`, privateKeyFile, envelopeFile)))).To(Succeed())
 
 			cfg, err := Load(v)
 

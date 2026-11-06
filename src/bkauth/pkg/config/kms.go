@@ -30,8 +30,9 @@ import (
 )
 
 const (
-	// defaultKMSEnvelopeFile is where the Helm chart mounts the envelope.
-	defaultKMSEnvelopeFile = "/etc/secrets/bkauth-kms"
+	// Default mount paths used by the Helm chart. Each is one key of the KMS Secret.
+	defaultKMSPrivateKeyFile = "/etc/secrets/bkauth-kms-private-key"
+	defaultKMSEnvelopeFile   = "/etc/secrets/bkauth-kms"
 
 	// Must match redis.ModeSentinel; pkg/redis imports this package, so it cannot be referenced here.
 	redisSentinelID = "sentinel"
@@ -91,23 +92,18 @@ func (cfg *Config) kmsBindings() []kmsBinding {
 // loadKMSCredentials decrypts the envelope into its JSON object. Errors name the failing
 // stage only and never carry credential material.
 func (cfg *Config) loadKMSCredentials() (map[string]any, error) {
-	privateKey := strings.TrimSpace(cfg.KMS.PrivateKey)
-	if privateKey == "" {
-		return nil, errors.New("KMS is enabled but kms.privateKey is empty")
+	privateKey, err := readKMSFile(cfg.KMS.PrivateKeyFile, defaultKMSPrivateKeyFile, "private key")
+	if err != nil {
+		return nil, err
+	}
+	envelope, err := readKMSFile(cfg.KMS.EnvelopeFile, defaultKMSEnvelopeFile, "envelope")
+	if err != nil {
+		return nil, err
 	}
 
-	envelopeFile := cfg.KMS.EnvelopeFile
-	if strings.TrimSpace(envelopeFile) == "" {
-		envelopeFile = defaultKMSEnvelopeFile
-	}
-	envelope, err := os.ReadFile(envelopeFile)
+	plaintext, err := decrypt.Decrypt(envelope, privateKey)
 	if err != nil {
-		return nil, fmt.Errorf("read KMS envelope %s: %w", envelopeFile, err)
-	}
-
-	plaintext, err := decrypt.Decrypt(strings.TrimSpace(string(envelope)), privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("decrypt KMS envelope %s: %w", envelopeFile, err)
+		return nil, fmt.Errorf("decrypt KMS envelope: %w", err)
 	}
 
 	// The JSON error is dropped on purpose: its message quotes bytes of the plaintext.
@@ -116,6 +112,24 @@ func (cfg *Config) loadKMSCredentials() (map[string]any, error) {
 		return nil, errors.New("KMS envelope plaintext must be a JSON object")
 	}
 	return credentials, nil
+}
+
+// readKMSFile reads path, or fallback when path is empty, and trims surrounding whitespace.
+// The error names the file but never includes its content.
+func readKMSFile(path, fallback, name string) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		path = fallback
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read KMS %s %s: %w", name, path, err)
+	}
+	text := strings.TrimSpace(string(content))
+	if text == "" {
+		return "", fmt.Errorf("KMS %s %s is empty", name, path)
+	}
+	return text, nil
 }
 
 func bindKMSCredentials(credentials map[string]any, bindings []kmsBinding) error {

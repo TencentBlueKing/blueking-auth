@@ -144,11 +144,13 @@ type Crypto struct {
 }
 
 // KMSConfig controls loading credentials from a KMS envelope instead of the config file.
+// Both files are mounted from a Secret; the config only carries their paths.
 type KMSConfig struct {
 	Enabled bool
-	// PrivateKey is the base64-encoded PEM private key, not a file path.
-	PrivateKey string
-	// EnvelopeFile is the path of the mounted envelope. Empty means defaultKMSEnvelopeFile.
+	// PrivateKeyFile is the path of the base64-encoded PEM private key.
+	// Empty means defaultKMSPrivateKeyFile.
+	PrivateKeyFile string
+	// EnvelopeFile is the path of the envelope. Empty means defaultKMSEnvelopeFile.
 	EnvelopeFile string
 }
 
