@@ -114,7 +114,7 @@ func isBlank(value reflect.Value) bool {
 		return value.Uint() == 0
 	case reflect.Float32, reflect.Float64:
 		return value.Float() == 0
-	case reflect.Interface, reflect.Ptr:
+	case reflect.Interface, reflect.Pointer:
 		return value.IsNil()
 	}
 
@@ -151,7 +151,7 @@ func ParseUpdateStruct(values interface{}, allowBlankFields AllowBlankFields) (s
 	// TODO: allowBlankFields maybe nil?
 
 	v := reflect.ValueOf(values)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() == reflect.Struct {

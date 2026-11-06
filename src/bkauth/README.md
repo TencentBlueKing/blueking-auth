@@ -19,7 +19,7 @@ note:
 
 ## develop
 
-- `go 1.23` required
+- `go 1.27` required
 
 build and run
 
