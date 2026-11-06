@@ -68,11 +68,11 @@ func (cfg *Config) kmsBindings() []kmsBinding {
 
 	for i := range cfg.Redis {
 		rds := &cfg.Redis[i]
-		bindings = append(bindings, kmsBinding{target: &rds.Password, path: []string{"redis", "default", "password"}})
+		bindings = append(bindings, kmsBinding{target: &rds.Password, path: []string{"redis", rds.ID, "password"}})
 		if rds.SentinelEnabled {
 			bindings = append(bindings, kmsBinding{
 				target: &rds.SentinelPassword,
-				path:   []string{"redis", "default", "sentinel_password"},
+				path:   []string{"redis", rds.ID, "sentinel_password"},
 			})
 		}
 	}

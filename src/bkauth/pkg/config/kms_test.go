@@ -203,6 +203,32 @@ var _ = Describe("KMS", Ordered, func() {
 			Expect(err).To(MatchError(ContainSubstring("redis.default.sentinel_password")))
 		})
 
+		It("reads each redis credential from the section named by its id", func() {
+			credentials := newKMSTestCredentials()
+			nestedKMSObject(credentials, "redis")["cache"] = map[string]any{
+				"password":          "kms-cache-password",
+				"sentinel_password": "kms-cache-sentinel-password",
+			}
+			cfg := newKMSTestConfig()
+			cfg.Redis = append(cfg.Redis, Redis{ID: "cache", SentinelEnabled: true})
+			enableKMS(cfg, sealKMSCredentials(&key.PublicKey, credentials))
+
+			Expect(cfg.applyKMS()).To(Succeed())
+
+			Expect(cfg.Redis[0].Password).To(Equal("kms-redis-password"))
+			Expect(cfg.Redis[0].SentinelPassword).To(BeEmpty())
+			Expect(cfg.Redis[1].Password).To(Equal("kms-cache-password"))
+			Expect(cfg.Redis[1].SentinelPassword).To(Equal("kms-cache-sentinel-password"))
+		})
+
+		It("requires the section of every configured redis id", func() {
+			cfg := newKMSTestConfig()
+			cfg.Redis = append(cfg.Redis, Redis{ID: "cache"})
+			enableKMS(cfg, sealKMSCredentials(&key.PublicKey, newKMSTestCredentials()))
+
+			Expect(cfg.applyKMS()).To(MatchError("KMS envelope requires a non-empty string at redis.cache.password"))
+		})
+
 		It("does not modify the environment", func() {
 			cfg := newKMSTestConfig()
 			enableKMS(cfg, sealKMSCredentials(&key.PublicKey, newKMSTestCredentials()))

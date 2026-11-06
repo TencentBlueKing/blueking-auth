@@ -20,7 +20,6 @@ package handler
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -79,20 +78,17 @@ func checkRedis(redisConfig *config.Redis) error {
 	return err
 }
 
-// checkDefaultRedis checks the redis the service connects to. Other entries are not used,
-// so they cannot fail the health check.
-func checkDefaultRedis(redisMap map[string]config.Redis) error {
-	redisConfig, ok := redisMap[pkgredis.DefaultID]
-	if !ok {
-		return errors.New("redis id=" + pkgredis.DefaultID + " is not configured")
-	}
-
-	mode, addr := "standalone", redisConfig.Addr
-	if redisConfig.SentinelEnabled {
-		mode, addr = "sentinel", redisConfig.SentinelAddr
-	}
-	if err := checkRedis(&redisConfig); err != nil {
-		return fmt.Errorf("redis(mode=%s) connect fail: %w [addr=%s]", mode, err, addr)
+// checkRedisInstances checks every configured redis in config order and reports the first
+// failure, so a broken instance cannot be masked by a healthy one.
+func checkRedisInstances(redisConfigs []config.Redis) error {
+	for _, redisConfig := range redisConfigs {
+		mode, addr := "standalone", redisConfig.Addr
+		if redisConfig.SentinelEnabled {
+			mode, addr = "sentinel", redisConfig.SentinelAddr
+		}
+		if err := checkRedis(&redisConfig); err != nil {
+			return fmt.Errorf("redis(mode=%s) connect fail: %w [id=%s addr=%s]", mode, err, redisConfig.ID, addr)
+		}
 	}
 	return nil
 }
@@ -130,7 +126,7 @@ func NewHealthzHandleFunc(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		// 2. check redis
-		if err := checkDefaultRedis(cfg.RedisMap); err != nil {
+		if err := checkRedisInstances(cfg.Redis); err != nil {
 			c.String(http.StatusInternalServerError, err.Error())
 			return
 		}

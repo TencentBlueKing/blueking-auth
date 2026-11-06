@@ -97,9 +97,9 @@ func initDatabase() {
 }
 
 func initRedis() {
-	redisConfig, ok := globalConfig.RedisMap[redis.DefaultID]
+	redisConfig, ok := globalConfig.RedisMap["default"]
 	if !ok {
-		panic("redis id=" + redis.DefaultID + " should be configured")
+		panic("redis id=default should be configured")
 	}
 
 	mode := "standalone"

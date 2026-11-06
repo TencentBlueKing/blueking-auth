@@ -29,9 +29,6 @@ import (
 	"bkauth/pkg/config"
 )
 
-// DefaultID is the id of the redis entry the service connects to.
-const DefaultID = "default"
-
 var rds *redis.Client
 
 var redisClientInitOnce sync.Once

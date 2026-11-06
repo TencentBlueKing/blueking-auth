@@ -111,19 +111,19 @@ type Database struct {
 // Redis ...
 type Redis struct {
 	// ID names the instance. The service uses the entry with id "default".
-	ID              string
-	SentinelEnabled bool
-	Addr            string
-	Password        string
-	DB              int
-	DialTimeout     int
-	ReadTimeout     int
-	WriteTimeout    int
-	PoolSize        int
-	MinIdleConns    int
-	ChannelKey      string
+	ID           string
+	Addr         string
+	Password     string
+	DB           int
+	DialTimeout  int
+	ReadTimeout  int
+	WriteTimeout int
+	PoolSize     int
+	MinIdleConns int
+	ChannelKey   string
 
-	// Used when SentinelEnabled is true. MasterName is required in that mode.
+	// The fields below are used when SentinelEnabled is true. MasterName is required in that mode.
+	SentinelEnabled  bool
 	SentinelAddr     string
 	MasterName       string
 	SentinelPassword string
