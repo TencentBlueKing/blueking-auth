@@ -143,6 +143,15 @@ type Crypto struct {
 	Key   string
 }
 
+// KMSConfig controls loading credentials from a KMS envelope instead of the config file.
+type KMSConfig struct {
+	Enabled bool
+	// PrivateKey is the base64-encoded PEM private key, not a file path.
+	PrivateKey string
+	// EnvelopeFile is the path of the mounted envelope. Empty means defaultKMSEnvelopeFile.
+	EnvelopeFile string
+}
+
 type APIAllowList struct {
 	API       string
 	AllowList string
@@ -320,6 +329,7 @@ type Config struct {
 	RedisMap map[string]Redis
 
 	Crypto Crypto
+	KMS    KMSConfig
 
 	AccessKeys map[string]string
 
@@ -355,6 +365,11 @@ func Load(v *viper.Viper) (*Config, error) {
 	var cfg Config
 	// 将配置信息绑定到结构体上
 	if err := v.Unmarshal(&cfg); err != nil {
+		return nil, err
+	}
+
+	// Must run before the lists below are copied into maps, or the maps keep the file values.
+	if err := cfg.applyKMS(); err != nil {
 		return nil, err
 	}
 

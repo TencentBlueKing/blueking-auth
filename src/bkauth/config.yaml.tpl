@@ -18,6 +18,11 @@ sentry:
 pprofPassword: "DebugModel@bk"
 monitoringToken: "YbqrbLCTcbZyCHS82JDqYvMpuDuM3t2Dq4iF"
 
+# kms:
+#   enabled: false
+#   privateKey: ""
+#   envelopeFile: "/etc/secrets/bkauth-kms"
+
 crypto:
   # contains letters(a-z, A-Z), numbers(0-9), length should be 32 bit
   key: "tR9TnGQM8WnF1qwjjGSVE0ScXrz1hKWM"
