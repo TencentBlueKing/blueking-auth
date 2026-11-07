@@ -91,7 +91,7 @@ func TestRegisterRequiresMonitoringTokenEvenInDebug(t *testing.T) {
 	Register(&config.Config{Debug: true, MonitoringToken: "monitoring-secret"}, r)
 
 	// /healthz is not served with a token here: it would reach the database.
-	for _, path := range []string{"/version", "/healthz", "/metrics"} {
+	for _, path := range []string{"/version", "/healthz", "/metrics", "/version?token=monitoring-secreT"} {
 		assert.Equal(t, http.StatusUnauthorized, serve(r, httptest.NewRequest(http.MethodGet, path, nil)), path)
 	}
 	for _, path := range []string{"/version?token=monitoring-secret", "/metrics?token=monitoring-secret"} {

@@ -195,6 +195,15 @@ func (s *accessKeyService) DeleteByID(ctx context.Context, appCode string, id in
 		return errorWrapf(err, "manager.Count appCode=`%s` fail", appCode)
 	}
 	if count <= MinSecretsPreApp {
+		// Checked only on this path to spare the usual delete a query: a key the app does not
+		// have is not found, rather than refused as its last secret.
+		exists, err := s.manager.ExistsByAppCodeAndID(ctx, appCode, id)
+		if err != nil {
+			return errorWrapf(err, "manager.ExistsByAppCodeAndID appCode=`%s` id=`%d` fail", appCode, id)
+		}
+		if !exists {
+			return ErrAccessKeyNotFound
+		}
 		return util.ValidationErrorWrap(
 			fmt.Errorf("app(%s) have %d secret at least, [current %d]", appCode, MinSecretsPreApp, count))
 	}

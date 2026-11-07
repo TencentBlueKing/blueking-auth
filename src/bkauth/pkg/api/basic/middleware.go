@@ -19,6 +19,7 @@
 package basic
 
 import (
+	"crypto/subtle"
 	"net/http"
 	"strings"
 
@@ -30,7 +31,10 @@ import (
 func MonitoringAuth(authToken string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := extractToken(c)
-		if token == "" || token != authToken {
+		// Constant-time, since this token is the only guard of the monitoring routes: `!=`
+		// returns at the first differing byte, so response times would hint how much of a
+		// guess is right.
+		if token == "" || subtle.ConstantTimeCompare([]byte(token), []byte(authToken)) != 1 {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
 			return
 		}
