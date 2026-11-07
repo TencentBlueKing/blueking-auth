@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -22,6 +22,9 @@ import (
 	"bkauth/pkg/config"
 	"bkauth/pkg/util"
 )
+
+// deployInitSource is the created_source of the apps and secrets created at deploy time.
+const deployInitSource = "deploy_init"
 
 // initTenant returns the tenant of the apps created at deploy time. They back BlueKing's
 // base services, so they belong to every tenant in multi-tenant mode.

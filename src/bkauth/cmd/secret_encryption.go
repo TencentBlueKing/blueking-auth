@@ -26,8 +26,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
 
 	"bkauth/pkg/cli"
 	"bkauth/pkg/logging"
@@ -97,22 +95,8 @@ func init() {
 func secretEncryptionStart() {
 	fmt.Println("secret_encryption start!")
 
-	if cfgFile != "" {
-		zap.S().Infof("Load config file: %s", cfgFile)
-		viper.SetConfigFile(cfgFile)
-	}
-	initConfig()
-
-	if globalConfig.Debug {
-		fmt.Println(globalConfig)
-	}
-
-	// No initRedis / initCaches: this command only reads and rewrites rows, and
-	// deliberately leaves cached ciphertexts to expire on their own. Keeping Redis out
-	// means the migration can still run while Redis is down.
-	initLogger()
-	initDatabase()
-	initCryptos()
+	// Cached ciphertexts are deliberately left to expire on their own.
+	initDataCommand()
 }
 
 func secretEncryptionFinish() {

@@ -45,7 +45,9 @@ var createAccessKeyCmd = &cobra.Command{
 	Use:   "create",
 	Short: "add a secret to an app, creating the app if it does not exist",
 	Long: "example: bkauth access-key create -c config.yaml --app-code bk_paas --app-secret <secret>\n" +
-		"Safe to re-run with the same secret. An app holds at most 2 secrets: delete one before adding another.",
+		"Safe to re-run with the same secret. An app holds at most 2 secrets: delete one before adding another.\n" +
+		"Existing secrets that cannot be decrypted, e.g. under a wrong crypto key, never match, " +
+		"so the same secret is added again.",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {

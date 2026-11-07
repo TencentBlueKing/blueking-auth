@@ -85,7 +85,7 @@ func ensureReservedApp(appCode, description, tenantMode, tenantID string) error 
 		TenantMode:  tenantMode,
 		TenantID:    tenantID,
 	}
-	if err := appSvc.Create(ctx, app, "deploy_init"); err != nil {
+	if err := appSvc.Create(ctx, app, deployInitSource); err != nil {
 		return fmt.Errorf("create reserved app %s: %w", appCode, err)
 	}
 	zap.S().Infof("created reserved app: %s", appCode)

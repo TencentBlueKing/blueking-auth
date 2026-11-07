@@ -36,13 +36,13 @@ const (
 	AccessKeyAppCreated  AccessKeyResult = "app_created"
 	AccessKeySecretAdded AccessKeyResult = "secret_added"
 	AccessKeyUnchanged   AccessKeyResult = "unchanged"
-
-	accessKeyCreatedSource = "deploy_init"
 )
 
 // CreateAccessKey makes appSecret a secret of appCode, creating the app if it does not
 // exist. Safe to re-run: a secret the app already has is left alone. Adding a secret
 // fails once the app holds service.MaxSecretsPreApp of them.
+// Verify skips rows it cannot decrypt, so under a wrong crypto key an existing secret
+// does not match and is added again.
 func CreateAccessKey(cfg *config.Config, appCode, appSecret string) (AccessKeyResult, error) {
 	if appCode == "" || appSecret == "" {
 		return "", errors.New("app code and app secret must not be empty")
@@ -63,7 +63,7 @@ func CreateAccessKey(cfg *config.Config, appCode, appSecret string) (AccessKeyRe
 			TenantMode:  tenantMode,
 			TenantID:    tenantID,
 		}
-		if err := appSvc.CreateWithSecret(ctx, app, appSecret, accessKeyCreatedSource); err != nil {
+		if err := appSvc.CreateWithSecret(ctx, app, appSecret, deployInitSource); err != nil {
 			return "", fmt.Errorf("create app %s: %w", appCode, err)
 		}
 		return AccessKeyAppCreated, nil
@@ -78,7 +78,7 @@ func CreateAccessKey(cfg *config.Config, appCode, appSecret string) (AccessKeyRe
 		return AccessKeyUnchanged, nil
 	}
 
-	err = svc.CreateWithSecret(ctx, appCode, appSecret, accessKeyCreatedSource, "initialized during shell deployment")
+	err = svc.CreateWithSecret(ctx, appCode, appSecret, deployInitSource, "initialized during shell deployment")
 	if err != nil {
 		return "", fmt.Errorf("add secret to app %s: %w", appCode, err)
 	}
