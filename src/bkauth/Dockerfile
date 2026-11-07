@@ -20,6 +20,5 @@ ARG BINARY=bkauth
 RUN mkdir -p /app/logs
 COPY --from=builder /app/${BINARY} /app/${BINARY}
 COPY --from=builder /app/sql_migrations /app/sql
-COPY --from=builder /app/build/sql-migrate /app/sql-migrate
 
 CMD ["/app/bkauth", "--config=/app/config.yaml"]
