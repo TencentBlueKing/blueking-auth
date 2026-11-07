@@ -16,7 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-// Backing the `secret_encryption` command, this service retires secrets sealed under
+// Backing the `secret-encryption` command, this service retires secrets sealed under
 // the deprecated fixed nonce. It is deliberately kept out of AccessKeyService so the
 // whole migration can be dropped by deleting this file, its test,
 // pkg/cli/secret_encryption.go and cmd/secret_encryption.go.

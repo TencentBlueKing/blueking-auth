@@ -20,41 +20,54 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/go-redis/redis/extra/redisotel/v8"
 	redis "github.com/go-redis/redis/v8"
-	"go.uber.org/zap"
 
 	"bkauth/pkg/config"
 )
 
-var rds *redis.Client
+var (
+	rds *redis.Client
 
-var redisClientInitOnce sync.Once
+	redisClientInitOnce sync.Once
+	// redisClientInitErr is the result of the only initialisation, returned by every call.
+	redisClientInitErr error
+)
 
-// InitRedisClient ...
-func InitRedisClient(debugMode bool, redisConfig *config.Redis) {
-	if rds == nil {
-		redisClientInitOnce.Do(func() {
-			if redisConfig.SentinelEnabled {
-				rds = newSentinelClient(redisConfig)
-			} else {
-				rds = newStandaloneClient(redisConfig)
-			}
+// InitRedisClient creates the default client and checks that it reaches Redis, the way
+// database.InitDBClients does. Only the first call does the work; every call returns its
+// error, so a failed initialisation never looks like a success.
+func InitRedisClient(redisConfig *config.Redis) error {
+	redisClientInitOnce.Do(func() {
+		redisClientInitErr = initRedisClient(redisConfig)
+	})
+	return redisClientInitErr
+}
 
-			rds.AddHook(redisotel.NewTracingHook())
-
-			_, err := rds.Ping(context.TODO()).Result()
-			if err != nil {
-				zap.S().Error(err, "connect to redis fail")
-				// redis is important
-				if !debugMode {
-					panic(err)
-				}
-			}
-		})
+func initRedisClient(redisConfig *config.Redis) error {
+	var (
+		client *redis.Client
+		err    error
+	)
+	if redisConfig.SentinelEnabled {
+		client, err = newSentinelClient(redisConfig)
+	} else {
+		client, err = newStandaloneClient(redisConfig)
 	}
+	if err != nil {
+		return err
+	}
+
+	client.AddHook(redisotel.NewTracingHook())
+	if err := client.Ping(context.TODO()).Err(); err != nil {
+		_ = client.Close()
+		return fmt.Errorf("ping redis: %w", err)
+	}
+	rds = client
+	return nil
 }
 
 // GetDefaultRedisClient 获取默认的Redis实例

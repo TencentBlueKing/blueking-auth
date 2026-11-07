@@ -19,6 +19,7 @@
 package logging
 
 import (
+	"fmt"
 	"sync"
 
 	"go.uber.org/zap"
@@ -26,32 +27,51 @@ import (
 	"bkauth/pkg/config"
 )
 
-var loggerInitOnce sync.Once
-
 var (
 	systemLogger *zap.Logger
 	apiLogger    *zap.Logger
 	webLogger    *zap.Logger
 	sqlLogger    *zap.Logger
 	auditLogger  *zap.Logger
+
+	loggerInitOnce sync.Once
+	// loggerInitErr is the result of the only initialisation, returned by every call.
+	loggerInitErr error
 )
 
-// InitLogger ...
-func InitLogger(logger *config.Logger) {
-	initSystemLogger(&logger.System)
+// InitLogger builds every logger and makes the system logger zap's global one. Only the
+// first call does the work; every call returns its error, so a failed initialisation
+// never looks like a success.
+func InitLogger(logger *config.Logger) error {
 	loggerInitOnce.Do(func() {
-		apiLogger = newLogger(&logger.API)
-		webLogger = newLogger(&logger.Web)
-		sqlLogger = newLogger(&logger.SQL)
-		auditLogger = newLogger(&logger.Audit)
+		loggerInitErr = initLoggers(logger)
 	})
+	return loggerInitErr
 }
 
-func initSystemLogger(cfg *config.LogConfig) {
-	systemLogger = newLogger(cfg)
+func initLoggers(logger *config.Logger) error {
+	loggers := []struct {
+		name   string
+		cfg    *config.LogConfig
+		target **zap.Logger
+	}{
+		{"system", &logger.System, &systemLogger},
+		{"api", &logger.API, &apiLogger},
+		{"web", &logger.Web, &webLogger},
+		{"sql", &logger.SQL, &sqlLogger},
+		{"audit", &logger.Audit, &auditLogger},
+	}
+	for _, l := range loggers {
+		built, err := newLogger(l.cfg)
+		if err != nil {
+			return fmt.Errorf("init %s logger: %w", l.name, err)
+		}
+		*l.target = built
+	}
 
 	// 替换zap内置的全局Logger
 	zap.ReplaceGlobals(systemLogger)
+	return nil
 }
 
 // GetSystemLogger ...
@@ -100,10 +120,12 @@ func GetAuditLogger() *zap.Logger {
 }
 
 // SyncAll 用于程序结束时将所有类型的缓存日志推送到文件里，避免丢失日志
+// Loggers that were never built are skipped, so it is safe to call even when InitLogger
+// has not run or has failed.
 func SyncAll() {
-	_ = systemLogger.Sync()
-	_ = apiLogger.Sync()
-	_ = webLogger.Sync()
-	_ = sqlLogger.Sync()
-	_ = auditLogger.Sync()
+	for _, l := range []*zap.Logger{systemLogger, apiLogger, webLogger, sqlLogger, auditLogger} {
+		if l != nil {
+			_ = l.Sync()
+		}
+	}
 }

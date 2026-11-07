@@ -20,6 +20,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/dlmiddlecote/sqlstats"
@@ -29,30 +30,40 @@ import (
 	"bkauth/pkg/config"
 )
 
-// DefaultDBClient ...
 var (
 	// DefaultDBClient 默认DB实例
 	DefaultDBClient *DBClient
+
+	defaultDBClientOnce sync.Once
+	// defaultDBClientErr is the result of the only initialisation, returned by every call.
+	defaultDBClientErr error
 )
 
-var defaultDBClientOnce sync.Once
+// InitDBClients connects DefaultDBClient. Only the first call does the work; every call
+// returns its error, so a failed initialisation never looks like a success.
+func InitDBClients(defaultDBConfig *config.Database) error {
+	defaultDBClientOnce.Do(func() {
+		defaultDBClientErr = initDefaultDBClient(defaultDBConfig)
+	})
+	return defaultDBClientErr
+}
 
-// InitDBClients ...
-func InitDBClients(defaultDBConfig *config.Database) {
-	if DefaultDBClient == nil {
-		defaultDBClientOnce.Do(func() {
-			DefaultDBClient = NewDBClient(defaultDBConfig)
-			if err := DefaultDBClient.Connect(); err != nil {
-				panic(err)
-			}
-
-			// https://github.com/dlmiddlecote/sqlstats
-			// Create a new collector, the name will be used as a label on the metrics
-			collector := sqlstats.NewStatsCollector(defaultDBConfig.Name, DefaultDBClient.DB)
-			// Register it with Prometheus
-			prometheus.MustRegister(collector)
-		})
+func initDefaultDBClient(defaultDBConfig *config.Database) error {
+	client, err := NewDBClient(defaultDBConfig)
+	if err != nil {
+		return err
 	}
+	if err := client.Connect(); err != nil {
+		return fmt.Errorf("connect to database %s: %w", defaultDBConfig.Name, err)
+	}
+	DefaultDBClient = client
+
+	// https://github.com/dlmiddlecote/sqlstats
+	// Create a new collector, the name will be used as a label on the metrics
+	collector := sqlstats.NewStatsCollector(defaultDBConfig.Name, DefaultDBClient.DB)
+	// Register it with Prometheus
+	prometheus.MustRegister(collector)
+	return nil
 }
 
 // GetDefaultDBClient 获取默认的DB实例

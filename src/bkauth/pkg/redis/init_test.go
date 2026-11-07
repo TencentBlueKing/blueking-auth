@@ -19,7 +19,6 @@
 package redis
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,13 +39,13 @@ func TestInitRedisClient(t *testing.T) {
 		PoolSize: 3,
 	}
 
-	InitRedisClient(true, redisConfig)
+	err := InitRedisClient(redisConfig)
+	assert.ErrorContains(t, err, "ping redis")
+	// An unreachable Redis leaves no half-initialised client behind.
+	assert.Nil(t, GetDefaultRedisClient())
 
-	rds := GetDefaultRedisClient()
-	assert.NotNil(t, rds)
-
-	_, err := rds.Ping(context.TODO()).Result()
-	assert.Error(t, err)
+	// Only the first call does the work, but a later one must not report a success.
+	assert.Equal(t, err, InitRedisClient(redisConfig))
 
 	// TODO: add success init
 }

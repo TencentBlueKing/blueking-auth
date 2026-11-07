@@ -20,6 +20,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/spf13/viper"
 )
@@ -361,6 +362,16 @@ type Config struct {
 
 	OAuth         OAuth
 	PersonalToken PersonalToken
+}
+
+// LoadFile reads the config file at path with a viper instance of its own.
+func LoadFile(path string) (*Config, error) {
+	v := viper.New()
+	v.SetConfigFile(path)
+	if err := v.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("read config file %s: %w", path, err)
+	}
+	return Load(v)
 }
 
 // Load 从 viper 中读取配置文件

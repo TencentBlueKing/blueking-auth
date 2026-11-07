@@ -102,15 +102,8 @@ func (db *DBClient) openInstrumentedDB() (*sql.DB, error) {
 	return rawDB, nil
 }
 
-// Close close db connection
-func (db *DBClient) Close() {
-	if db.DB != nil {
-		db.DB.Close()
-	}
-}
-
-// NewDBClient :
-func NewDBClient(cfg *config.Database) *DBClient {
+// NewDBClient builds a client for cfg without connecting; Connect opens the connection.
+func NewDBClient(cfg *config.Database) (*DBClient, error) {
 	dataSource := fmt.Sprintf("%s:%s@(%s:%d)/%s?charset=%s&parseTime=True&interpolateParams=true&loc=%s&time_zone=%s",
 		cfg.User,
 		cfg.Password,
@@ -131,7 +124,7 @@ func NewDBClient(cfg *config.Database) *DBClient {
 			cfg.TLS.CertCaFile, cfg.TLS.CertFile, cfg.TLS.CertKeyFile, cfg.TLS.InsecureSkipVerify,
 		)
 		if err != nil {
-			zap.S().Fatalf("init mysql tls config: %s", err)
+			return nil, fmt.Errorf("init mysql tls config: %w", err)
 		}
 
 		// https://pkg.go.dev/github.com/go-sql-driver/mysql#RegisterTLSConfig
@@ -140,7 +133,7 @@ func NewDBClient(cfg *config.Database) *DBClient {
 		tlsConfigName := cfg.Name
 		err = mysql.RegisterTLSConfig(tlsConfigName, tlsConfig)
 		if err != nil {
-			zap.S().Fatalf("register mysql TLS config: %s", err)
+			return nil, fmt.Errorf("register mysql tls config: %w", err)
 		}
 		dataSource = fmt.Sprintf("%s&tls=%s", dataSource, tlsConfigName)
 	}
@@ -180,5 +173,5 @@ func NewDBClient(cfg *config.Database) *DBClient {
 		maxOpenConns:    maxOpenConns,
 		maxIdleConns:    maxIdleConns,
 		connMaxLifetime: connMaxLifetime,
-	}
+	}, nil
 }

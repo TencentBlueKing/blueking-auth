@@ -24,7 +24,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"bkauth/pkg/cli"
-	"bkauth/pkg/logging"
 )
 
 // postMigrateCmd is the stable entry the deployment runs after `migrate up`. Data steps
@@ -34,13 +33,13 @@ var postMigrateCmd = &cobra.Command{
 	Short: "prepare the data the service needs once the schema is migrated",
 	Long: "example: bkauth post-migrate -c config.yaml\n" +
 		"Safe to re-run: it creates the reserved apps that are missing.",
-	SilenceUsage:  true,
-	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		initDataCommand()
-		defer logging.SyncAll()
+		cfg, err := setupDataCommand()
+		if err != nil {
+			return err
+		}
 
-		if err := cli.EnsureReservedApps(globalConfig); err != nil {
+		if err := cli.EnsureReservedApps(cfg); err != nil {
 			return fmt.Errorf("post-migrate: %w", err)
 		}
 		fmt.Println("post-migrate finish")
@@ -49,8 +48,5 @@ var postMigrateCmd = &cobra.Command{
 }
 
 func init() {
-	postMigrateCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file (required)")
-	_ = postMigrateCmd.MarkFlagRequired("config")
-
 	rootCmd.AddCommand(postMigrateCmd)
 }
