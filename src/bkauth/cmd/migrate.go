@@ -40,7 +40,7 @@ var migrateCmd = &cobra.Command{
 var migrateUpCmd = &cobra.Command{
 	Use:           "up",
 	Short:         "apply the pending database migrations",
-	Long:          "example: bkauth migrate up -c config.yaml --dir /app/sql",
+	Long:          "example: bkauth migrate up -c config.yaml -d /app/sql",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -52,7 +52,7 @@ func init() {
 	migrateCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (required)")
 	_ = migrateCmd.MarkPersistentFlagRequired("config")
 
-	migrateUpCmd.Flags().StringVar(&migrationDir, "dir", "", "directory of the migration files (required)")
+	migrateUpCmd.Flags().StringVarP(&migrationDir, "dir", "d", "", "directory of the migration files (required)")
 	_ = migrateUpCmd.MarkFlagRequired("dir")
 	migrateCmd.AddCommand(migrateUpCmd)
 
