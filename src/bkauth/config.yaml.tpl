@@ -29,10 +29,6 @@ crypto:
   # length should be 12 bit
   nonce: "yuitrestrtyu"
 
-accessKeys:
-  bkauth: "G3dsdftR9nGQM8WnF1qwjGSVE0ScXrz1hKWM"
-  bk_paas3: "G3dsdftR9nGQM8WnF1qwjGSVE0ScXrz1hKWM"
-
 appCode: "bkauth"
 appSecret: "WnF1qwjGSVE0ScXrz1hKWMG3dsdftR9nGQ"
 bkAuthUrl: "https://bkauth.example.com"

@@ -16,31 +16,18 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package fixture
+package cli
 
 import (
-	"go.uber.org/zap"
-
 	"bkauth/pkg/config"
 	"bkauth/pkg/util"
 )
 
-func InitFixture(cfg *config.Config) {
-	var tenantMode, tenantID string
+// initTenant returns the tenant of the apps created at deploy time. They back BlueKing's
+// base services, so they belong to every tenant in multi-tenant mode.
+func initTenant(cfg *config.Config) (tenantMode, tenantID string) {
 	if cfg.EnableMultiTenantMode {
-		tenantMode = util.TenantModeGlobal
-		tenantID = ""
-		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=global, tenantID={empty}")
-	} else {
-		tenantMode = util.TenantModeSingle
-		tenantID = util.TenantIDDefault
-		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=single, tenantID=default")
+		return util.TenantModeGlobal, ""
 	}
-
-	for appCode, appSecret := range cfg.AccessKeys {
-		createAccessKey(appCode, appSecret, tenantMode, tenantID)
-	}
-
-	ensurePublicApp(tenantMode, tenantID)
-	ensurePersonalApp(tenantMode, tenantID)
+	return util.TenantModeSingle, util.TenantIDDefault
 }

@@ -336,8 +336,6 @@ type Config struct {
 	Crypto Crypto
 	KMS    KMSConfig
 
-	AccessKeys map[string]string
-
 	APIAllowLists []APIAllowList
 
 	Logger Logger

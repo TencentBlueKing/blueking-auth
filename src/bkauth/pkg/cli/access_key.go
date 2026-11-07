@@ -20,70 +20,114 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"go.uber.org/zap"
-
+	"bkauth/pkg/config"
 	"bkauth/pkg/service"
 	"bkauth/pkg/service/types"
 )
 
-func ListAccessKey(appCodeParam string) {
-	// 1. 不允许为空
-	if appCodeParam == "" {
-		fmt.Println("app_code param should not be empty")
-		return
+// AccessKeyResult tells what CreateAccessKey did.
+type AccessKeyResult string
+
+const (
+	AccessKeyAppCreated  AccessKeyResult = "app_created"
+	AccessKeySecretAdded AccessKeyResult = "secret_added"
+	AccessKeyUnchanged   AccessKeyResult = "unchanged"
+
+	accessKeyCreatedSource = "deploy_init"
+)
+
+// CreateAccessKey makes appSecret a secret of appCode, creating the app if it does not
+// exist. Safe to re-run: a secret the app already has is left alone. Adding a secret
+// fails once the app holds service.MaxSecretsPreApp of them.
+func CreateAccessKey(cfg *config.Config, appCode, appSecret string) (AccessKeyResult, error) {
+	if appCode == "" || appSecret == "" {
+		return "", errors.New("app code and app secret must not be empty")
 	}
 
-	// 2. 遍历查询
 	ctx := context.Background()
-	appCodes := strings.Split(appCodeParam, ",")
+	appSvc := service.NewAppService()
+	exists, err := appSvc.Exists(ctx, appCode)
+	if err != nil {
+		return "", fmt.Errorf("check app %s exists: %w", appCode, err)
+	}
+	if !exists {
+		tenantMode, tenantID := initTenant(cfg)
+		app := types.App{
+			Code:        appCode,
+			Name:        appCode,
+			Description: appCode,
+			TenantMode:  tenantMode,
+			TenantID:    tenantID,
+		}
+		if err := appSvc.CreateWithSecret(ctx, app, appSecret, accessKeyCreatedSource); err != nil {
+			return "", fmt.Errorf("create app %s: %w", appCode, err)
+		}
+		return AccessKeyAppCreated, nil
+	}
+
 	svc := service.NewAccessKeyService()
-	accessKeyList := make([]types.AccessKeyWithCreatedAt, 0, len(appCodes)*3) // 业务逻辑限制了一个App最多两个，所以这里3个是足够了
+	exists, err = svc.Verify(ctx, appCode, appSecret)
+	if err != nil {
+		return "", fmt.Errorf("verify secret of app %s: %w", appCode, err)
+	}
+	if exists {
+		return AccessKeyUnchanged, nil
+	}
+
+	err = svc.CreateWithSecret(ctx, appCode, appSecret, accessKeyCreatedSource, "initialized during shell deployment")
+	if err != nil {
+		return "", fmt.Errorf("add secret to app %s: %w", appCode, err)
+	}
+	return AccessKeySecretAdded, nil
+}
+
+// ListAccessKey prints the access keys of appCodes, secrets in plaintext.
+func ListAccessKey(appCodes []string) error {
+	if len(appCodes) == 0 {
+		return errors.New("app code must not be empty")
+	}
+
+	ctx := context.Background()
+	svc := service.NewAccessKeyService()
+	// An app holds at most service.MaxSecretsPreApp secrets.
+	accessKeyList := make([]types.AccessKeyWithCreatedAt, 0, len(appCodes)*service.MaxSecretsPreApp)
 	for _, appCode := range appCodes {
 		accessKeys, err := svc.ListWithCreatedAtByAppCode(ctx, appCode)
 		if err != nil {
-			zap.S().Error(err, fmt.Sprintf("svc.ListWithCreatedAtByAppCode appCode=%s fail", appCode))
-			continue
+			return fmt.Errorf("list access keys of app %s: %w", appCode, err)
 		}
-
 		accessKeyList = append(accessKeyList, accessKeys...)
 	}
 
 	if len(accessKeyList) == 0 {
 		fmt.Println("no accessKey")
-		return
+		return nil
 	}
 
-	// 3. 统一输出
 	fmt.Println("ID\tAppCode\tAppSecret\tCreatedAt")
 	for _, ak := range accessKeyList {
-		t := time.Unix(ak.CreatedAt, 0)
-		fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, t)
+		fmt.Printf("%d\t%s\t%s\t%v\n", ak.ID, ak.AppCode, ak.AppSecret, time.Unix(ak.CreatedAt, 0))
 	}
+	return nil
 }
 
-func DeleteAccessKey(appCode string, accessKeyID int64) {
-	// 1. 不允许为空
+// DeleteAccessKey deletes the access key accessKeyID of appCode. The app must keep at
+// least one secret.
+func DeleteAccessKey(appCode string, accessKeyID int64) error {
 	if appCode == "" {
-		fmt.Println("app_code param should not be empty")
-		return
+		return errors.New("app code must not be empty")
 	}
 	if accessKeyID <= 0 {
-		fmt.Println("access key id must positive integer")
-		return
+		return errors.New("access key id must be a positive integer")
 	}
 
-	// 2. 直接删除
-	ctx := context.Background()
-	svc := service.NewAccessKeyService()
-	err := svc.DeleteByID(ctx, appCode, accessKeyID)
+	err := service.NewAccessKeyService().DeleteByID(context.Background(), appCode, accessKeyID)
 	if err != nil {
-		zap.S().Error(err, fmt.Sprintf("svc.DeleteByID appCode=%s accessKeyID=%d fail", appCode, accessKeyID))
-		return
+		return fmt.Errorf("delete access key %d of app %s: %w", accessKeyID, appCode, err)
 	}
-
-	fmt.Println("delete success")
+	return nil
 }
