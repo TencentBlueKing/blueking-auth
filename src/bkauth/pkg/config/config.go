@@ -110,6 +110,7 @@ type Database struct {
 
 // Redis ...
 type Redis struct {
+	// ID names the instance. The service uses the entry with id "default".
 	ID           string
 	Addr         string
 	Password     string
@@ -121,7 +122,8 @@ type Redis struct {
 	MinIdleConns int
 	ChannelKey   string
 
-	// mode=sentinel required
+	// The fields below are used when SentinelEnabled is true. MasterName is required in that mode.
+	SentinelEnabled  bool
 	SentinelAddr     string
 	MasterName       string
 	SentinelPassword string

@@ -97,32 +97,16 @@ func initDatabase() {
 }
 
 func initRedis() {
-	standaloneConfig, isStandalone := globalConfig.RedisMap[redis.ModeStandalone]
-	sentinelConfig, isSentinel := globalConfig.RedisMap[redis.ModeSentinel]
-
-	if !isStandalone && !isSentinel {
-		panic("redis id=standalone or id=sentinel should be configured")
+	redisConfig, ok := globalConfig.RedisMap["default"]
+	if !ok {
+		panic("redis id=default should be configured")
 	}
 
-	if isSentinel && isStandalone {
-		zap.S().Info("redis both id=standalone and id=sentinel configured, will use sentinel")
-
-		delete(globalConfig.RedisMap, redis.ModeStandalone)
-		isStandalone = false
+	if redisConfig.SentinelEnabled && redisConfig.MasterName == "" {
+		panic("redis sentinelEnabled=true, the `masterName` required")
 	}
-
-	if isSentinel {
-		if sentinelConfig.MasterName == "" {
-			panic("redis id=sentinel, the `masterName` required")
-		}
-		zap.S().Info("init Redis mode=`sentinel`")
-		redis.InitRedisClient(globalConfig.Debug, &sentinelConfig)
-	}
-
-	if isStandalone {
-		zap.S().Info("init Redis mode=`standalone`")
-		redis.InitRedisClient(globalConfig.Debug, &standaloneConfig)
-	}
+	zap.S().Infof("init Redis id=%s sentinelEnabled=%t", redisConfig.ID, redisConfig.SentinelEnabled)
+	redis.InitRedisClient(globalConfig.Debug, &redisConfig)
 
 	zap.S().Info("init Redis success")
 }

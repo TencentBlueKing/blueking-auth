@@ -29,12 +29,6 @@ import (
 	"bkauth/pkg/config"
 )
 
-// ModeStandalone ...
-const (
-	ModeStandalone = "standalone"
-	ModeSentinel   = "sentinel"
-)
-
 var rds *redis.Client
 
 var redisClientInitOnce sync.Once
@@ -43,13 +37,10 @@ var redisClientInitOnce sync.Once
 func InitRedisClient(debugMode bool, redisConfig *config.Redis) {
 	if rds == nil {
 		redisClientInitOnce.Do(func() {
-			switch redisConfig.ID {
-			case ModeStandalone:
-				rds = newStandaloneClient(redisConfig)
-			case ModeSentinel:
+			if redisConfig.SentinelEnabled {
 				rds = newSentinelClient(redisConfig)
-			default:
-				panic("init redis app fail, invalid redis.id, should be `standalone` or `sentinel`")
+			} else {
+				rds = newStandaloneClient(redisConfig)
 			}
 
 			rds.AddHook(redisotel.NewTracingHook())
