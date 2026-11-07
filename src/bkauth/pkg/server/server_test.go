@@ -21,6 +21,7 @@ package server
 import (
 	"context"
 	"net"
+	"strconv"
 	"testing"
 	"time"
 
@@ -43,12 +44,32 @@ func runAsync(ctx context.Context, s *Server) <-chan error {
 	return done
 }
 
+// freePort returns a port that nothing listens on right now.
+func freePort(t *testing.T) int {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer ln.Close()
+	return ln.Addr().(*net.TCPAddr).Port
+}
+
 func TestRunReturnsNilAfterGracefulShutdown(t *testing.T) {
 	// Shutdown makes ListenAndServe return http.ErrServerClosed; Run used to panic on it.
 	ctx, cancel := context.WithCancel(context.Background())
-	done := runAsync(ctx, newTestServer(0))
+	defer cancel()
+	port := freePort(t)
+	done := runAsync(ctx, newTestServer(port))
 
-	time.Sleep(100 * time.Millisecond)
+	// Cancel only once the server accepts connections, so this covers a server shut down
+	// while serving rather than one stopped before it started.
+	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
+	require.Eventually(t, func() bool {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			return false
+		}
+		_ = conn.Close()
+		return true
+	}, 5*time.Second, 10*time.Millisecond, "server never started listening")
 	cancel()
 
 	select {
@@ -64,7 +85,9 @@ func TestRunReturnsErrorWhenAddressInUse(t *testing.T) {
 	require.NoError(t, err)
 	defer ln.Close()
 
-	done := runAsync(context.Background(), newTestServer(ln.Addr().(*net.TCPAddr).Port))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := runAsync(ctx, newTestServer(ln.Addr().(*net.TCPAddr).Port))
 
 	select {
 	case err := <-done:

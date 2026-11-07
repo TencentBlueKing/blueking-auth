@@ -29,33 +29,45 @@ import (
 	"bkauth/pkg/config"
 )
 
-var rds *redis.Client
+var (
+	rds *redis.Client
 
-var redisClientInitOnce sync.Once
+	redisClientInitOnce sync.Once
+	// redisClientInitErr is the result of the only initialisation, returned by every call.
+	redisClientInitErr error
+)
 
 // InitRedisClient creates the default client and checks that it reaches Redis, the way
-// database.InitDBClients does. Only the first call does anything.
-func InitRedisClient(redisConfig *config.Redis) (err error) {
+// database.InitDBClients does. Only the first call does the work; every call returns its
+// error, so a failed initialisation never looks like a success.
+func InitRedisClient(redisConfig *config.Redis) error {
 	redisClientInitOnce.Do(func() {
-		var client *redis.Client
-		if redisConfig.SentinelEnabled {
-			client, err = newSentinelClient(redisConfig)
-		} else {
-			client, err = newStandaloneClient(redisConfig)
-		}
-		if err != nil {
-			return
-		}
-
-		client.AddHook(redisotel.NewTracingHook())
-		if e := client.Ping(context.TODO()).Err(); e != nil {
-			err = fmt.Errorf("ping redis: %w", e)
-			_ = client.Close()
-			return
-		}
-		rds = client
+		redisClientInitErr = initRedisClient(redisConfig)
 	})
-	return err
+	return redisClientInitErr
+}
+
+func initRedisClient(redisConfig *config.Redis) error {
+	var (
+		client *redis.Client
+		err    error
+	)
+	if redisConfig.SentinelEnabled {
+		client, err = newSentinelClient(redisConfig)
+	} else {
+		client, err = newStandaloneClient(redisConfig)
+	}
+	if err != nil {
+		return err
+	}
+
+	client.AddHook(redisotel.NewTracingHook())
+	if err := client.Ping(context.TODO()).Err(); err != nil {
+		_ = client.Close()
+		return fmt.Errorf("ping redis: %w", err)
+	}
+	rds = client
+	return nil
 }
 
 // GetDefaultRedisClient 获取默认的Redis实例

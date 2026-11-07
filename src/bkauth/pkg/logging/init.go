@@ -27,42 +27,51 @@ import (
 	"bkauth/pkg/config"
 )
 
-var loggerInitOnce sync.Once
-
 var (
 	systemLogger *zap.Logger
 	apiLogger    *zap.Logger
 	webLogger    *zap.Logger
 	sqlLogger    *zap.Logger
 	auditLogger  *zap.Logger
+
+	loggerInitOnce sync.Once
+	// loggerInitErr is the result of the only initialisation, returned by every call.
+	loggerInitErr error
 )
 
-// InitLogger builds every logger and makes the system logger zap's global one.
-// Only the first call does anything.
-func InitLogger(logger *config.Logger) (err error) {
+// InitLogger builds every logger and makes the system logger zap's global one. Only the
+// first call does the work; every call returns its error, so a failed initialisation
+// never looks like a success.
+func InitLogger(logger *config.Logger) error {
 	loggerInitOnce.Do(func() {
-		loggers := []struct {
-			name   string
-			cfg    *config.LogConfig
-			target **zap.Logger
-		}{
-			{"system", &logger.System, &systemLogger},
-			{"api", &logger.API, &apiLogger},
-			{"web", &logger.Web, &webLogger},
-			{"sql", &logger.SQL, &sqlLogger},
-			{"audit", &logger.Audit, &auditLogger},
-		}
-		for _, l := range loggers {
-			if *l.target, err = newLogger(l.cfg); err != nil {
-				err = fmt.Errorf("init %s logger: %w", l.name, err)
-				return
-			}
-		}
-
-		// 替换zap内置的全局Logger
-		zap.ReplaceGlobals(systemLogger)
+		loggerInitErr = initLoggers(logger)
 	})
-	return err
+	return loggerInitErr
+}
+
+func initLoggers(logger *config.Logger) error {
+	loggers := []struct {
+		name   string
+		cfg    *config.LogConfig
+		target **zap.Logger
+	}{
+		{"system", &logger.System, &systemLogger},
+		{"api", &logger.API, &apiLogger},
+		{"web", &logger.Web, &webLogger},
+		{"sql", &logger.SQL, &sqlLogger},
+		{"audit", &logger.Audit, &auditLogger},
+	}
+	for _, l := range loggers {
+		built, err := newLogger(l.cfg)
+		if err != nil {
+			return fmt.Errorf("init %s logger: %w", l.name, err)
+		}
+		*l.target = built
+	}
+
+	// 替换zap内置的全局Logger
+	zap.ReplaceGlobals(systemLogger)
+	return nil
 }
 
 // GetSystemLogger ...

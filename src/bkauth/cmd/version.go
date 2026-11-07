@@ -32,7 +32,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number of Bkauth",
 	Long:  `All software has versions. This is Bkauth's`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		info := []string{
 			"Version: " + version.Version,
 			"Commit: " + version.Commit,
@@ -40,6 +40,7 @@ var versionCmd = &cobra.Command{
 			"Go Version: " + version.GoVersion,
 		}
 		fmt.Println(strings.Join(info, "\n"))
+		return nil
 	},
 }
 

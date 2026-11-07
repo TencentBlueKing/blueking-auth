@@ -94,11 +94,20 @@ func (s *Server) Run(ctx context.Context) error {
 		}
 	}()
 
+	var err error
 	select {
-	case err := <-serveErr:
+	case err = <-serveErr:
+	case <-ctx.Done():
+		// select picks at random when both are ready, so a listen error that raced the
+		// signal must not be dropped.
+		select {
+		case err = <-serveErr:
+		default:
+		}
+	}
+	if err != nil {
 		s.stopTelemetry()
 		return fmt.Errorf("serve on %s: %w", s.addr, err)
-	case <-ctx.Done():
 	}
 
 	zap.S().Info("Stopping server gracefully")

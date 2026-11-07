@@ -39,9 +39,13 @@ func TestInitRedisClient(t *testing.T) {
 		PoolSize: 3,
 	}
 
-	assert.ErrorContains(t, InitRedisClient(redisConfig), "ping redis")
+	err := InitRedisClient(redisConfig)
+	assert.ErrorContains(t, err, "ping redis")
 	// An unreachable Redis leaves no half-initialised client behind.
 	assert.Nil(t, GetDefaultRedisClient())
+
+	// Only the first call does the work, but a later one must not report a success.
+	assert.Equal(t, err, InitRedisClient(redisConfig))
 
 	// TODO: add success init
 }
