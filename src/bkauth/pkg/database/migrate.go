@@ -20,27 +20,37 @@ package database
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
 
 	migrate "github.com/rubenv/sql-migrate"
 )
 
-// migrationSet records applied migrations in gorp_migrations, the default table of the
-// sql-migrate binary this replaces. Deployments migrated by that binary therefore skip
-// every migration it already applied; renaming the table would replay them all.
-var migrationSet = migrate.MigrationSet{TableName: "gorp_migrations"}
+var (
+	// Migration files must start with "-- +migrate Up" and must not name the database:
+	// it comes from the config. A migration is identified by its file name only, so an
+	// applied file may be edited but never renamed.
+	//go:embed migrations/*.sql
+	migrationFS embed.FS
 
-// MigrateUp applies the migrations under dir that are not yet recorded and returns how
-// many were applied. A dir without any migration is an error rather than a no-op, so a
-// wrong path cannot pass for an up-to-date schema.
-func MigrateUp(db *sql.DB, dir string) (int, error) {
-	migrations, err := migrate.FileMigrationSource{Dir: dir}.FindMigrations()
+	migrationSource = migrate.EmbedFileSystemMigrationSource{FileSystem: migrationFS, Root: "migrations"}
+
+	// Applied migrations are recorded in gorp_migrations, the default table of the
+	// sql-migrate binary this replaces, so deployments migrated by that binary skip what
+	// it already applied. Renaming the table would replay every migration.
+	migrationSet = migrate.MigrationSet{TableName: "gorp_migrations"}
+)
+
+// MigrateUp applies the embedded migrations not yet recorded in the database and returns
+// how many were applied.
+func MigrateUp(db *sql.DB) (int, error) {
+	return migrateUp(db, migrationSource)
+}
+
+func migrateUp(db *sql.DB, source migrate.MigrationSource) (int, error) {
+	applied, err := migrationSet.Exec(db, "mysql", source, migrate.Up)
 	if err != nil {
-		return 0, fmt.Errorf("read migrations from %s: %w", dir, err)
+		return applied, fmt.Errorf("apply migrations: %w", err)
 	}
-	if len(migrations) == 0 {
-		return 0, fmt.Errorf("no migrations found in %s", dir)
-	}
-
-	return migrationSet.Exec(db, "mysql", migrate.MemoryMigrationSource{Migrations: migrations}, migrate.Up)
+	return applied, nil
 }

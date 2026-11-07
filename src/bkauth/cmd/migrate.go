@@ -30,8 +30,6 @@ import (
 	"bkauth/pkg/logging"
 )
 
-var migrationDir string
-
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
 	Short: "manage the database schema",
@@ -40,7 +38,7 @@ var migrateCmd = &cobra.Command{
 var migrateUpCmd = &cobra.Command{
 	Use:           "up",
 	Short:         "apply the pending database migrations",
-	Long:          "example: bkauth migrate up -c config.yaml -d /app/sql",
+	Long:          "example: bkauth migrate up -c config.yaml",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -52,8 +50,6 @@ func init() {
 	migrateCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (required)")
 	_ = migrateCmd.MarkPersistentFlagRequired("config")
 
-	migrateUpCmd.Flags().StringVarP(&migrationDir, "dir", "d", "", "directory of the migration files (required)")
-	_ = migrateUpCmd.MarkFlagRequired("dir")
 	migrateCmd.AddCommand(migrateUpCmd)
 
 	rootCmd.AddCommand(migrateCmd)
@@ -77,7 +73,7 @@ func migrateUp() error {
 	}
 	defer client.Close()
 
-	applied, err := database.MigrateUp(client.DB.DB, migrationDir)
+	applied, err := database.MigrateUp(client.DB.DB)
 	if err != nil {
 		return fmt.Errorf("migrate up: %w", err)
 	}

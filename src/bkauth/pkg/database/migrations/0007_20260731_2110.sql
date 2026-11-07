@@ -1,3 +1,4 @@
+-- +migrate Up
 -- TencentBlueKing is pleased to support the open source community by making
 -- 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
 -- Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
@@ -37,38 +38,38 @@
 SET time_zone = '+00:00';
 
 -- One ALTER per table so that each table is rebuilt exactly once.
-ALTER TABLE `bkauth`.`app`
+ALTER TABLE `app`
     MODIFY COLUMN `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC',
     MODIFY COLUMN `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
         ON UPDATE CURRENT_TIMESTAMP(6) COMMENT 'UTC';
 
-ALTER TABLE `bkauth`.`access_key`
+ALTER TABLE `access_key`
     MODIFY COLUMN `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC',
     MODIFY COLUMN `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
         ON UPDATE CURRENT_TIMESTAMP(6) COMMENT 'UTC';
 
-ALTER TABLE `bkauth`.`oauth_client`
+ALTER TABLE `oauth_client`
     MODIFY COLUMN `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC',
     MODIFY COLUMN `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
         ON UPDATE CURRENT_TIMESTAMP(6) COMMENT 'UTC';
 
-ALTER TABLE `bkauth`.`oauth_authorization_code`
+ALTER TABLE `oauth_authorization_code`
     MODIFY COLUMN `expires_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC',
     MODIFY COLUMN `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC';
 
-ALTER TABLE `bkauth`.`oauth_access_token`
+ALTER TABLE `oauth_access_token`
     MODIFY COLUMN `expires_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC',
     MODIFY COLUMN `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC',
     MODIFY COLUMN `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
         ON UPDATE CURRENT_TIMESTAMP(6) COMMENT 'UTC';
 
-ALTER TABLE `bkauth`.`oauth_refresh_token`
+ALTER TABLE `oauth_refresh_token`
     MODIFY COLUMN `expires_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC',
     MODIFY COLUMN `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC',
     MODIFY COLUMN `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
         ON UPDATE CURRENT_TIMESTAMP(6) COMMENT 'UTC';
 
-ALTER TABLE `bkauth`.`oauth_device_code`
+ALTER TABLE `oauth_device_code`
     MODIFY COLUMN `last_polled_at` DATETIME(6) NULL COMMENT 'UTC',
     MODIFY COLUMN `expires_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC',
     MODIFY COLUMN `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) COMMENT 'UTC',

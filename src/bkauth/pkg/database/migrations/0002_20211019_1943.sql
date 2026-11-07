@@ -1,3 +1,4 @@
+-- +migrate Up
 -- TencentBlueKing is pleased to support the open source community by making
 -- 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
 -- Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
@@ -11,7 +12,7 @@
 -- We undertake not to change the open source license (MIT license) applicable
 -- to the current version of the project delivered to anyone in the future.
 
-CREATE TABLE IF NOT EXISTS `bkauth`.`app`(
+CREATE TABLE IF NOT EXISTS `app`(
     `code` VARCHAR(32) NOT NULL,
     `name` VARCHAR(32) NOT NULL,
     `description` VARCHAR(1024) NOT NULL DEFAULT "",
@@ -22,7 +23,7 @@ CREATE TABLE IF NOT EXISTS `bkauth`.`app`(
 )ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
-CREATE TABLE IF NOT EXISTS `bkauth`.`access_key`(
+CREATE TABLE IF NOT EXISTS `access_key`(
     `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
     `app_code` VARCHAR(32) NOT NULL,
     `app_secret` VARCHAR(128) NOT NULL,

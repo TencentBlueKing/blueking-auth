@@ -1,3 +1,4 @@
+-- +migrate Up
 -- TencentBlueKing is pleased to support the open source community by making
 -- 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
 -- Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
@@ -11,4 +12,4 @@
 -- We undertake not to change the open source license (MIT license) applicable
 -- to the current version of the project delivered to anyone in the future.
 
-ALTER TABLE `bkauth`.`access_key`  ADD COLUMN enabled TinyInt(1) NOT NULL DEFAULT 1  COMMENT '1: enabled; 0: disable';
+ALTER TABLE `access_key` ADD COLUMN description VARCHAR(1024) NOT NULL DEFAULT '';
