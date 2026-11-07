@@ -1,6 +1,6 @@
 /*
  * TencentBlueKing is pleased to support the open source community by making
- * 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
+ * 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
  * Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
  * Licensed under the MIT License (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -16,31 +16,21 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package fixture
+package cli
 
 import (
-	"go.uber.org/zap"
-
 	"bkauth/pkg/config"
 	"bkauth/pkg/util"
 )
 
-func InitFixture(cfg *config.Config) {
-	var tenantMode, tenantID string
+// deployInitSource is the created_source of the apps and secrets created at deploy time.
+const deployInitSource = "deploy_init"
+
+// initTenant returns the tenant of the apps created at deploy time. They back BlueKing's
+// base services, so they belong to every tenant in multi-tenant mode.
+func initTenant(cfg *config.Config) (tenantMode, tenantID string) {
 	if cfg.EnableMultiTenantMode {
-		tenantMode = util.TenantModeGlobal
-		tenantID = ""
-		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=global, tenantID={empty}")
-	} else {
-		tenantMode = util.TenantModeSingle
-		tenantID = util.TenantIDDefault
-		zap.S().Info("enableMultiTenantMode=True, all init data would be tenantMode=single, tenantID=default")
+		return util.TenantModeGlobal, ""
 	}
-
-	for appCode, appSecret := range cfg.AccessKeys {
-		createAccessKey(appCode, appSecret, tenantMode, tenantID)
-	}
-
-	ensurePublicApp(tenantMode, tenantID)
-	ensurePersonalApp(tenantMode, tenantID)
+	return util.TenantModeSingle, util.TenantIDDefault
 }

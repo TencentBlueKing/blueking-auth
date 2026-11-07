@@ -64,6 +64,17 @@ func initConfig() {
 	}
 }
 
+// initDataCommand prepares a one-off command that only reads and writes rows: it needs
+// the secret crypto but neither Redis nor the caches, so it still runs while Redis is down.
+func initDataCommand() {
+	zap.S().Infof("Load config file: %s", cfgFile)
+	viper.SetConfigFile(cfgFile)
+	initConfig()
+	initLogger()
+	initDatabase()
+	initCryptos()
+}
+
 func initSentry() {
 	if globalConfig.Sentry.Enable {
 		err := sentry.Init(sentry.ClientOptions{
