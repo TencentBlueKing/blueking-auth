@@ -97,17 +97,6 @@ func checkRedisInstances(redisConfigs []config.Redis) error {
 	return nil
 }
 
-// Healthz godoc
-// @Summary healthz for server health check
-// @Description /healthz to make sure the server is health
-// @ID healthz
-// @Tags basic
-// @Accept json
-// @Produce json
-// @Success 200 {string} string message
-// @Failure 500 {string} string message
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /healthz [get]
 func NewHealthzHandleFunc(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 1. check database
