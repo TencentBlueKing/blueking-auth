@@ -1,3 +1,4 @@
+-- +migrate Up
 -- TencentBlueKing is pleased to support the open source community by making
 -- 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
 -- Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
@@ -14,7 +15,7 @@
 -- OAuth Client table
 -- token_endpoint_auth_method is NOT stored; it is derived from type at runtime:
 --   public -> "none", confidential -> "client_secret_basic"
-CREATE TABLE IF NOT EXISTS `bkauth`.`oauth_client` (
+CREATE TABLE IF NOT EXISTS `oauth_client` (
     `id` VARCHAR(128) NOT NULL PRIMARY KEY,
     `name` VARCHAR(256) NOT NULL,
     `type` ENUM('public', 'confidential') NOT NULL DEFAULT 'public',
@@ -26,7 +27,7 @@ CREATE TABLE IF NOT EXISTS `bkauth`.`oauth_client` (
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- OAuth Authorization Code table
-CREATE TABLE IF NOT EXISTS `bkauth`.`oauth_authorization_code` (
+CREATE TABLE IF NOT EXISTS `oauth_authorization_code` (
     `code` VARCHAR(128) NOT NULL PRIMARY KEY,
     `client_id` VARCHAR(128) NOT NULL,
     `realm_name` VARCHAR(64) NOT NULL DEFAULT '',
@@ -44,7 +45,7 @@ CREATE TABLE IF NOT EXISTS `bkauth`.`oauth_authorization_code` (
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- OAuth Access Token table
-CREATE TABLE IF NOT EXISTS `bkauth`.`oauth_access_token` (
+CREATE TABLE IF NOT EXISTS `oauth_access_token` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `jti` VARCHAR(64) NOT NULL UNIQUE,
     `token_hash` VARCHAR(64) NOT NULL UNIQUE,
@@ -65,7 +66,7 @@ CREATE TABLE IF NOT EXISTS `bkauth`.`oauth_access_token` (
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- OAuth Refresh Token table
-CREATE TABLE IF NOT EXISTS `bkauth`.`oauth_refresh_token` (
+CREATE TABLE IF NOT EXISTS `oauth_refresh_token` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `token_hash` VARCHAR(64) NOT NULL UNIQUE,
     `token_mask` VARCHAR(32) NOT NULL DEFAULT '',
@@ -87,7 +88,7 @@ CREATE TABLE IF NOT EXISTS `bkauth`.`oauth_refresh_token` (
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- OAuth 2.0 Device Authorization Grant (RFC 8628)
-CREATE TABLE IF NOT EXISTS `bkauth`.`oauth_device_code` (
+CREATE TABLE IF NOT EXISTS `oauth_device_code` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `device_code` VARCHAR(128) NOT NULL UNIQUE,
     `user_code` VARCHAR(16) NOT NULL UNIQUE,

@@ -1,3 +1,4 @@
+-- +migrate Up
 -- TencentBlueKing is pleased to support the open source community by making
 -- 蓝鲸智云 - Auth服务(BlueKing - Auth) available.
 -- Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,12 +13,12 @@
 -- to the current version of the project delivered to anyone in the future.
 
 -- add fields
-ALTER TABLE `bkauth`.`app` ADD COLUMN tenant_mode VARCHAR(32) NULL;
-ALTER TABLE `bkauth`.`app` ADD COLUMN tenant_id VARCHAR(32) NULL;
+ALTER TABLE `app` ADD COLUMN tenant_mode VARCHAR(32) NULL;
+ALTER TABLE `app` ADD COLUMN tenant_id VARCHAR(32) NULL;
 
 -- update legacy data
-UPDATE `bkauth`.`app` SET tenant_mode = 'single', tenant_id = 'default' WHERE tenant_mode IS NULL;
+UPDATE `app` SET tenant_mode = 'single', tenant_id = 'default' WHERE tenant_mode IS NULL;
 
 -- update fields
-ALTER TABLE `bkauth`.`app` MODIFY COLUMN tenant_mode VARCHAR(32) NOT NULL COMMENT 'global or single';
-ALTER TABLE `bkauth`.`app` MODIFY COLUMN tenant_id VARCHAR(32) NOT NULL COMMENT 'empty or specific tenant_id';
+ALTER TABLE `app` MODIFY COLUMN tenant_mode VARCHAR(32) NOT NULL COMMENT 'global or single';
+ALTER TABLE `app` MODIFY COLUMN tenant_id VARCHAR(32) NOT NULL COMMENT 'empty or specific tenant_id';

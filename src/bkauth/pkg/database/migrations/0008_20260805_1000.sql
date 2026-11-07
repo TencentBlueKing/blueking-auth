@@ -1,3 +1,4 @@
+-- +migrate Up
 -- TencentBlueKing is pleased to support the open source community by making
 -- 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
 -- Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
@@ -23,7 +24,7 @@
 -- banned because a 365-day expires_at will cross the 2038 boundary. expires_at has
 -- no DEFAULT so that a missing value errors out instead of silently writing an
 -- already-expired row.
-CREATE TABLE IF NOT EXISTS `bkauth`.`personal_access_token` (
+CREATE TABLE IF NOT EXISTS `personal_access_token` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(64) NOT NULL,
     `description` VARCHAR(255) NOT NULL DEFAULT '',

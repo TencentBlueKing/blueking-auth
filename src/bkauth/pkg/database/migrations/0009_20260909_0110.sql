@@ -1,3 +1,4 @@
+-- +migrate Up
 -- TencentBlueKing is pleased to support the open source community by making
 -- 蓝鲸智云 - Auth 服务 (BlueKing - Auth) available.
 -- Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
@@ -24,6 +25,6 @@
 -- consumed row is already spent, an expired one is already unusable, and the only
 -- row a user can notice is a pending one -- whose loss is the device flow being
 -- restarted, the same thing that happens when the ten minutes run out.
-DELETE FROM `bkauth`.`oauth_device_code`;
+DELETE FROM `oauth_device_code`;
 
-ALTER TABLE `bkauth`.`oauth_device_code` MODIFY COLUMN `resource` JSON NOT NULL;
+ALTER TABLE `oauth_device_code` MODIFY COLUMN `resource` JSON NOT NULL;
