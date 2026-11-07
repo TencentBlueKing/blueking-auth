@@ -15,8 +15,10 @@ sentry:
   enable: false
   dsn: ""
 
-pprofPassword: "DebugModel@bk"
-monitoringToken: "YbqrbLCTcbZyCHS82JDqYvMpuDuM3t2Dq4iF"
+# BasicAuth password of /debug/pprof (user bkauth); empty leaves /debug/pprof unmounted
+pprofPassword: ""
+# token of /version, /healthz and /metrics; empty leaves them unmounted
+monitoringToken: ""
 
 # kms:
 #   enabled: false

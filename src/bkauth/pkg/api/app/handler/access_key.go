@@ -20,6 +20,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/gin-gonic/gin"
@@ -32,20 +33,6 @@ import (
 	"bkauth/pkg/util"
 )
 
-// CreateAccessKey godoc
-// @Summary app secret create
-// @Description  creates app secret
-// @ID api-app-secret-create
-// @Tags app
-// @Accept  json
-// @Produce  json
-// @Param X-BK-APP-CODE header string true "app_code"
-// @Param X-BK-APP-SECRET header string true "app_secret"
-// @Param bk_app_code path string true "the app which want to create secret"
-// @Param data body createAccessKeySerializer false "app_secret info"
-// @Success 200 {object} util.Response{data=types.AccessKey}
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /api/v1/apps/{bk_app_code}/access-keys [post]
 func CreateAccessKey(c *gin.Context) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf("Handler", "CreateAccessKey")
 
@@ -92,20 +79,6 @@ func CreateAccessKey(c *gin.Context) {
 	util.SuccessJSONResponse(c, "ok", accessKey)
 }
 
-// DeleteAccessKey godoc
-// @Summary app secret delete
-// @Description delete app secret
-// @ID api-app-secret-delete
-// @Tags app
-// @Accept  json
-// @Produce  json
-// @Param X-BK-APP-CODE header string true "app_code"
-// @Param X-BK-APP-SECRET header string true "app_secret"
-// @Param bk_app_code path string true "the app which want to delete secret"
-// @Param access_key_id path string true "the secret which want to delete"
-// @Success 200 {object} util.Response
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /api/v1/apps/{bk_app_code}/access-keys/{access_key_id} [delete]
 func DeleteAccessKey(c *gin.Context) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf("Handler", "DeleteAccessKey")
 
@@ -126,6 +99,11 @@ func DeleteAccessKey(c *gin.Context) {
 	svc := service.NewAccessKeyService()
 	err := svc.DeleteByID(ctx, appCode, accessKeyID)
 	if err != nil {
+		// AccessKeyExists checked the key first, but it may be deleted concurrently since.
+		if errors.Is(err, service.ErrAccessKeyNotFound) {
+			util.NotFoundJSONResponse(c, fmt.Sprintf("AccessKeyID(%d) of app(%s) not exists", accessKeyID, appCode))
+			return
+		}
 		// 校验不通过
 		if util.IsValidationError(err) {
 			util.BadRequestErrorJSONResponse(c, err.Error())
@@ -144,19 +122,6 @@ func DeleteAccessKey(c *gin.Context) {
 	util.SuccessJSONResponse(c, "ok", nil)
 }
 
-// ListAccessKey godoc
-// @Summary app secret list
-// @Description list app secret
-// @ID api-app-secret-list
-// @Tags app
-// @Accept  json
-// @Produce  json
-// @Param X-BK-APP-CODE header string true "app_code"
-// @Param X-BK-APP-SECRET header string true "app_secret"
-// @Param bk_app_code path string true "the app which want to list secret"
-// @Success 200 {object} util.Response{data=[]types.AccessKeyWithCreatedAt}
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /api/v1/apps/{bk_app_code}/access-keys [get]
 func ListAccessKey(c *gin.Context) {
 	// 获取 URL 参数
 	var uriParams common.AppCodeSerializer
@@ -180,20 +145,6 @@ func ListAccessKey(c *gin.Context) {
 	util.SuccessJSONResponse(c, "ok", accessKeys)
 }
 
-// VerifyAccessKey godoc
-// @Summary app secret verify
-// @Description verify app secret
-// @ID api-app-secret-verify
-// @Tags app
-// @Accept  json
-// @Produce  json
-// @Param X-BK-APP-CODE header string true "app_code"
-// @Param X-BK-APP-SECRET header string true "app_secret"
-// @Param bk_app_code path string true "the app which want to verify secret"
-// @Param data body appSecretSerializer true "app secret"
-// @Success 200 {object} util.Response{data=map[string]bool}
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /api/v1/apps/{bk_app_code}/access-keys/verify [post]
 func VerifyAccessKey(c *gin.Context) {
 	// 获取 URL 参数
 	var uriParams common.AppCodeSerializer
@@ -228,21 +179,6 @@ func VerifyAccessKey(c *gin.Context) {
 	util.SuccessJSONResponse(c, "ok", data)
 }
 
-// UpdateAccessKey godoc
-// @Summary app secret put
-// @Description put app secret
-// @ID api-app-secret-put
-// @Tags app
-// @Accept  json
-// @Produce  json
-// @Param X-BK-APP-CODE header string true "app_code"
-// @Param X-BK-APP-SECRET header string true "app_secret"
-// @Param bk_app_code path string true "the app which want to put secret"
-// @Param access_key_id path string true "the secret which want to delete"
-// @Param data body updateAccessKeySerializer true "the app_secret info which want to update"
-// @Success 200 {object} util.Response
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /api/v1/apps/{bk_app_code}/access-keys/{access_key_id} [put]
 func UpdateAccessKey(c *gin.Context) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf("Handler", "PutAccessKey")
 	// 获取 URL 参数

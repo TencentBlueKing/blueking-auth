@@ -258,14 +258,56 @@ var _ = Describe("accessKeyService", func() {
 			assert.NoError(GinkgoT(), err)
 		})
 
+		It("not found when no row of the app has the id", func() {
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(2), nil)
+			mockManager.EXPECT().DeleteByID(gomock.Any(), "testApp", int64(1)).Return(int64(0), nil)
+
+			svc := accessKeyService{manager: mockManager}
+			err := svc.DeleteByID(context.Background(), "testApp", 1)
+			assert.ErrorIs(GinkgoT(), err, ErrAccessKeyNotFound)
+		})
+
 		It("min secrets", func() {
 			mockManager := mock.NewMockAccessKeyManager(ctl)
 			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(MinSecretsPreApp), nil)
+			mockManager.EXPECT().ExistsByAppCodeAndID(gomock.Any(), "testApp", int64(1)).Return(true, nil)
 
 			svc := accessKeyService{manager: mockManager}
 			err := svc.DeleteByID(context.Background(), "testApp", 1)
 			assert.Error(GinkgoT(), err)
 			assert.True(GinkgoT(), util.IsValidationError(err))
+		})
+
+		It("not found rather than min secrets when the app does not have the id", func() {
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(MinSecretsPreApp), nil)
+			mockManager.EXPECT().ExistsByAppCodeAndID(gomock.Any(), "testApp", int64(1)).Return(false, nil)
+
+			svc := accessKeyService{manager: mockManager}
+			err := svc.DeleteByID(context.Background(), "testApp", 1)
+			assert.ErrorIs(GinkgoT(), err, ErrAccessKeyNotFound)
+		})
+
+		It("not found when the app has no secret at all", func() {
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(0), nil)
+			mockManager.EXPECT().ExistsByAppCodeAndID(gomock.Any(), "testApp", int64(1)).Return(false, nil)
+
+			svc := accessKeyService{manager: mockManager}
+			err := svc.DeleteByID(context.Background(), "testApp", 1)
+			assert.ErrorIs(GinkgoT(), err, ErrAccessKeyNotFound)
+		})
+
+		It("exists error", func() {
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(MinSecretsPreApp), nil)
+			mockManager.EXPECT().ExistsByAppCodeAndID(gomock.Any(), "testApp", int64(1)).Return(false, errors.New("db error"))
+
+			svc := accessKeyService{manager: mockManager}
+			err := svc.DeleteByID(context.Background(), "testApp", 1)
+			assert.Error(GinkgoT(), err)
+			assert.Contains(GinkgoT(), err.Error(), "manager.ExistsByAppCodeAndID")
 		})
 
 		It("count error", func() {

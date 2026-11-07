@@ -179,13 +179,6 @@ func initAPIAllowList(cfg *config.Config) {
 	common.InitAPIAllowList(cfg.APIAllowLists)
 }
 
-func initPprof(cfg *config.Config) {
-	// 若配置文件里没有配置，则给定默认密码
-	if cfg.PprofPassword == "" {
-		cfg.PprofPassword = "DebugModel@bk"
-	}
-}
-
 func initTracing(cfg *config.Config) {
 	if !cfg.Trace.Enabled {
 		zap.S().Info("OTel Traces is not enabled, will not init it")

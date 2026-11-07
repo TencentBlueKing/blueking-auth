@@ -22,10 +22,6 @@ import (
 	"bkauth/cmd"
 )
 
-// @title BKAuth API
-// @version 1.0
-// @description BKAuth API 文档
-
 func main() {
 	cmd.Execute()
 }

@@ -22,6 +22,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go.uber.org/zap"
@@ -42,6 +43,9 @@ const (
 	// MinSecretsPreApp 每个 App 至少有一个 secret
 	MinSecretsPreApp = 1
 )
+
+// ErrAccessKeyNotFound means no access key with the given id belongs to the app.
+var ErrAccessKeyNotFound = errors.New("access key not found")
 
 type AccessKeyService interface {
 	// TODO：Create / CreateWithSecret 可以引入一个输入的 struct（比如 AccessKeyCreateInput），避免多个 string 参数的顺序错误和跨层“散弹式修改”
@@ -191,14 +195,26 @@ func (s *accessKeyService) DeleteByID(ctx context.Context, appCode string, id in
 		return errorWrapf(err, "manager.Count appCode=`%s` fail", appCode)
 	}
 	if count <= MinSecretsPreApp {
+		// Checked only on this path to spare the usual delete a query: a key the app does not
+		// have is not found, rather than refused as its last secret.
+		exists, err := s.manager.ExistsByAppCodeAndID(ctx, appCode, id)
+		if err != nil {
+			return errorWrapf(err, "manager.ExistsByAppCodeAndID appCode=`%s` id=`%d` fail", appCode, id)
+		}
+		if !exists {
+			return ErrAccessKeyNotFound
+		}
 		return util.ValidationErrorWrap(
 			fmt.Errorf("app(%s) have %d secret at least, [current %d]", appCode, MinSecretsPreApp, count))
 	}
 
 	// 防御性，避免误删除 Secret，所以需要额外 AppCode 来二次保证
-	_, err = s.manager.DeleteByID(ctx, appCode, id)
+	deleted, err := s.manager.DeleteByID(ctx, appCode, id)
 	if err != nil {
 		return errorWrapf(err, "manager.DeleteByID appCode=`%s` id=`%d` fail", appCode, id)
+	}
+	if deleted == 0 {
+		return ErrAccessKeyNotFound
 	}
 
 	return

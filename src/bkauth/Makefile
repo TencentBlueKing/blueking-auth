@@ -5,8 +5,6 @@ init:
 	pre-commit install
 	# go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.15.0
-	# for make doc
-	go get -u -d github.com/swaggo/swag/cmd/swag@latest
 	# for make mock
 	go install go.uber.org/mock/mockgen@$(shell go list -m -f '{{.Version}}' go.uber.org/mock)
 	# for goimports
@@ -14,9 +12,6 @@ init:
 
 dep:
 	go mod tidy
-
-doc:
-	swag init
 
 godoc:
 	godoc -http=127.0.0.1:6060 -goroot="."
@@ -36,7 +31,7 @@ lint-dupl:
 	golangci-lint run --no-config --disable-all --enable=dupl
 
 test:
-	go test $(shell go list ./... | grep -v mock | grep -v docs) -covermode=count -coverprofile .coverage.cov
+	go test $(shell go list ./... | grep -v mock) -covermode=count -coverprofile .coverage.cov
 
 cov:
 	go tool cover -html=.coverage.cov
