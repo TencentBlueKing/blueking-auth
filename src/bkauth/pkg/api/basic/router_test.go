@@ -53,6 +53,52 @@ func TestRegisterIndexRedirectsToFrontend(t *testing.T) {
 	assert.Equal(t, "https://bkauth.example.com/web/dashboard", w.Header().Get("Location"))
 }
 
+func serve(r *gin.Engine, req *http.Request) int {
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w.Code
+}
+
+func TestRegisterLeavesUnconfiguredRoutesUnmounted(t *testing.T) {
+	t.Parallel()
+
+	r := gin.New()
+	Register(&config.Config{Debug: true}, r)
+
+	for _, path := range []string{"/debug/pprof/", "/version", "/healthz", "/metrics", "/swagger/index.html"} {
+		assert.Equal(t, http.StatusNotFound, serve(r, httptest.NewRequest(http.MethodGet, path, nil)), path)
+	}
+	assert.Equal(t, http.StatusOK, serve(r, httptest.NewRequest(http.MethodGet, "/ping", nil)))
+}
+
+func TestRegisterRequiresPprofPasswordEvenInDebug(t *testing.T) {
+	t.Parallel()
+
+	r := gin.New()
+	Register(&config.Config{Debug: true, PprofPassword: "pprof-secret"}, r)
+
+	assert.Equal(t, http.StatusUnauthorized, serve(r, httptest.NewRequest(http.MethodGet, "/debug/pprof/", nil)))
+
+	req := httptest.NewRequest(http.MethodGet, "/debug/pprof/", nil)
+	req.SetBasicAuth("bkauth", "pprof-secret")
+	assert.Equal(t, http.StatusOK, serve(r, req))
+}
+
+func TestRegisterRequiresMonitoringTokenEvenInDebug(t *testing.T) {
+	t.Parallel()
+
+	r := gin.New()
+	Register(&config.Config{Debug: true, MonitoringToken: "monitoring-secret"}, r)
+
+	// /healthz is not served with a token here: it would reach the database.
+	for _, path := range []string{"/version", "/healthz", "/metrics"} {
+		assert.Equal(t, http.StatusUnauthorized, serve(r, httptest.NewRequest(http.MethodGet, path, nil)), path)
+	}
+	for _, path := range []string{"/version?token=monitoring-secret", "/metrics?token=monitoring-secret"} {
+		assert.Equal(t, http.StatusOK, serve(r, httptest.NewRequest(http.MethodGet, path, nil)), path)
+	}
+}
+
 // The index redirect must stay on the exact path: an unmatched API path is a
 // 404, not an invitation to the frontend.
 func TestRegisterLeavesUnmatchedPathsUnredirected(t *testing.T) {

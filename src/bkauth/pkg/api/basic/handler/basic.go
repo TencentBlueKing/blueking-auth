@@ -27,32 +27,12 @@ import (
 	"bkauth/pkg/version"
 )
 
-// Ping godoc
-// @Summary ping-pong for alive test
-// @Description /ping to get response from iam, make sure the server is alive
-// @ID ping
-// @Tags basic
-// @Accept json
-// @Produce json
-// @Success 200 {object} map[string]string
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /ping [get]
 func Ping(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"message": "pong",
 	})
 }
 
-// Version godoc
-// @Summary version for identify
-// @Description /version to get the version of iam
-// @ID version
-// @Tags basic
-// @Accept json
-// @Produce json
-// @Success 200 {object} map[string]string
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /version [get]
 func Version(c *gin.Context) {
 	runEnv := os.Getenv("RUN_ENV")
 	now := time.Now()

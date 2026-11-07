@@ -29,19 +29,6 @@ import (
 	"bkauth/pkg/util"
 )
 
-// CreateApp godoc
-// @Summary app create
-// @Description  creates an app with base info
-// @ID api-app-create
-// @Tags app
-// @Accept  json
-// @Produce  json
-// @Param X-BK-APP-CODE header string true "app_code"
-// @Param X-BK-APP-SECRET header string true "app_secret"
-// @Param data body createAppSerializer true "App Info"
-// @Success 200 {object} util.Response{data=common.AppResponse}
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /api/v1/apps [post]
 func CreateApp(c *gin.Context) {
 	// NOTE: 通过 API 创建，不支持指定 app_secret，默认自动创建对应的 app_secret
 	var body createAppSerializer
@@ -120,19 +107,6 @@ func CreateApp(c *gin.Context) {
 	util.SuccessJSONResponse(c, "ok", data)
 }
 
-// GetApp godoc
-// @Summary get app
-// @Description  gets an app by app_code
-// @ID api-app-get
-// @Tags app
-// @Accept  json
-// @Produce  json
-// @Param X-BK-APP-CODE header string true "app_code"
-// @Param X-BK-APP-SECRET header string true "app_secret"
-// @Param app_code path string true "App Code"
-// @Success 200 {object} util.Response{data=common.AppResponse}
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /api/v1/apps/{bk_app_code} [get]
 func GetApp(c *gin.Context) {
 	// 获取 URL 参数
 	var uriParams common.AppCodeSerializer
@@ -163,20 +137,6 @@ func GetApp(c *gin.Context) {
 	util.SuccessJSONResponse(c, "ok", data)
 }
 
-// ListApp godoc
-// @Summary list apps
-// @Description  lists apps with optional query parameters
-// @ID api-app-list
-// @Tags app
-// @Accept  json
-// @Produce  json
-// @Param tenant_mode query string false "Tenant Type"
-// @Param tenant_id query string false "Tenant ID"
-// @Param page query int false "Page number"
-// @Param page_size query int false "Page size"
-// @Success 200 {object} util.Response{data=common.PaginatedResponse{results=[]common.AppResponse}}
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /api/v1/apps [get]
 func ListApp(c *gin.Context) {
 	var query listAppSerializer
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -219,19 +179,6 @@ func ListApp(c *gin.Context) {
 	})
 }
 
-// DeleteApp godoc
-// @Summary delete app
-// @Description deletes an app by app_code
-// @ID api-app-delete
-// @Tags app
-// @Accept  json
-// @Produce  json
-// @Param X-BK-APP-CODE header string true "app_code"
-// @Param X-BK-APP-SECRET header string true "app_secret"
-// @Param bk_app_code path string true "App Code"
-// @Success 200 {object} util.Response
-// @Header 200 {string} X-Request-Id "the request id"
-// @Router /api/v1/apps/{bk_app_code} [delete]
 func DeleteApp(c *gin.Context) {
 	errorWrapf := errorx.NewLayerFunctionErrorWrapf("Handler", "DeleteApp")
 

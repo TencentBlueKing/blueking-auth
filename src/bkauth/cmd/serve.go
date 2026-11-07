@@ -53,7 +53,6 @@ func serve() error {
 	zap.S().Infof("enableMultiTenantMode: %v", cfg.EnableMultiTenantMode)
 
 	initSentry(cfg)
-	initPprof(cfg)
 	initMetrics()
 	if err := initDatabase(cfg); err != nil {
 		return err

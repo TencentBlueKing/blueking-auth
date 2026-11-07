@@ -258,6 +258,16 @@ var _ = Describe("accessKeyService", func() {
 			assert.NoError(GinkgoT(), err)
 		})
 
+		It("not found when no row of the app has the id", func() {
+			mockManager := mock.NewMockAccessKeyManager(ctl)
+			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(2), nil)
+			mockManager.EXPECT().DeleteByID(gomock.Any(), "testApp", int64(1)).Return(int64(0), nil)
+
+			svc := accessKeyService{manager: mockManager}
+			err := svc.DeleteByID(context.Background(), "testApp", 1)
+			assert.ErrorIs(GinkgoT(), err, ErrAccessKeyNotFound)
+		})
+
 		It("min secrets", func() {
 			mockManager := mock.NewMockAccessKeyManager(ctl)
 			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(MinSecretsPreApp), nil)
