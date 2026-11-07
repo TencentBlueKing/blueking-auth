@@ -20,11 +20,11 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/go-redis/redis/extra/redisotel/v8"
 	redis "github.com/go-redis/redis/v8"
-	"go.uber.org/zap"
 
 	"bkauth/pkg/config"
 )
@@ -33,28 +33,29 @@ var rds *redis.Client
 
 var redisClientInitOnce sync.Once
 
-// InitRedisClient ...
-func InitRedisClient(debugMode bool, redisConfig *config.Redis) {
-	if rds == nil {
-		redisClientInitOnce.Do(func() {
-			if redisConfig.SentinelEnabled {
-				rds = newSentinelClient(redisConfig)
-			} else {
-				rds = newStandaloneClient(redisConfig)
-			}
+// InitRedisClient creates the default client and checks that it reaches Redis, the way
+// database.InitDBClients does. Only the first call does anything.
+func InitRedisClient(redisConfig *config.Redis) (err error) {
+	redisClientInitOnce.Do(func() {
+		var client *redis.Client
+		if redisConfig.SentinelEnabled {
+			client, err = newSentinelClient(redisConfig)
+		} else {
+			client, err = newStandaloneClient(redisConfig)
+		}
+		if err != nil {
+			return
+		}
 
-			rds.AddHook(redisotel.NewTracingHook())
-
-			_, err := rds.Ping(context.TODO()).Result()
-			if err != nil {
-				zap.S().Error(err, "connect to redis fail")
-				// redis is important
-				if !debugMode {
-					panic(err)
-				}
-			}
-		})
-	}
+		client.AddHook(redisotel.NewTracingHook())
+		if e := client.Ping(context.TODO()).Err(); e != nil {
+			err = fmt.Errorf("ping redis: %w", e)
+			_ = client.Close()
+			return
+		}
+		rds = client
+	})
+	return err
 }
 
 // GetDefaultRedisClient 获取默认的Redis实例

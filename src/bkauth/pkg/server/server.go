@@ -20,6 +20,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -27,7 +28,6 @@ import (
 	"go.uber.org/zap"
 
 	"bkauth/pkg/config"
-	"bkauth/pkg/logging"
 	"bkauth/pkg/observability"
 )
 
@@ -41,10 +41,9 @@ const (
 
 // Server ...
 type Server struct {
-	addr     string
-	server   *http.Server
-	stopChan chan struct{}
-	config   *config.Config
+	addr   string
+	server *http.Server
+	config *config.Config
 }
 
 // NewServer ...
@@ -78,75 +77,73 @@ func NewServer(cfg *config.Config) *Server {
 	}
 
 	return &Server{
-		addr:     addr,
-		server:   server,
-		stopChan: make(chan struct{}, 1),
-		config:   cfg,
+		addr:   addr,
+		server: server,
+		config: cfg,
 	}
 }
 
-// Run ...
-func (s *Server) Run(ctx context.Context) {
+// Run serves until ctx is done, then shuts down gracefully. It returns an error only
+// when the server cannot serve, e.g. the address is already in use.
+func (s *Server) Run(ctx context.Context) error {
+	serveErr := make(chan error, 1)
 	go func() {
-		<-ctx.Done()
-		zap.S().Info("I have to go...")
-		zap.S().Info("Stopping server gracefully")
-		s.Stop()
-	}()
-
-	go func() {
-		err := s.server.ListenAndServe()
-		if err != nil {
-			panic(err)
+		// Shutdown makes ListenAndServe return ErrServerClosed, which is the normal way out.
+		if err := s.server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			serveErr <- err
 		}
 	}()
 
-	s.Wait()
-	zap.S().Info("Shutting down")
-}
-
-// Stop ...
-func (s *Server) Stop() {
-	defer zap.S().Info("Server stopped")
-
-	// default graceTimeOut is 60 seconds
-	graceTimeout := defaultGraceTimeout
-	if s.config.Server.GraceTimeout > 0 {
-		graceTimeout = time.Duration(s.config.Server.GraceTimeout) * time.Second
+	select {
+	case err := <-serveErr:
+		s.stopTelemetry()
+		return fmt.Errorf("serve on %s: %w", s.addr, err)
+	case <-ctx.Done():
 	}
 
-	zap.S().Infof("Waiting %s seconds before killing connections...", graceTimeout)
+	zap.S().Info("Stopping server gracefully")
+	s.stop()
+	zap.S().Info("Shutting down")
+	return nil
+}
 
-	// disable keep-alive connections
-	s.server.SetKeepAlivesEnabled(false)
+// stop shuts the server down gracefully; Run calls it once ctx is done.
+func (s *Server) stop() {
+	defer zap.S().Info("Server stopped")
+
+	graceTimeout := s.graceTimeout()
+	zap.S().Infof("Waiting %s before killing connections...", graceTimeout)
+
+	// Shutdown also disables keep-alives: every response from now on closes its connection.
 	httpShutdownCtx, httpShutdownCancel := context.WithTimeout(context.Background(), graceTimeout)
 	defer httpShutdownCancel()
 	if err := s.server.Shutdown(httpShutdownCtx); err != nil {
-		zap.S().Error(err, "Wait is over due to error")
+		zap.S().Errorf("Wait is over due to error: %s", err)
 		s.server.Close()
 	}
 
-	// use an independent timeout budget for telemetry flush to avoid losing data
-	telemetryShutdownCtx, telemetryShutdownCancel := context.WithTimeout(context.Background(), graceTimeout)
-	defer telemetryShutdownCancel()
-	if err := observability.Shutdown(telemetryShutdownCtx); err != nil {
+	s.stopTelemetry()
+}
+
+func (s *Server) graceTimeout() time.Duration {
+	if s.config.Server.GraceTimeout > 0 {
+		return time.Duration(s.config.Server.GraceTimeout) * time.Second
+	}
+	return defaultGraceTimeout
+}
+
+// stopTelemetry flushes traces and stops profiling with a timeout budget of its own, so
+// a slow HTTP shutdown cannot eat into it.
+func (s *Server) stopTelemetry() {
+	ctx, cancel := context.WithTimeout(context.Background(), s.graceTimeout())
+	defer cancel()
+	if err := observability.Shutdown(ctx); err != nil {
 		zap.S().Errorf("shutdown OpenTelemetry fail: %s", err)
 	} else {
 		zap.S().Info("OpenTelemetry shutdown completed")
 	}
 
-	// stop profiling
 	if err := observability.StopProfiling(); err != nil {
 		zap.S().Warnf("stop Profiling fail: %v", err)
 	}
-
-	// flush logger
-	logging.SyncAll()
-
-	s.stopChan <- struct{}{}
-}
-
-// Wait blocks until server is shut down.
-func (s *Server) Wait() {
-	<-s.stopChan
 }

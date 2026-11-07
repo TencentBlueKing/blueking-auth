@@ -19,15 +19,11 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
 
 	"bkauth/pkg/database"
-	"bkauth/pkg/logging"
 )
 
 var migrateCmd = &cobra.Command{
@@ -36,44 +32,34 @@ var migrateCmd = &cobra.Command{
 }
 
 var migrateUpCmd = &cobra.Command{
-	Use:           "up",
-	Short:         "apply the pending database migrations",
-	Long:          "example: bkauth migrate up -c config.yaml",
-	SilenceUsage:  true,
-	SilenceErrors: true,
+	Use:   "up",
+	Short: "apply the pending database migrations",
+	Long:  "example: bkauth migrate up -c config.yaml",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return migrateUp()
 	},
 }
 
 func init() {
-	migrateCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (required)")
-	_ = migrateCmd.MarkPersistentFlagRequired("config")
-
 	migrateCmd.AddCommand(migrateUpCmd)
 
 	rootCmd.AddCommand(migrateCmd)
 }
 
 func migrateUp() error {
-	zap.S().Infof("Load config file: %s", cfgFile)
-	viper.SetConfigFile(cfgFile)
-	initConfig()
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
+	}
 	// Only the database is needed: Redis and the caches play no part in a schema change.
-	initLogger()
-	defer logging.SyncAll()
-
-	dbConfig, ok := globalConfig.DatabaseMap["bkauth"]
-	if !ok {
-		return errors.New("database bkauth should be configured")
+	if err := initLogger(cfg); err != nil {
+		return err
 	}
-	client := database.NewDBClient(&dbConfig)
-	if err := client.Connect(); err != nil {
-		return fmt.Errorf("connect to database %s: %w", dbConfig.Name, err)
+	if err := initDatabase(cfg); err != nil {
+		return err
 	}
-	defer client.Close()
 
-	applied, err := database.MigrateUp(client.DB.DB)
+	applied, err := database.MigrateUp(database.GetDefaultDBClient().DB.DB)
 	if err != nil {
 		return fmt.Errorf("migrate up: %w", err)
 	}

@@ -19,6 +19,7 @@
 package logging
 
 import (
+	"fmt"
 	"sync"
 
 	"go.uber.org/zap"
@@ -36,22 +37,32 @@ var (
 	auditLogger  *zap.Logger
 )
 
-// InitLogger ...
-func InitLogger(logger *config.Logger) {
-	initSystemLogger(&logger.System)
+// InitLogger builds every logger and makes the system logger zap's global one.
+// Only the first call does anything.
+func InitLogger(logger *config.Logger) (err error) {
 	loggerInitOnce.Do(func() {
-		apiLogger = newLogger(&logger.API)
-		webLogger = newLogger(&logger.Web)
-		sqlLogger = newLogger(&logger.SQL)
-		auditLogger = newLogger(&logger.Audit)
+		loggers := []struct {
+			name   string
+			cfg    *config.LogConfig
+			target **zap.Logger
+		}{
+			{"system", &logger.System, &systemLogger},
+			{"api", &logger.API, &apiLogger},
+			{"web", &logger.Web, &webLogger},
+			{"sql", &logger.SQL, &sqlLogger},
+			{"audit", &logger.Audit, &auditLogger},
+		}
+		for _, l := range loggers {
+			if *l.target, err = newLogger(l.cfg); err != nil {
+				err = fmt.Errorf("init %s logger: %w", l.name, err)
+				return
+			}
+		}
+
+		// 替换zap内置的全局Logger
+		zap.ReplaceGlobals(systemLogger)
 	})
-}
-
-func initSystemLogger(cfg *config.LogConfig) {
-	systemLogger = newLogger(cfg)
-
-	// 替换zap内置的全局Logger
-	zap.ReplaceGlobals(systemLogger)
+	return err
 }
 
 // GetSystemLogger ...
@@ -100,10 +111,12 @@ func GetAuditLogger() *zap.Logger {
 }
 
 // SyncAll 用于程序结束时将所有类型的缓存日志推送到文件里，避免丢失日志
+// Loggers that were never built are skipped, so it is safe to call even when InitLogger
+// has not run or has failed.
 func SyncAll() {
-	_ = systemLogger.Sync()
-	_ = apiLogger.Sync()
-	_ = webLogger.Sync()
-	_ = sqlLogger.Sync()
-	_ = auditLogger.Sync()
+	for _, l := range []*zap.Logger{systemLogger, apiLogger, webLogger, sqlLogger, auditLogger} {
+		if l != nil {
+			_ = l.Sync()
+		}
+	}
 }

@@ -12,11 +12,11 @@ func NewTLSConfig(tlsCertCaFile, tlsCertFile, tlsCertKeyFile string, insecureSki
 	rootCertPool := x509.NewCertPool()
 	pem, err := os.ReadFile(tlsCertCaFile)
 	if err != nil {
-		return nil, fmt.Errorf("load CA certificate for %s: %w", tlsCertFile, err)
+		return nil, fmt.Errorf("load CA certificate(%s): %w", tlsCertCaFile, err)
 	}
 
 	if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
-		return nil, fmt.Errorf("append CA certificate: %w", err)
+		return nil, fmt.Errorf("append CA certificate(%s): no valid PEM certificate found", tlsCertCaFile)
 	}
 
 	tlsConfig := &tls.Config{

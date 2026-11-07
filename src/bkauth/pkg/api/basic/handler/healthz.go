@@ -33,7 +33,10 @@ import (
 )
 
 func checkDatabase(dbConfig *config.Database) error {
-	c := database.NewDBClient(dbConfig)
+	c, err := database.NewDBClient(dbConfig)
+	if err != nil {
+		return err
+	}
 	return c.TestConnection()
 }
 

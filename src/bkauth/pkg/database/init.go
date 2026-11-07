@@ -20,6 +20,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/dlmiddlecote/sqlstats"
@@ -37,22 +38,27 @@ var (
 
 var defaultDBClientOnce sync.Once
 
-// InitDBClients ...
-func InitDBClients(defaultDBConfig *config.Database) {
-	if DefaultDBClient == nil {
-		defaultDBClientOnce.Do(func() {
-			DefaultDBClient = NewDBClient(defaultDBConfig)
-			if err := DefaultDBClient.Connect(); err != nil {
-				panic(err)
-			}
+// InitDBClients connects DefaultDBClient. Only the first call does anything.
+func InitDBClients(defaultDBConfig *config.Database) (err error) {
+	defaultDBClientOnce.Do(func() {
+		client, e := NewDBClient(defaultDBConfig)
+		if e != nil {
+			err = e
+			return
+		}
+		if e = client.Connect(); e != nil {
+			err = fmt.Errorf("connect to database %s: %w", defaultDBConfig.Name, e)
+			return
+		}
+		DefaultDBClient = client
 
-			// https://github.com/dlmiddlecote/sqlstats
-			// Create a new collector, the name will be used as a label on the metrics
-			collector := sqlstats.NewStatsCollector(defaultDBConfig.Name, DefaultDBClient.DB)
-			// Register it with Prometheus
-			prometheus.MustRegister(collector)
-		})
-	}
+		// https://github.com/dlmiddlecote/sqlstats
+		// Create a new collector, the name will be used as a label on the metrics
+		collector := sqlstats.NewStatsCollector(defaultDBConfig.Name, DefaultDBClient.DB)
+		// Register it with Prometheus
+		prometheus.MustRegister(collector)
+	})
+	return err
 }
 
 // GetDefaultDBClient 获取默认的DB实例

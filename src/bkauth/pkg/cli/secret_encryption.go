@@ -16,7 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-// Backing the `secret_encryption` command, this file retires secrets sealed under the
+// Backing the `secret-encryption` command, this file retires secrets sealed under the
 // deprecated fixed nonce. Delete it together with cmd/secret_encryption.go once every
 // deployment has migrated.
 
@@ -64,7 +64,7 @@ func CheckSecretEncryption() error {
 
 	fmt.Printf("\ntotal=%d, legacy=%d, ok=%d\n", len(statuses), legacyCount, len(statuses)-legacyCount)
 	if legacyCount > 0 {
-		fmt.Println("run `secret_encryption migrate` to re-encrypt the legacy rows")
+		fmt.Println("run `bkauth secret-encryption migrate` to re-encrypt the legacy rows")
 	}
 
 	return nil

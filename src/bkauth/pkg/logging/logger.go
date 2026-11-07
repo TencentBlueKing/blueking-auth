@@ -67,11 +67,11 @@ func getEncoder(encoding string) zapcore.Encoder {
 	}
 }
 
-func newLogger(cfg *config.LogConfig) *zap.Logger {
+func newLogger(cfg *config.LogConfig) (*zap.Logger, error) {
 	// Writer
 	writer, err := getWriter(cfg.Writer, cfg.Settings)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	w := &zapcore.BufferedWriteSyncer{
@@ -102,5 +102,5 @@ func newLogger(cfg *config.LogConfig) *zap.Logger {
 		options = append(options, WithDesensitize(fieldMap))
 	}
 
-	return zap.New(core, options...)
+	return zap.New(core, options...), nil
 }

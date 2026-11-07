@@ -17,7 +17,7 @@
  */
 
 // This command only exists to retire secrets sealed under the deprecated fixed nonce.
-// Once every deployment has run `secret_encryption migrate`, this file and
+// Once every deployment has run `secret-encryption migrate`, this file and
 // pkg/cli/secret_encryption.go can be deleted together, with nothing else to unwind.
 
 package cmd
@@ -28,30 +28,23 @@ import (
 	"github.com/spf13/cobra"
 
 	"bkauth/pkg/cli"
-	"bkauth/pkg/logging"
 )
 
 var secretEncryptionDryRunParam bool
 
 var secretEncryptionCmd = &cobra.Command{
-	Use:   "secret_encryption",
+	Use:   "secret-encryption",
 	Short: "audit and migrate app secrets sealed under the deprecated fixed nonce",
-	Long:  "",
 }
 
-// Both subcommands use RunE rather than the Run the other commands use: they are
-// driven by deployment scripts, which need a non-zero exit code to tell a failed
-// migration from a finished one. Execute already turns a returned error into
-// os.Exit(1); SilenceErrors avoids printing it a second time there, and SilenceUsage
-// keeps a runtime failure from burying itself under the usage text.
 var checkSecretEncryptionCmd = &cobra.Command{
-	Use:           "check",
-	Short:         "report access keys still encrypted with the deprecated fixed nonce (read-only)",
-	Long:          "",
-	SilenceUsage:  true,
-	SilenceErrors: true,
+	Use:   "check",
+	Short: "report access keys still encrypted with the deprecated fixed nonce (read-only)",
+	Long:  "example: bkauth secret-encryption check -c config.yaml",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		secretEncryptionStart()
+		if err := secretEncryptionStart(); err != nil {
+			return err
+		}
 		defer secretEncryptionFinish()
 
 		return cli.CheckSecretEncryption()
@@ -59,13 +52,13 @@ var checkSecretEncryptionCmd = &cobra.Command{
 }
 
 var migrateSecretEncryptionCmd = &cobra.Command{
-	Use:           "migrate",
-	Short:         "re-encrypt access keys stored with the deprecated fixed nonce",
-	Long:          "example: secret_encryption migrate -c config.yaml --dry-run",
-	SilenceUsage:  true,
-	SilenceErrors: true,
+	Use:   "migrate",
+	Short: "re-encrypt access keys stored with the deprecated fixed nonce",
+	Long:  "example: bkauth secret-encryption migrate -c config.yaml --dry-run",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		secretEncryptionStart()
+		if err := secretEncryptionStart(); err != nil {
+			return err
+		}
 		defer secretEncryptionFinish()
 
 		return cli.MigrateSecretEncryption(secretEncryptionDryRunParam)
@@ -73,12 +66,6 @@ var migrateSecretEncryptionCmd = &cobra.Command{
 }
 
 func init() {
-	secretEncryptionCmd.PersistentFlags().StringVarP(
-		&cfgFile, "config", "c", "", "config file (default is config.yml;required)",
-	)
-	secretEncryptionCmd.PersistentFlags().Bool("viper", true, "Use Viper for configuration")
-	_ = secretEncryptionCmd.MarkPersistentFlagRequired("config")
-
 	secretEncryptionCmd.AddCommand(checkSecretEncryptionCmd)
 
 	migrateSecretEncryptionCmd.Flags().BoolVar(
@@ -90,16 +77,14 @@ func init() {
 	rootCmd.AddCommand(secretEncryptionCmd)
 }
 
-// secretEncryptionStart is called from Run rather than a PersistentPreRun hook, since
-// cobra validates required flags only after those hooks have already fired.
-func secretEncryptionStart() {
-	fmt.Println("secret_encryption start!")
+func secretEncryptionStart() error {
+	fmt.Println("secret-encryption start!")
 
 	// Cached ciphertexts are deliberately left to expire on their own.
-	initDataCommand()
+	_, err := setupDataCommand()
+	return err
 }
 
 func secretEncryptionFinish() {
-	logging.SyncAll()
-	fmt.Println("secret_encryption finish!")
+	fmt.Println("secret-encryption finish!")
 }

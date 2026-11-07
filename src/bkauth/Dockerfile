@@ -15,4 +15,4 @@ ARG BINARY=bkauth
 RUN mkdir -p /app/logs
 COPY --from=builder /app/${BINARY} /app/${BINARY}
 
-CMD ["/app/bkauth", "--config=/app/config.yaml"]
+CMD ["/app/bkauth", "serve", "--config=/app/config.yaml"]

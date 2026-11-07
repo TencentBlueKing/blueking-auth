@@ -47,7 +47,7 @@ func NewTLSConfig(cfg *config.Redis) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func newStandaloneClient(cfg *config.Redis) *redis.Client {
+func newStandaloneClient(cfg *config.Redis) (*redis.Client, error) {
 	opt := &redis.Options{
 		Addr:     cfg.Addr,
 		Password: cfg.Password,
@@ -82,18 +82,19 @@ func newStandaloneClient(cfg *config.Redis) *redis.Client {
 
 	tlsConfig, err := NewTLSConfig(cfg)
 	if err != nil {
-		zap.S().Fatal(err)
+		return nil, err
 	}
 	opt.TLSConfig = tlsConfig
 
 	zap.S().Infof(
-		"connect to redis: %s[dialTimeout=%s, readTimeout=%s, writeTimeout=%s, poolSize=%d, minIdleConns=%d, idleTimeout=%s]",
+		"redis client options: %s[dialTimeout=%s, readTimeout=%s, writeTimeout=%s, "+
+			"poolSize=%d, minIdleConns=%d, idleTimeout=%s]",
 		opt.Addr, opt.DialTimeout, opt.ReadTimeout, opt.WriteTimeout, opt.PoolSize, opt.MinIdleConns, opt.IdleTimeout)
 
-	return redis.NewClient(opt)
+	return redis.NewClient(opt), nil
 }
 
-func newSentinelClient(cfg *config.Redis) *redis.Client {
+func newSentinelClient(cfg *config.Redis) (*redis.Client, error) {
 	sentinelAddrs := strings.Split(cfg.SentinelAddr, ",")
 	opt := &redis.FailoverOptions{
 		MasterName:    cfg.MasterName,
@@ -135,9 +136,9 @@ func newSentinelClient(cfg *config.Redis) *redis.Client {
 	// Note: TLS for Client To Sentinel、TLS for Client To Master are shared
 	tlsConfig, err := NewTLSConfig(cfg)
 	if err != nil {
-		zap.S().Fatal(err)
+		return nil, err
 	}
 	opt.TLSConfig = tlsConfig
 
-	return redis.NewFailoverClient(opt)
+	return redis.NewFailoverClient(opt), nil
 }

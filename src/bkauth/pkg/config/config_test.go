@@ -19,6 +19,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -31,6 +33,28 @@ func TestLoad(t *testing.T) {
 	_, err := Load(viper.GetViper())
 	assert.Error(t, err)
 }
+
+var _ = Describe("LoadFile", func() {
+	It("loads the file without touching the global viper", func() {
+		path := filepath.Join(GinkgoT().TempDir(), "config.yaml")
+		content := "databases:\n  - {id: bkauth, host: db.example.com, name: bkauth}\n"
+		assert.NoError(GinkgoT(), os.WriteFile(path, []byte(content), 0o600))
+
+		cfg, err := LoadFile(path)
+
+		assert.NoError(GinkgoT(), err)
+		assert.Equal(GinkgoT(), "db.example.com", cfg.DatabaseMap["bkauth"].Host)
+		assert.Empty(GinkgoT(), viper.ConfigFileUsed())
+	})
+
+	It("names the file it cannot read", func() {
+		path := filepath.Join(GinkgoT().TempDir(), "missing.yaml")
+
+		_, err := LoadFile(path)
+
+		assert.ErrorContains(GinkgoT(), err, "read config file "+path)
+	})
+})
 
 func buildOAuthWithOverrides(overrides []TokenTTLOverride) *OAuth {
 	o := &OAuth{

@@ -19,12 +19,60 @@
 package server
 
 import (
+	"context"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"bkauth/pkg/config"
 )
+
+func newTestServer(port int) *Server {
+	return NewServer(&config.Config{
+		Server: config.Server{Host: "127.0.0.1", Port: port, GraceTimeout: 1},
+	})
+}
+
+// runAsync runs s in the background and returns the channel its result arrives on.
+func runAsync(ctx context.Context, s *Server) <-chan error {
+	done := make(chan error, 1)
+	go func() { done <- s.Run(ctx) }()
+	return done
+}
+
+func TestRunReturnsNilAfterGracefulShutdown(t *testing.T) {
+	// Shutdown makes ListenAndServe return http.ErrServerClosed; Run used to panic on it.
+	ctx, cancel := context.WithCancel(context.Background())
+	done := runAsync(ctx, newTestServer(0))
+
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+
+	select {
+	case err := <-done:
+		assert.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run did not return after the context was cancelled")
+	}
+}
+
+func TestRunReturnsErrorWhenAddressInUse(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer ln.Close()
+
+	done := runAsync(context.Background(), newTestServer(ln.Addr().(*net.TCPAddr).Port))
+
+	select {
+	case err := <-done:
+		assert.ErrorContains(t, err, "address already in use")
+	case <-time.After(5 * time.Second):
+		t.Fatal("Run did not fail on an address in use")
+	}
+}
 
 func TestNewServer(t *testing.T) {
 	t.Parallel()

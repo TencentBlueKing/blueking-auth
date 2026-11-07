@@ -24,7 +24,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"bkauth/pkg/cli"
-	"bkauth/pkg/logging"
 )
 
 var (
@@ -48,13 +47,13 @@ var createAccessKeyCmd = &cobra.Command{
 		"Safe to re-run with the same secret. An app holds at most 2 secrets: delete one before adding another.\n" +
 		"Existing secrets that cannot be decrypted, e.g. under a wrong crypto key, never match, " +
 		"so the same secret is added again.",
-	SilenceUsage:  true,
-	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		initDataCommand()
-		defer logging.SyncAll()
+		cfg, err := setupDataCommand()
+		if err != nil {
+			return err
+		}
 
-		result, err := cli.CreateAccessKey(globalConfig, accessKeyAppCode, accessKeyAppSecret)
+		result, err := cli.CreateAccessKey(cfg, accessKeyAppCode, accessKeyAppSecret)
 		if err != nil {
 			return err
 		}
@@ -64,28 +63,26 @@ var createAccessKeyCmd = &cobra.Command{
 }
 
 var listAccessKeyCmd = &cobra.Command{
-	Use:           "list",
-	Short:         "list the secrets of apps in plaintext",
-	Long:          "example: bkauth access-key list -c config.yaml --app-code bk_paas,bk_iam",
-	SilenceUsage:  true,
-	SilenceErrors: true,
+	Use:   "list",
+	Short: "list the secrets of apps in plaintext",
+	Long:  "example: bkauth access-key list -c config.yaml --app-code bk_paas,bk_iam",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		initDataCommand()
-		defer logging.SyncAll()
+		if _, err := setupDataCommand(); err != nil {
+			return err
+		}
 
 		return cli.ListAccessKey(accessKeyAppCodes)
 	},
 }
 
 var deleteAccessKeyCmd = &cobra.Command{
-	Use:           "delete",
-	Short:         "delete a secret of an app; the last secret cannot be deleted",
-	Long:          "example: bkauth access-key delete -c config.yaml --app-code bk_paas --id 1",
-	SilenceUsage:  true,
-	SilenceErrors: true,
+	Use:   "delete",
+	Short: "delete a secret of an app; the last secret cannot be deleted",
+	Long:  "example: bkauth access-key delete -c config.yaml --app-code bk_paas --id 1",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		initDataCommand()
-		defer logging.SyncAll()
+		if _, err := setupDataCommand(); err != nil {
+			return err
+		}
 
 		if err := cli.DeleteAccessKey(accessKeyAppCode, accessKeyID); err != nil {
 			return err
@@ -96,9 +93,6 @@ var deleteAccessKeyCmd = &cobra.Command{
 }
 
 func init() {
-	accessKeyCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (required)")
-	_ = accessKeyCmd.MarkPersistentFlagRequired("config")
-
 	createAccessKeyCmd.Flags().StringVarP(&accessKeyAppCode, "app-code", "a", "", "app code (required)")
 	createAccessKeyCmd.Flags().StringVarP(&accessKeyAppSecret, "app-secret", "s", "", "app secret (required)")
 	_ = createAccessKeyCmd.MarkFlagRequired("app-code")
