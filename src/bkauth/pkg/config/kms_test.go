@@ -106,7 +106,7 @@ func newKMSTestCredentials() map[string]any {
 		"bkapp_id_secret": map[string]any{
 			"default": map[string]any{"app_code": "bk_auth", "app_secret": "kms-app-secret"},
 		},
-		"encryption": map[string]any{"cryptoKey": "kmsCryptoKey0123456789abcdefghij"},
+		"encryption": map[string]any{"crypto_key": "kmsCryptoKey0123456789abcdefghij"},
 		"mysql": map[string]any{
 			"bkauth": map[string]any{"username": "kms-user", "password": " kms $db password "},
 		},
@@ -260,8 +260,8 @@ var _ = Describe("KMS", Ordered, func() {
 				func(c map[string]any) { nestedKMSObject(c, "bkapp_id_secret", "default")["app_secret"] = 42 },
 				"bkapp_id_secret.default.app_secret"),
 			Entry("null crypto key",
-				func(c map[string]any) { nestedKMSObject(c, "encryption")["cryptoKey"] = nil },
-				"encryption.cryptoKey"),
+				func(c map[string]any) { nestedKMSObject(c, "encryption")["crypto_key"] = nil },
+				"encryption.crypto_key"),
 			Entry("whitespace-only redis password",
 				func(c map[string]any) { nestedKMSObject(c, "redis", "default")["password"] = "  \t" },
 				"redis.default.password"),

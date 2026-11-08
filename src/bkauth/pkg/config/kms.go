@@ -55,7 +55,7 @@ func (cfg *Config) applyKMS() error {
 func (cfg *Config) kmsBindings() []kmsBinding {
 	bindings := []kmsBinding{
 		{target: &cfg.AppSecret, path: []string{"bkapp_id_secret", "default", "app_secret"}},
-		{target: &cfg.Crypto.Key, path: []string{"encryption", "cryptoKey"}},
+		{target: &cfg.Crypto.Key, path: []string{"encryption", "crypto_key"}},
 	}
 
 	for i := range cfg.Databases {
