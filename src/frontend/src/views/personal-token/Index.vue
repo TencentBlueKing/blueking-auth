@@ -107,9 +107,11 @@
 </template>
 
 <script setup lang="tsx">
+import { withDirectives } from 'vue';
 import {
   Button as BkButton,
   Tag as BkTag,
+  bkTooltips,
 } from 'bkui-vue';
 import CommonTable from '@/components/common-table/Index.vue';
 import RenewDialog from './components/RenewDialog.vue';
@@ -471,7 +473,7 @@ const columns: any[] = [
   {
     title: '操作',
     colKey: 'operation',
-    width: 160,
+    width: 280,
     cell: (_h: any, { row }: { row: IPersonalTokenTableItem }) => {
       // 已撤销：允许查看和删除
       if (row.revoked === true) {
@@ -482,7 +484,7 @@ const columns: any[] = [
               text
               onClick={() => handleView(row)}
             >
-              查看
+              { t('查看') }
             </BkButton>
             <BkButton
               theme="primary"
@@ -501,29 +503,41 @@ const columns: any[] = [
             text
             onClick={() => handleView(row)}
           >
-            查看
+            { t('查看') }
           </BkButton>
           <BkButton
             theme="primary"
             text
             onClick={() => handleEdit(row)}
           >
-            编辑
+            { t('编辑') }
           </BkButton>
           <BkButton
             theme="primary"
             text
             onClick={() => handleRenew(row)}
           >
-            续期
+            { t('续期') }
           </BkButton>
           <BkButton
             theme="primary"
             text
             onClick={() => handleRevoke(row)}
           >
-            撤销
+            { t('撤销') }
           </BkButton>
+          {withDirectives(
+            <span class="delete-button-wrapper">
+              <BkButton
+                theme="primary"
+                text
+                disabled
+              >
+                { t('删除') }
+              </BkButton>
+            </span>,
+            [[bkTooltips, { content: t('请先撤销令牌后再删除') }]],
+          )}
         </div>
       );
     },
@@ -781,6 +795,16 @@ const handleDelete = (row: IPersonalTokenTableItem) => {
     display: flex;
     align-items: center;
     gap: 12px;
+    white-space: nowrap;
+
+    .delete-button-wrapper {
+      display: inline-flex;
+      cursor: not-allowed;
+
+      > :disabled {
+        pointer-events: none;
+      }
+    }
   }
 }
 
