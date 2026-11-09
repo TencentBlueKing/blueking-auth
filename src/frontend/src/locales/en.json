@@ -39,6 +39,8 @@
   "未找到该 API，请检查名称是否正确": "API not found. Check that the name is correct.",
   "未找到该 MCP 服务，请检查名称是否正确": "MCP server not found. Check that the name is correct.",
   "未找到该网关，请检查名称是否正确": "Gateway not found. Check that the name is correct.",
+  "该 API 未开放给个人令牌，请联系该网关负责人开启后再添加。": "This API isn't enabled for personal access tokens. Ask the gateway owner to enable it before adding it.",
+  "该 MCP 服务未开放给个人令牌，请联系该网关负责人开启后再添加。": "This MCP server isn't enabled for personal access tokens. Ask the gateway owner to enable it before adding it.",
   "请妥善保存令牌，关闭弹窗后将无法再次查看它": "Save this token now. You cannot view it again after closing this dialog.",
   "请完整填写非公开资源信息": "Complete all non-public resource fields",
   "请选择过期时间": "Select an expiration time",
