@@ -1268,6 +1268,15 @@ const handleAddCustomResource = async () => {
       );
       return;
     }
+    if (requestError?.code === 'NO_PERMISSION') {
+      await showCustomResourceFieldError(
+        'resourceName',
+        resourceType.name === 'mcp'
+          ? t('该 MCP 服务未开放给个人令牌，请联系该网关负责人开启后再添加。')
+          : t('该 API 未开放给个人令牌，请联系该网关负责人开启后再添加。'),
+      );
+      return;
+    }
     messageError(t('可授予资源查询失败，请稍后重试'));
   }
   finally {
@@ -1897,6 +1906,10 @@ onBeforeUnmount(() => {
     :deep(.bk-form-label) {
       font-size: 12px;
       color: #63656e;
+    }
+
+    :deep(.bk-form-error) {
+      position: static;
     }
   }
 
