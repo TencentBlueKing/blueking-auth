@@ -1268,7 +1268,7 @@ const handleAddCustomResource = async () => {
       );
       return;
     }
-    if (requestError?.code === 'NO_PERMISSION') {
+    if (requestError?.code === 'FAILED_PRECONDITION') {
       await showCustomResourceFieldError(
         'resourceName',
         resourceType.name === 'mcp'

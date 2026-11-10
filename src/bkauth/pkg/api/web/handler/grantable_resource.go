@@ -174,12 +174,14 @@ func handleGrantableResourceRefError(c *gin.Context, err error) {
 	case errors.Is(err, oauth.ErrGrantableResourceNotFound):
 		util.WebNotFoundError(c, err.Error())
 
-	// 403 rather than 404: the object is there and the name is right, so an
-	// answer of "no such thing" would be a lie the user cannot act on. It is not
-	// about who is asking either -- nobody may grant it until its owner opens it
-	// -- but of the codes available this is the one that says "found, refused".
+	// Not 404: the object is there and the name is right, so "no such thing"
+	// would be a lie the user cannot act on. Not 403 either: nobody may grant it
+	// until its owner opens it, so the refusal is about the object rather than
+	// about who is asking, and NO_PERMISSION would send the user off to apply for
+	// a permission that does not exist. And not INVALID_ARGUMENT, which the form
+	// reads as a name to go back and check.
 	case errors.Is(err, oauth.ErrGrantableResourceNotGrantable):
-		util.WebNoPermissionError(c, err.Error())
+		util.WebFailedPreconditionError(c, err.Error())
 
 	default:
 		util.SetError(c, err)

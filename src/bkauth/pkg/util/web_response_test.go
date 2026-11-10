@@ -83,6 +83,12 @@ func TestWebErrorShortcuts(t *testing.T) {
 			code:   "INVALID_ARGUMENT",
 		},
 		{
+			name:   "failed precondition",
+			write:  func(c *gin.Context) { util.WebFailedPreconditionError(c, "boom") },
+			status: http.StatusBadRequest,
+			code:   "FAILED_PRECONDITION",
+		},
+		{
 			name:   "no permission",
 			write:  func(c *gin.Context) { util.WebNoPermissionError(c, "boom") },
 			status: http.StatusForbidden,
