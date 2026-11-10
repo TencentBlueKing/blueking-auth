@@ -182,18 +182,23 @@ func (r *devopsRealm) ResolveAudienceDisplays(
 		if err != nil {
 			return nil, err
 		}
-		displays[aud] = oauth.AudienceDisplay{
-			Type:  typeService,
-			Level: levelService,
-			// The catalog's only level, and every grant is at it: there is no
-			// level above, and no all-services token for the type-wide box to
-			// contribute either.
-			Name:        name,
-			DisplayName: resolveServiceDisplayName(name),
-			Audience:    aud,
-		}
+		displays[aud] = serviceAudienceDisplay(name, aud)
 	}
 	return displays, nil
+}
+
+// serviceAudienceDisplay renders one service token, for every path that does.
+func serviceAudienceDisplay(name, aud string) oauth.AudienceDisplay {
+	return oauth.AudienceDisplay{
+		Type:  typeService,
+		Level: levelService,
+		// The catalog's only level, and every grant is at it: there is no level
+		// above, and no all-services token for the type-wide box to contribute
+		// either.
+		Name:        name,
+		DisplayName: resolveServiceDisplayName(name),
+		Audience:    aud,
+	}
 }
 
 func serviceDisplay(names []string) []ResourceDisplay {

@@ -236,6 +236,73 @@ type Realm interface {
 	ResolveGrantableResource(
 		ctx context.Context, tenantID string, ref GrantableResourceRef,
 	) (GrantableResource, error)
+
+	// ResolveGrantableAudiences confirms, one token at a time, whether each
+	// audience could be granted to a personal access token right now. It serves a
+	// form being prefilled from a shared link, which hands over tokens rather than
+	// the names ResolveGrantableResource takes.
+	//
+	// It answers one AudienceResolution per input, in input order, and a token it
+	// cannot resolve costs that token alone: the reason goes on its own entry and
+	// the rest are answered as usual. That includes an upstream failure, reported
+	// as AudienceRejectUnavailable on the tokens it left unconfirmed, so one
+	// unreachable gateway does not empty a form that names several.
+	//
+	// Otherwise it holds the line ResolveGrantableResource does: a token is
+	// resolved only once its object is confirmed to exist and to be open to
+	// personal access tokens, and never on a degraded answer. The returned error
+	// is for the realm itself being unable to run, not for anything about the
+	// tokens.
+	//
+	// It says nothing about how many tokens a valid selection holds; that stays
+	// with ValidateAudiences, on write.
+	ResolveGrantableAudiences(
+		ctx context.Context, tenantID string, audiences []string,
+	) ([]AudienceResolution, error)
+}
+
+// The reasons an AudienceResolution gives for a token it did not resolve. Each
+// sends the user somewhere different, which is why they are kept apart.
+const (
+	// AudienceRejectInvalid is a token this realm's grammar does not accept: a
+	// link that was cut short or mangled on the way, rather than a name to check.
+	AudienceRejectInvalid = "invalid"
+	// AudienceRejectNotFound is a well-formed token naming nothing that exists.
+	AudienceRejectNotFound = "not_found"
+	// AudienceRejectNotGrantable is a token naming an object that exists but whose
+	// owner has not opened it to personal access tokens.
+	AudienceRejectNotGrantable = "not_grantable"
+	// AudienceRejectUnavailable is a token the upstream could not be asked about
+	// this time. Unlike the three above it says nothing about the token, and
+	// asking again may well resolve it.
+	AudienceRejectUnavailable = "unavailable"
+)
+
+// AudienceResolution is the answer for one token handed to
+// ResolveGrantableAudiences. Exactly one of Resource and Reason is set.
+//
+// Resource is an AudienceDisplay rather than a catalog row because the token is
+// already what the caller holds: what it lacks is the rendering a stored grant
+// would carry, and in that shape a prefilled form and an edited one are filled
+// in the same way.
+type AudienceResolution struct {
+	Audience string           `json:"audience"`
+	Resource *AudienceDisplay `json:"resource,omitempty"`
+	Reason   string           `json:"reason,omitempty"`
+	// Message explains Reason for a person. Like the lookup endpoint's messages
+	// it names what was asked for, and for the same reason never carries an
+	// upstream's own error text.
+	Message string `json:"message,omitempty"`
+}
+
+// ResolvedAudience is the AudienceResolution of a token that resolved.
+func ResolvedAudience(display AudienceDisplay) AudienceResolution {
+	return AudienceResolution{Audience: display.Audience, Resource: &display}
+}
+
+// RejectedAudience is the AudienceResolution of a token that did not.
+func RejectedAudience(audience, reason, message string) AudienceResolution {
+	return AudienceResolution{Audience: audience, Reason: reason, Message: message}
 }
 
 // AudienceDisplay is one stored audience rendered for display. It is a function

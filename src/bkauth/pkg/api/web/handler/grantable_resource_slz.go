@@ -101,6 +101,16 @@ type grantableResourceRefRequest struct {
 	Name string `form:"name" binding:"required,max=512"`
 }
 
+// resolveGrantableAudiencesRequest is the body of the audience resolve endpoint.
+//
+// A body rather than a query, unlike its two siblings, because what it carries is
+// a token's whole audience: a hundred entries of up to 128 bytes each, encoded,
+// are past what a request line is allowed through proxies. The bounds are the
+// create request's, so any audience a token may hold can be resolved in one call.
+type resolveGrantableAudiencesRequest struct {
+	Audience []string `json:"audience" binding:"required,min=1,max=100,dive,max=128"`
+}
+
 func (q *grantableResourceRefRequest) names() (map[string]string, error) {
 	return parseLevelPairs(q.Name)
 }

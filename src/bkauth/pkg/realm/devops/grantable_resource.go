@@ -80,6 +80,33 @@ func (r *devopsRealm) ResolveGrantableResource(
 	return oauth.FindFlatGrantableResource(grantableServices(), levelService, ref)
 }
 
+// ResolveGrantableAudiences resolves every well-formed token, named service or
+// not, which is where it parts with ResolveGrantableResource.
+//
+// That call hands back a described entry, so an unnamed service has nothing to
+// offer it. This one answers whether a token may be granted, and the realm asks
+// no upstream about services, so it cannot tell an unnamed service from a
+// missing one -- nor a named one from a retired one. Reporting not_found would
+// be a guess, and it would drop a grant ValidateAudiences stores without
+// complaint from a link copied off a token that holds it.
+func (r *devopsRealm) ResolveGrantableAudiences(
+	_ context.Context,
+	_ string,
+	audiences []string,
+) ([]oauth.AudienceResolution, error) {
+	resolutions := make([]oauth.AudienceResolution, 0, len(audiences))
+	for _, aud := range audiences {
+		name, err := parseServiceItem(aud)
+		if err != nil {
+			resolutions = append(resolutions,
+				oauth.RejectedAudience(aud, oauth.AudienceRejectInvalid, err.Error()))
+			continue
+		}
+		resolutions = append(resolutions, oauth.ResolvedAudience(serviceAudienceDisplay(name, aud)))
+	}
+	return resolutions, nil
+}
+
 // grantableServices is the entry per named service, read by both paths above so
 // neither can offer one the other does not know.
 //

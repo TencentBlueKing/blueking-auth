@@ -151,6 +151,50 @@ func NewGrantableResourceLookupHandler() gin.HandlerFunc {
 	}
 }
 
+// NewGrantableAudienceResolveHandler creates a handler for
+// POST /realms/:realm_name/personal-tokens/grantable-resources/-/resolve.
+//
+// It confirms a set of audiences a form is about to be prefilled with, which is
+// what a shared link hands over: tokens rather than the names the lookup
+// endpoint takes. Each token is answered on its own, so a link naming one
+// deleted API still prefills the rest.
+//
+// The answer is always 200 with one entry per token once the body is sound.
+// What went wrong with a token is part of the answer rather than a failure of
+// the request, and only a realm unable to run at all is reported as one.
+//
+// Nothing is written, and create does not consult this answer, as with lookup:
+// existence is confirmed while the form is being filled in, and create goes on
+// validating its audience syntactically.
+func NewGrantableAudienceResolveHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		realm := oauth.GetRealm(util.GetRealmName(c))
+
+		var req resolveGrantableAudiencesRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			util.WebBindError(c, err)
+			return
+		}
+
+		// Normalized as create normalizes, so a link copied off a token's own
+		// audience resolves to exactly the entries create would store.
+		audience := normalizeAudience(req.Audience)
+		if len(audience) == 0 {
+			util.WebInvalidArgumentError(c, "audience must hold at least one non-blank entry")
+			return
+		}
+
+		resolutions, err := realm.ResolveGrantableAudiences(c.Request.Context(), util.GetTenantID(c), audience)
+		if err != nil {
+			util.SetError(c, err)
+			util.WebInternalError(c, "failed to resolve the audiences")
+			return
+		}
+
+		util.WebSuccess(c, resolutions)
+	}
+}
+
 // handleGrantableResourceRefError maps the realm's sentinels onto the web error
 // envelope.
 //

@@ -77,6 +77,30 @@ func (r *gpuRealm) ResolveGrantableResource(
 	return oauth.FindFlatGrantableResource(grantableResources(), levelResource, ref)
 }
 
+// ResolveGrantableAudiences has nothing upstream to ask: the one token there is
+// exists by construction, and any other is outside the grammar rather than
+// naming something missing.
+//
+// It checks each token but not how many there are, for the reason
+// ResolveAudienceDisplays gives; a list naming resource:all twice is cut down to
+// once on write, not here.
+func (r *gpuRealm) ResolveGrantableAudiences(
+	_ context.Context,
+	_ string,
+	audiences []string,
+) ([]oauth.AudienceResolution, error) {
+	resolutions := make([]oauth.AudienceResolution, 0, len(audiences))
+	for _, aud := range audiences {
+		if aud != validResource {
+			resolutions = append(resolutions, oauth.RejectedAudience(
+				aud, oauth.AudienceRejectInvalid, errInvalidAudience(aud).Error()))
+			continue
+		}
+		resolutions = append(resolutions, oauth.ResolvedAudience(resourceAudienceDisplay()))
+	}
+	return resolutions, nil
+}
+
 // grantableResources is the realm's entire grantable set, read by both paths
 // above so neither can offer an entry the other does not know.
 func grantableResources() []oauth.GrantableResource {

@@ -138,21 +138,30 @@ func (r *gpuRealm) ResolveAudienceDisplays(
 	displays := make(map[string]oauth.AudienceDisplay, len(audiences))
 	for _, aud := range audiences {
 		if aud != validResource {
-			return nil, fmt.Errorf("invalid audience: must be %q, got %q", validResource, aud)
+			return nil, errInvalidAudience(aud)
 		}
-		displays[aud] = oauth.AudienceDisplay{
-			Type: typeResource,
-			// The sole entry of a one-level catalog, so the grant is at that
-			// level. resource:all reads like a select-all token but is not one:
-			// GrantableResourceTypes leaves the type-wide box empty so the token
-			// is offered in one place only.
-			Level:       levelResource,
-			Name:        resourceItemName,
-			DisplayName: resourceItemDisplayName,
-			Audience:    validResource,
-		}
+		displays[aud] = resourceAudienceDisplay()
 	}
 	return displays, nil
+}
+
+func errInvalidAudience(aud string) error {
+	return fmt.Errorf("invalid audience: must be %q, got %q", validResource, aud)
+}
+
+// resourceAudienceDisplay renders the realm's one token, for every path that does.
+func resourceAudienceDisplay() oauth.AudienceDisplay {
+	return oauth.AudienceDisplay{
+		Type: typeResource,
+		// The sole entry of a one-level catalog, so the grant is at that level.
+		// resource:all reads like a select-all token but is not one:
+		// GrantableResourceTypes leaves the type-wide box empty so the token is
+		// offered in one place only.
+		Level:       levelResource,
+		Name:        resourceItemName,
+		DisplayName: resourceItemDisplayName,
+		Audience:    validResource,
+	}
 }
 
 func resourceDisplay() []ResourceDisplay {

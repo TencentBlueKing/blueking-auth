@@ -100,6 +100,12 @@ func Register(cfg *config.Config, r *gin.RouterGroup) {
 		// gateway's own spelling for the same situation.
 		patGroup.GET("/grantable-resources/-/lookup", handler.NewGrantableResourceLookupHandler())
 
+		// Confirms tokens rather than names, for a form prefilled from a shared
+		// link. A POST although it writes nothing, because a whole audience does
+		// not fit in a request line; for the same reason it is a read and stays
+		// off the audited write group below.
+		patGroup.POST("/grantable-resources/-/resolve", handler.NewGrantableAudienceResolveHandler())
+
 		patGroup.GET("", handler.NewPersonalAccessTokenListHandler(cfg))
 		patGroup.GET("/:id", handler.NewPersonalAccessTokenGetHandler(cfg))
 

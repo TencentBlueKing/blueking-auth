@@ -156,4 +156,53 @@ var _ = Describe("devopsRealm grantable resources", func() {
 			assert.NoError(GinkgoT(), r.ValidateAudiences(ctx, []string{"service:unlisted-service"}))
 		})
 	})
+
+	Describe("ResolveGrantableAudiences", func() {
+		It("should resolve a named service into the rendering a stored grant gets", func() {
+			resolutions, err := r.ResolveGrantableAudiences(ctx, "", []string{"service:codecc"})
+			require.NoError(GinkgoT(), err)
+
+			displays, err := r.ResolveAudienceDisplays(ctx, "", []string{"service:codecc"})
+			require.NoError(GinkgoT(), err)
+
+			require.Len(GinkgoT(), resolutions, 1)
+			assert.Empty(GinkgoT(), resolutions[0].Reason)
+			require.NotNil(GinkgoT(), resolutions[0].Resource)
+			assert.Equal(GinkgoT(), displays["service:codecc"], *resolutions[0].Resource)
+			assert.Equal(GinkgoT(), "CodeCC", resolutions[0].Resource.DisplayName)
+		})
+
+		It("should resolve an unlisted service under its bare name", func() {
+			// Unlike ResolveGrantableResource, which hands back a described entry
+			// and so has nothing to say about a service without a display name.
+			// Nothing upstream is asked here, so not_found would be a claim the
+			// realm cannot back -- and it would drop a grant that a shared link
+			// copied from a working token was carrying.
+			resolutions, err := r.ResolveGrantableAudiences(ctx, "", []string{"service:unlisted-service"})
+			require.NoError(GinkgoT(), err)
+
+			require.Len(GinkgoT(), resolutions, 1)
+			assert.Empty(GinkgoT(), resolutions[0].Reason)
+			require.NotNil(GinkgoT(), resolutions[0].Resource)
+			assert.Equal(GinkgoT(), "unlisted-service", resolutions[0].Resource.DisplayName)
+			assert.Equal(GinkgoT(), "service:unlisted-service", resolutions[0].Resource.Audience)
+		})
+
+		It("should reject a malformed token as invalid and keep the ones beside it", func() {
+			resolutions, err := r.ResolveGrantableAudiences(ctx, "",
+				[]string{"service:codecc", "mcp:foo", "service:"})
+			require.NoError(GinkgoT(), err)
+
+			require.Len(GinkgoT(), resolutions, 3)
+			assert.NotNil(GinkgoT(), resolutions[0].Resource)
+
+			assert.Equal(GinkgoT(), "mcp:foo", resolutions[1].Audience)
+			assert.Equal(GinkgoT(), oauth.AudienceRejectInvalid, resolutions[1].Reason)
+			assert.Nil(GinkgoT(), resolutions[1].Resource)
+			assert.NotEmpty(GinkgoT(), resolutions[1].Message)
+
+			assert.Equal(GinkgoT(), "service:", resolutions[2].Audience)
+			assert.Equal(GinkgoT(), oauth.AudienceRejectInvalid, resolutions[2].Reason)
+		})
+	})
 })

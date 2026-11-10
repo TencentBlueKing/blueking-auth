@@ -146,4 +146,43 @@ var _ = Describe("gpuRealm grantable resources", func() {
 		})
 	})
 
+	Describe("ResolveGrantableAudiences", func() {
+		It("should resolve the one token into the rendering a stored grant gets", func() {
+			resolutions, err := r.ResolveGrantableAudiences(ctx, "", []string{"resource:all"})
+			require.NoError(GinkgoT(), err)
+
+			displays, err := r.ResolveAudienceDisplays(ctx, "", []string{"resource:all"})
+			require.NoError(GinkgoT(), err)
+
+			require.Len(GinkgoT(), resolutions, 1)
+			assert.Equal(GinkgoT(), "resource:all", resolutions[0].Audience)
+			assert.Empty(GinkgoT(), resolutions[0].Reason)
+			require.NotNil(GinkgoT(), resolutions[0].Resource)
+			assert.Equal(GinkgoT(), displays["resource:all"], *resolutions[0].Resource,
+				"a prefilled form and an edited one must be filled from the same rendering")
+		})
+
+		It("should reject any other token as invalid and keep the one beside it", func() {
+			resolutions, err := r.ResolveGrantableAudiences(ctx, "",
+				[]string{"mcp:foo", "resource:all", "resource:some"})
+			require.NoError(GinkgoT(), err)
+
+			require.Len(GinkgoT(), resolutions, 3)
+			assert.Equal(GinkgoT(), "mcp:foo", resolutions[0].Audience)
+			assert.Equal(GinkgoT(), oauth.AudienceRejectInvalid, resolutions[0].Reason)
+			assert.Nil(GinkgoT(), resolutions[0].Resource)
+			assert.NotEmpty(GinkgoT(), resolutions[0].Message)
+
+			assert.NotNil(GinkgoT(), resolutions[1].Resource)
+
+			assert.Equal(GinkgoT(), "resource:some", resolutions[2].Audience)
+			assert.Equal(GinkgoT(), oauth.AudienceRejectInvalid, resolutions[2].Reason)
+		})
+
+		It("should answer nothing for no tokens", func() {
+			resolutions, err := r.ResolveGrantableAudiences(ctx, "", nil)
+			require.NoError(GinkgoT(), err)
+			assert.Empty(GinkgoT(), resolutions)
+		})
+	})
 })
