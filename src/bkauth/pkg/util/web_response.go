@@ -30,13 +30,14 @@ const (
 	// Protocol error codes. Unexported: each one is reachable only through the
 	// shortcut that pairs it with its HTTP status, so a caller cannot invent a
 	// combination the protocol does not define.
-	webErrCodeInvalidArgument   = "INVALID_ARGUMENT"
-	webErrCodeUnauthenticated   = "UNAUTHENTICATED"
-	webErrCodeNoPermission      = "NO_PERMISSION"
-	webErrCodeNotFound          = "NOT_FOUND"
-	webErrCodeAlreadyExists     = "ALREADY_EXISTS"
-	webErrCodeResourceExhausted = "RESOURCE_EXHAUSTED"
-	webErrCodeInternal          = "INTERNAL"
+	webErrCodeInvalidArgument    = "INVALID_ARGUMENT"
+	webErrCodeFailedPrecondition = "FAILED_PRECONDITION"
+	webErrCodeUnauthenticated    = "UNAUTHENTICATED"
+	webErrCodeNoPermission       = "NO_PERMISSION"
+	webErrCodeNotFound           = "NOT_FOUND"
+	webErrCodeAlreadyExists      = "ALREADY_EXISTS"
+	webErrCodeResourceExhausted  = "RESOURCE_EXHAUSTED"
+	webErrCodeInternal           = "INTERNAL"
 )
 
 type webSuccessResponse struct {
@@ -91,6 +92,14 @@ func webErrorWithData(c *gin.Context, httpStatus int, code string, message strin
 // either way, so the protocol does not split the two.
 func WebInvalidArgumentError(c *gin.Context, message string) {
 	webError(c, http.StatusBadRequest, webErrCodeInvalidArgument, message)
+}
+
+// WebFailedPreconditionError answers 400 for a well-formed request naming an
+// object whose current state rules the operation out. It shares the status with
+// INVALID_ARGUMENT but not the code, because the way out differs: no edit to the
+// request helps, someone has to change that state first.
+func WebFailedPreconditionError(c *gin.Context, message string) {
+	webError(c, http.StatusBadRequest, webErrCodeFailedPrecondition, message)
 }
 
 // WebBindError answers 400 for a gin binding / JSON-decode failure, carrying the

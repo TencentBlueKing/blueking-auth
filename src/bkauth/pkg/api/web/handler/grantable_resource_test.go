@@ -79,14 +79,15 @@ func TestHandleGrantableResourceRefError(t *testing.T) {
 			message: `grantable resource not found: gateway "bk-log" ` +
 				`has no MCP server named "bk-log-prod-query"`,
 		},
-		// 403 rather than 404: the object is there and the name is right, so
-		// "no such thing" would be a lie the user cannot act on.
+		// Neither 404 nor 403: the name is right and the caller is not the
+		// problem, the object's own setting is. The code, not the status, is what
+		// keeps it apart from the incomplete ref above.
 		{
 			name: "not grantable is refused rather than reported missing",
 			err: fmt.Errorf("%w: MCP server %q is not open to personal access tokens",
 				oauth.ErrGrantableResourceNotGrantable, "bk-log-prod-query"),
-			status: http.StatusForbidden,
-			code:   "NO_PERMISSION",
+			status: http.StatusBadRequest,
+			code:   "FAILED_PRECONDITION",
 			message: `grantable resource not grantable: MCP server "bk-log-prod-query" ` +
 				`is not open to personal access tokens`,
 		},
