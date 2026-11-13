@@ -16,7 +16,8 @@ func Test_oauthClientManager_Create(t *testing.T) {
 	database.RunWithMock(t, func(db *sqlx.DB, mock sqlmock.Sqlmock, t *testing.T) {
 		mock.ExpectExec(`^INSERT INTO oauth_client`).WithArgs(
 			"client1", "Test Client", "public", `["https://example.com/cb"]`, "authorization_code", "https://example.com/logo.png",
-		).WillReturnResult(sqlmock.NewResult(1, 1))
+		).
+			WillReturnResult(sqlmock.NewResult(1, 1))
 
 		client := OAuthClient{
 			ID:           "client1",

@@ -66,7 +66,6 @@ var _ = Describe("String", func() {
 			Entry("truncated size greater than real size", s, 20),
 		)
 	})
-
 })
 
 func BenchmarkStringSprintf(b *testing.B) {

@@ -145,5 +145,4 @@ var _ = Describe("gpuRealm grantable resources", func() {
 			assert.ErrorIs(GinkgoT(), err, oauth.ErrGrantableResourceNotFound)
 		})
 	})
-
 })

@@ -151,6 +151,57 @@ func NewGrantableResourceLookupHandler() gin.HandlerFunc {
 	}
 }
 
+// NewGrantableResourceResolveHandler creates a handler for
+// POST /realms/:realm_name/personal-tokens/grantable-resources/-/resolve.
+//
+// It answers which grantable resources the given audiences name, for a selection
+// pre-filled from outside the form, such as a share link. An audience whose
+// resource cannot be granted now is left out; the rest are rendered the way the
+// token pages render stored ones.
+func NewGrantableResourceResolveHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req grantableResourceResolveRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			util.WebBindError(c, err)
+			return
+		}
+
+		audience, ok := normalizeAudienceOrAbort(c, req.Audience)
+		if !ok {
+			return
+		}
+
+		ctx := c.Request.Context()
+		tenantID := util.GetTenantID(c)
+		realm := oauth.GetRealm(util.GetRealmName(c))
+
+		grantable, err := realm.FilterGrantableAudiences(ctx, tenantID, audience)
+		if err != nil {
+			util.SetError(c, err)
+			util.WebInternalError(c, "failed to resolve grantable resources")
+			return
+		}
+		if len(grantable) == 0 {
+			util.WebSuccess(c, []oauth.AudienceDisplay{})
+			return
+		}
+
+		displays, err := realm.ResolveAudienceDisplays(ctx, tenantID, grantable)
+		if err != nil {
+			util.SetError(c, err)
+			util.WebInternalError(c, "failed to resolve grantable resources")
+			return
+		}
+
+		entries := audienceEntries(grantable, displays)
+		if entries == nil {
+			entries = []oauth.AudienceDisplay{}
+		}
+
+		util.WebSuccess(c, entries)
+	}
+}
+
 // handleGrantableResourceRefError maps the realm's sentinels onto the web error
 // envelope.
 //

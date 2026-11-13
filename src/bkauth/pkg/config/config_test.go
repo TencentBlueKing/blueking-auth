@@ -191,7 +191,10 @@ var _ = Describe("OAuth Config", func() {
 		buildOAuthWithExemptions := func(exemptions []ConfidentialClientSecretExemption) *OAuth {
 			o := &OAuth{
 				ConfidentialClientSecretExemptions: exemptions,
-				secretExemptMap:                    make(map[ConfidentialClientSecretExemption]struct{}, len(exemptions)),
+				secretExemptMap: make(
+					map[ConfidentialClientSecretExemption]struct{},
+					len(exemptions),
+				),
 			}
 			for _, ex := range exemptions {
 				o.secretExemptMap[ConfidentialClientSecretExemption{RealmName: ex.RealmName, ClientID: ex.ClientID}] = struct{}{}
