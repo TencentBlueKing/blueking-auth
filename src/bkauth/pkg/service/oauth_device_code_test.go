@@ -121,7 +121,14 @@ var _ = Describe("oauthDeviceCodeService", func() {
 			mockManager.EXPECT().GetByUserCode(gomock.Any(), gomock.Any()).
 				Return(dao.OAuthDeviceCode{}, nil)
 
-			err := svc.ApproveByUserCode(context.Background(), "default", "XXXX-YYYY", "sub-1", "admin", []string{"aud"})
+			err := svc.ApproveByUserCode(
+				context.Background(),
+				"default",
+				"XXXX-YYYY",
+				"sub-1",
+				"admin",
+				[]string{"aud"},
+			)
 
 			assert.ErrorIs(GinkgoT(), err, oauth.ErrInvalidUserCode)
 		})
@@ -131,7 +138,14 @@ var _ = Describe("oauthDeviceCodeService", func() {
 			dc.ExpiresAt = time.Now().Add(-time.Second)
 			mockManager.EXPECT().GetByUserCode(gomock.Any(), gomock.Any()).Return(dc, nil)
 
-			err := svc.ApproveByUserCode(context.Background(), "default", "ABCD-EFGH", "sub-1", "admin", []string{"aud"})
+			err := svc.ApproveByUserCode(
+				context.Background(),
+				"default",
+				"ABCD-EFGH",
+				"sub-1",
+				"admin",
+				[]string{"aud"},
+			)
 
 			assert.ErrorIs(GinkgoT(), err, oauth.ErrUserCodeExpired)
 		})
@@ -141,7 +155,14 @@ var _ = Describe("oauthDeviceCodeService", func() {
 			dc.Status = oauth.DeviceCodeStatusDenied
 			mockManager.EXPECT().GetByUserCode(gomock.Any(), gomock.Any()).Return(dc, nil)
 
-			err := svc.ApproveByUserCode(context.Background(), "default", "ABCD-EFGH", "sub-1", "admin", []string{"aud"})
+			err := svc.ApproveByUserCode(
+				context.Background(),
+				"default",
+				"ABCD-EFGH",
+				"sub-1",
+				"admin",
+				[]string{"aud"},
+			)
 
 			assert.ErrorIs(GinkgoT(), err, oauth.ErrUserCodeAlreadyUsed)
 		})
@@ -153,7 +174,14 @@ var _ = Describe("oauthDeviceCodeService", func() {
 				Approve(gomock.Any(), int64(1), "default", "sub-1", "admin", `["aud"]`).
 				Return(int64(1), nil)
 
-			err := svc.ApproveByUserCode(context.Background(), "default", "ABCD-EFGH", "sub-1", "admin", []string{"aud"})
+			err := svc.ApproveByUserCode(
+				context.Background(),
+				"default",
+				"ABCD-EFGH",
+				"sub-1",
+				"admin",
+				[]string{"aud"},
+			)
 
 			assert.NoError(GinkgoT(), err)
 		})

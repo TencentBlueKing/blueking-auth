@@ -21,10 +21,10 @@ package handler
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"bkauth/pkg/config"
 	"bkauth/pkg/util"
-
-	"github.com/gin-gonic/gin"
 )
 
 // NewDeviceHandler creates a handler for GET /device.

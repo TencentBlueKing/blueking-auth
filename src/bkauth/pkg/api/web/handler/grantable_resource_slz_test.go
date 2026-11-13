@@ -21,6 +21,8 @@ package handler
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -299,5 +301,51 @@ func TestGrantableResourceRefNames(t *testing.T) {
 		_, err := (&grantableResourceRefRequest{}).names()
 
 		assert.ErrorIs(t, err, errMalformedLevelPairs)
+	})
+}
+
+// The resolve body repeats create's audience rules; if they drifted apart, a
+// share link create would accept could be refused here, or the other way round.
+func TestGrantableResourceResolveBinding(t *testing.T) {
+	audienceBody := func(audience ...string) string {
+		quoted := make([]string, len(audience))
+		for i, aud := range audience {
+			quoted[i] = strconv.Quote(aud)
+		}
+		return `{"audience":[` + strings.Join(quoted, ",") + `]}`
+	}
+	numbered := func(n int) []string {
+		audience := make([]string, n)
+		for i := range audience {
+			audience[i] = "mcp:s" + strconv.Itoa(i)
+		}
+		return audience
+	}
+
+	t.Run("binds the audience", func(t *testing.T) {
+		var req grantableResourceResolveRequest
+		require.NoError(t, bindJSON(t, audienceBody("mcp:demo", "gateway:gw/api:*"), &req))
+		assert.Equal(t, []string{"mcp:demo", "gateway:gw/api:*"}, req.Audience)
+	})
+
+	t.Run("rejects a missing or empty audience", func(t *testing.T) {
+		assert.Error(t, bindJSON(t, `{}`, &grantableResourceResolveRequest{}))
+		assert.Error(t, bindJSON(t, audienceBody(), &grantableResourceResolveRequest{}))
+	})
+
+	t.Run("accepts 100 and rejects 101, as create does", func(t *testing.T) {
+		var req grantableResourceResolveRequest
+		require.NoError(t, bindJSON(t, audienceBody(numbered(100)...), &req))
+		assert.Len(t, req.Audience, 100)
+
+		assert.Error(t, bindJSON(t, audienceBody(numbered(101)...), &grantableResourceResolveRequest{}))
+	})
+
+	t.Run("accepts an entry of 128 characters and rejects 129", func(t *testing.T) {
+		atLimit := "mcp:" + strings.Repeat("a", 124)
+		require.Len(t, atLimit, 128)
+
+		require.NoError(t, bindJSON(t, audienceBody(atLimit), &grantableResourceResolveRequest{}))
+		assert.Error(t, bindJSON(t, audienceBody(atLimit+"a"), &grantableResourceResolveRequest{}))
 	})
 }

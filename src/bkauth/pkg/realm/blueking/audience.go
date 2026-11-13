@@ -95,7 +95,11 @@ func parseBluekingAudience(aud string) (resType, name, apiName string, err error
 			// There is no "this API across every gateway" grant: an API name is
 			// only unique within its gateway, so such a token would mean
 			// something different on every gateway that happens to reuse it.
-			return "", "", "", fmt.Errorf("invalid audience: %q must be %q to span all gateways", aud, allGatewayAPIsAudience)
+			return "", "", "", fmt.Errorf(
+				"invalid audience: %q must be %q to span all gateways",
+				aud,
+				allGatewayAPIsAudience,
+			)
 		}
 		return typeAPI, gwName, api, nil
 	}
@@ -113,6 +117,31 @@ func (r *bluekingRealm) ValidateAudiences(_ context.Context, audiences []string)
 		}
 	}
 	return nil
+}
+
+// FilterGrantableAudiences keeps an audience when the resource it names may be
+// granted to a personal access token now. Wildcards are kept; anything else is
+// dropped unless the lookup returned it with oauth2_personal_client_enabled on,
+// so a resource that does not exist, or whose lookup failed, is dropped too.
+func (r *bluekingRealm) FilterGrantableAudiences(
+	ctx context.Context,
+	tenantID string,
+	audiences []string,
+) ([]string, error) {
+	parsed, err := parseAudiences(audiences)
+	if err != nil {
+		return nil, err
+	}
+
+	displays := r.lookupDisplays(ctx, tenantID, parsed)
+
+	grantable := make([]string, 0, len(parsed))
+	for _, p := range parsed {
+		if displays.allows(p) {
+			grantable = append(grantable, p.audience)
+		}
+	}
+	return grantable, nil
 }
 
 // parsedAudience is one token split into its parts, kept alongside the token it
@@ -339,6 +368,25 @@ func (r *bluekingRealm) lookupDisplays(
 	}
 
 	return displays
+}
+
+// allows reports whether p may be granted, judged on what the lookups returned.
+// An entry they returned nothing for, because it does not exist or because the
+// lookup failed, is not allowed.
+func (displays displayIndex) allows(p parsedAudience) bool {
+	switch {
+	case p.name == wildcard:
+		return true
+	case p.resType == typeMCP:
+		server, ok := displays.mcpServers[p.name]
+		return ok && server.OAuth2PersonalClientEnabled
+	case p.apiName == wildcard:
+		_, ok := displays.gateways[p.name]
+		return ok
+	default:
+		resource, ok := displays.resources[p.name][p.apiName]
+		return ok && resource.OAuth2PersonalClientEnabled
+	}
 }
 
 // unionMCPNames collects the MCP names across every token, dropping the

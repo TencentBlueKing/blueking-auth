@@ -154,3 +154,10 @@ func (q *grantableResourceQueryRequest) offset() int {
 	}
 	return (page - 1) * q.limit()
 }
+
+// grantableResourceResolveRequest is the body of the resolve endpoint. Its
+// audience rules repeat createPersonalAccessTokenRequest's and must move with
+// them: whatever this accepts is what create would accept.
+type grantableResourceResolveRequest struct {
+	Audience []string `json:"audience" binding:"required,min=1,max=100,dive,max=128"`
+}

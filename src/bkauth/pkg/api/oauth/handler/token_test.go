@@ -24,10 +24,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"github.com/gin-gonic/gin"
 
 	"bkauth/pkg/oauth"
 	"bkauth/pkg/service/types"

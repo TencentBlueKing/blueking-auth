@@ -275,7 +275,9 @@ var _ = Describe("KMS", Ordered, func() {
 			enableKMS(cfg, sealKMSCredentials(&key.PublicKey, newKMSTestCredentials()))
 			cfg.KMS.PrivateKeyFile = writeKMSFile("empty-private-key", " \n")
 
-			Expect(cfg.applyKMS()).To(MatchError(ContainSubstring("KMS private key " + cfg.KMS.PrivateKeyFile + " is empty")))
+			Expect(
+				cfg.applyKMS(),
+			).To(MatchError(ContainSubstring("KMS private key " + cfg.KMS.PrivateKeyFile + " is empty")))
 		})
 
 		It("fails when the private key file is missing", func() {

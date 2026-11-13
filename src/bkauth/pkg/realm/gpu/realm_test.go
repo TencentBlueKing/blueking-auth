@@ -92,6 +92,25 @@ var _ = Describe("gpuRealm", func() {
 		})
 	})
 
+	Describe("FilterGrantableAudiences", func() {
+		It("should keep resource:all, which is always grantable", func() {
+			grantable, err := r.FilterGrantableAudiences(ctx, "tencent", []string{"resource:all"})
+			require.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), []string{"resource:all"}, grantable)
+		})
+
+		It("should return nothing for no tokens", func() {
+			grantable, err := r.FilterGrantableAudiences(ctx, "", nil)
+			require.NoError(GinkgoT(), err)
+			assert.Empty(GinkgoT(), grantable)
+		})
+
+		It("should error on any other token", func() {
+			_, err := r.FilterGrantableAudiences(ctx, "", []string{"resource:all", "resource:some"})
+			assert.Error(GinkgoT(), err)
+		})
+	})
+
 	Describe("ResolveAudienceDisplays", func() {
 		It("should render one entry carrying the token it renders", func() {
 			displays, err := r.ResolveAudienceDisplays(ctx, "tencent", []string{"resource:all"})

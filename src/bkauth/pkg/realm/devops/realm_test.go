@@ -100,6 +100,33 @@ var _ = Describe("devopsRealm", func() {
 		})
 	})
 
+	Describe("FilterGrantableAudiences", func() {
+		It("should keep the named services and drop the rest, in input order", func() {
+			grantable, err := r.FilterGrantableAudiences(ctx, "tencent",
+				[]string{"service:pipeline", "service:codecc"})
+			require.NoError(GinkgoT(), err)
+			assert.Equal(GinkgoT(), []string{"service:codecc"}, grantable,
+				"pipeline passes ValidateAudiences but is not a service the picker offers")
+		})
+
+		It("should match the service name exactly, as lookup does", func() {
+			grantable, err := r.FilterGrantableAudiences(ctx, "", []string{"service:CodeCC"})
+			require.NoError(GinkgoT(), err)
+			assert.Empty(GinkgoT(), grantable)
+		})
+
+		It("should return nothing for no tokens", func() {
+			grantable, err := r.FilterGrantableAudiences(ctx, "", nil)
+			require.NoError(GinkgoT(), err)
+			assert.Empty(GinkgoT(), grantable)
+		})
+
+		It("should error on an invalid token", func() {
+			_, err := r.FilterGrantableAudiences(ctx, "", []string{"service:codecc", "bad"})
+			assert.Error(GinkgoT(), err)
+		})
+	})
+
 	Describe("ResolveAudienceDisplays", func() {
 		It("should render one entry per token, keyed by that token", func() {
 			displays, err := r.ResolveAudienceDisplays(ctx, "tencent",
