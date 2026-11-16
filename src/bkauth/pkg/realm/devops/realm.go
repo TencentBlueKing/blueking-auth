@@ -165,7 +165,7 @@ func (r *devopsRealm) ValidateAudiences(_ context.Context, audiences []string) e
 	return nil
 }
 
-// FilterGrantableAudiences ignores tenantID: the service list is compiled in, so
+// ResolveGrantableAudiences ignores tenantID: the service list is compiled in, so
 // there is nothing upstream to ask.
 //
 // It keeps only the services named in serviceDisplayNames, matched exactly, the
@@ -174,7 +174,11 @@ func (r *devopsRealm) ValidateAudiences(_ context.Context, audiences []string) e
 // purpose: a share link must not pre-fill what the picker could not offer.
 //
 // An entry that is not service:<name> is an error, as in ResolveAudienceDisplays.
-func (r *devopsRealm) FilterGrantableAudiences(_ context.Context, _ string, audiences []string) ([]string, error) {
+func (r *devopsRealm) ResolveGrantableAudiences(
+	ctx context.Context,
+	tenantID string,
+	audiences []string,
+) (map[string]oauth.AudienceDisplay, error) {
 	grantable := make([]string, 0, len(audiences))
 	for _, aud := range audiences {
 		name, err := parseServiceItem(aud)
@@ -185,7 +189,7 @@ func (r *devopsRealm) FilterGrantableAudiences(_ context.Context, _ string, audi
 			grantable = append(grantable, aud)
 		}
 	}
-	return grantable, nil
+	return r.ResolveAudienceDisplays(ctx, tenantID, grantable)
 }
 
 // ResolveAudienceDisplays ignores tenantID and gains nothing from being handed

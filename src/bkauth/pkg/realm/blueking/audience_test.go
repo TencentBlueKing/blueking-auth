@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
@@ -57,7 +59,7 @@ var _ = Describe("bluekingRealm audiences", func() {
 		})
 	})
 
-	Describe("FilterGrantableAudiences", func() {
+	Describe("ResolveGrantableAudiences", func() {
 		var (
 			ctl        *gomock.Controller
 			mockClient *mock.MockLookupClient
@@ -79,10 +81,14 @@ var _ = Describe("bluekingRealm audiences", func() {
 
 		AfterEach(func() { ctl.Finish() })
 
+		keys := func(displays map[string]oauth.AudienceDisplay) []string {
+			return slices.Collect(maps.Keys(displays))
+		}
+
 		It("should keep the wildcards without asking upstream", func() {
-			grantable, err := realm.FilterGrantableAudiences(ctx, "", []string{"mcp:*", "gateway:*/api:*"})
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"mcp:*", "gateway:*/api:*"})
 			require.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), []string{"mcp:*", "gateway:*/api:*"}, grantable)
+			assert.ElementsMatch(GinkgoT(), []string{"mcp:*", "gateway:*/api:*"}, keys(displays))
 		})
 
 		It("should keep an MCP server open to personal tokens and drop a closed one", func() {
@@ -93,10 +99,10 @@ var _ = Describe("bluekingRealm audiences", func() {
 				}, nil,
 			)
 
-			grantable, err := realm.FilterGrantableAudiences(ctx, "tencent", []string{"mcp:open", "mcp:closed"})
+			displays, err := realm.ResolveGrantableAudiences(ctx, "tencent", []string{"mcp:open", "mcp:closed"})
 			require.NoError(GinkgoT(), err)
 
-			assert.Equal(GinkgoT(), []string{"mcp:open"}, grantable)
+			assert.ElementsMatch(GinkgoT(), []string{"mcp:open"}, keys(displays))
 			assert.Equal(GinkgoT(), "tencent", builtFor)
 		})
 
@@ -105,9 +111,9 @@ var _ = Describe("bluekingRealm audiences", func() {
 				map[string]bkapigateway.MCPServer{}, nil,
 			)
 
-			grantable, err := realm.FilterGrantableAudiences(ctx, "", []string{"mcp:ghost"})
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"mcp:ghost"})
 			require.NoError(GinkgoT(), err)
-			assert.Empty(GinkgoT(), grantable)
+			assert.Empty(GinkgoT(), displays)
 		})
 
 		It("should drop the MCP servers when their lookup fails", func() {
@@ -117,9 +123,9 @@ var _ = Describe("bluekingRealm audiences", func() {
 				nil, errors.New("network error"),
 			)
 
-			grantable, err := realm.FilterGrantableAudiences(ctx, "", []string{"mcp:s1", "mcp:*"})
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"mcp:s1", "mcp:*"})
 			require.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), []string{"mcp:*"}, grantable)
+			assert.ElementsMatch(GinkgoT(), []string{"mcp:*"}, keys(displays))
 		})
 
 		It("should keep a gateway-wide grant on a gateway that exists", func() {
@@ -127,9 +133,9 @@ var _ = Describe("bluekingRealm audiences", func() {
 				map[string]bkapigateway.Gateway{"gw": {Name: "gw"}}, nil,
 			)
 
-			grantable, err := realm.FilterGrantableAudiences(ctx, "", []string{"gateway:gw/api:*"})
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"gateway:gw/api:*"})
 			require.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), []string{"gateway:gw/api:*"}, grantable)
+			assert.ElementsMatch(GinkgoT(), []string{"gateway:gw/api:*"}, keys(displays))
 		})
 
 		It("should drop a gateway-wide grant on a gateway that does not exist", func() {
@@ -137,9 +143,9 @@ var _ = Describe("bluekingRealm audiences", func() {
 				map[string]bkapigateway.Gateway{}, nil,
 			)
 
-			grantable, err := realm.FilterGrantableAudiences(ctx, "", []string{"gateway:ghost/api:*"})
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"gateway:ghost/api:*"})
 			require.NoError(GinkgoT(), err)
-			assert.Empty(GinkgoT(), grantable)
+			assert.Empty(GinkgoT(), displays)
 		})
 
 		It("should drop the gateway-wide grants when the gateway lookup fails", func() {
@@ -147,9 +153,9 @@ var _ = Describe("bluekingRealm audiences", func() {
 				nil, errors.New("network error"),
 			)
 
-			grantable, err := realm.FilterGrantableAudiences(ctx, "", []string{"gateway:gw/api:*"})
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"gateway:gw/api:*"})
 			require.NoError(GinkgoT(), err)
-			assert.Empty(GinkgoT(), grantable)
+			assert.Empty(GinkgoT(), displays)
 		})
 
 		It("should keep an API open to personal tokens and drop a closed or missing one", func() {
@@ -163,11 +169,11 @@ var _ = Describe("bluekingRealm audiences", func() {
 				}, nil,
 			)
 
-			grantable, err := realm.FilterGrantableAudiences(ctx, "", []string{
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{
 				"gateway:gw/api:open", "gateway:gw/api:closed", "gateway:gw/api:ghost",
 			})
 			require.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), []string{"gateway:gw/api:open"}, grantable)
+			assert.ElementsMatch(GinkgoT(), []string{"gateway:gw/api:open"}, keys(displays))
 		})
 
 		It("should drop every API of a gateway that answers 404, and only those", func() {
@@ -181,10 +187,10 @@ var _ = Describe("bluekingRealm audiences", func() {
 				map[string]bkapigateway.Resource{"a2": {Name: "a2", OAuth2PersonalClientEnabled: true}}, nil,
 			)
 
-			grantable, err := realm.FilterGrantableAudiences(ctx, "",
+			displays, err := realm.ResolveGrantableAudiences(ctx, "",
 				[]string{"gateway:gone/api:a1", "gateway:alive/api:a2"})
 			require.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), []string{"gateway:alive/api:a2"}, grantable)
+			assert.ElementsMatch(GinkgoT(), []string{"gateway:alive/api:a2"}, keys(displays))
 		})
 
 		It("should drop the APIs of a gateway whose lookup fails", func() {
@@ -195,39 +201,57 @@ var _ = Describe("bluekingRealm audiences", func() {
 				nil, errors.New("network error"),
 			)
 
-			grantable, err := realm.FilterGrantableAudiences(ctx, "", []string{"gateway:gw/api:a1"})
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"gateway:gw/api:a1"})
 			require.NoError(GinkgoT(), err)
-			assert.Empty(GinkgoT(), grantable)
+			assert.Empty(GinkgoT(), displays)
 		})
 
-		It("should keep the input order across kinds", func() {
+		It("should render each entry from the one lookup that confirmed it", func() {
+			// Each lookup is expected once, so a second round for rendering fails
+			// the test.
 			mockClient.EXPECT().LookupMCPServer(gomock.Any(), []string{"s1"}).Return(
-				map[string]bkapigateway.MCPServer{"s1": {Name: "s1", OAuth2PersonalClientEnabled: true}}, nil,
+				map[string]bkapigateway.MCPServer{
+					"s1": {Name: "s1", Title: "Server One", IsPublic: false, OAuth2PersonalClientEnabled: true},
+				}, nil,
 			)
 			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"gw"}).Return(
-				map[string]bkapigateway.Gateway{"gw": {Name: "gw"}}, nil,
+				map[string]bkapigateway.Gateway{"gw": {Name: "gw", IsOfficial: true}}, nil,
 			)
 			mockClient.EXPECT().LookupReleasedResource(gomock.Any(), "gw", []string{"a1"}).Return(
-				map[string]bkapigateway.Resource{"a1": {Name: "a1", OAuth2PersonalClientEnabled: true}}, nil,
+				map[string]bkapigateway.Resource{
+					"a1": {Name: "a1", Description: "API One", IsPublic: true, OAuth2PersonalClientEnabled: true},
+				}, nil,
 			)
 
-			input := []string{"gateway:gw/api:a1", "mcp:*", "mcp:s1", "gateway:*/api:*"}
-			grantable, err := realm.FilterGrantableAudiences(ctx, "", input)
+			displays, err := realm.ResolveGrantableAudiences(ctx, "",
+				[]string{"gateway:gw/api:a1", "mcp:*", "mcp:s1", "gateway:*/api:*"})
 			require.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), input, grantable)
+			assert.ElementsMatch(GinkgoT(),
+				[]string{"gateway:gw/api:a1", "mcp:*", "mcp:s1", "gateway:*/api:*"}, keys(displays))
+
+			server := displays["mcp:s1"]
+			assert.Equal(GinkgoT(), "Server One", server.DisplayName)
+			assert.Equal(GinkgoT(), oauth.Extras{"is_public": false}, server.Extras)
+
+			api := displays["gateway:gw/api:a1"]
+			assert.Equal(GinkgoT(), "API One", api.DisplayName)
+			assert.Equal(GinkgoT(), oauth.Extras{"is_public": true, "is_official": true}, api.Extras)
+
+			assert.Equal(GinkgoT(), oauth.AudienceLevelNone, displays["mcp:*"].Level)
+			assert.Equal(GinkgoT(), oauth.AudienceLevelNone, displays["gateway:*/api:*"].Level)
 		})
 
 		It("should keep only the wildcards when built without a lookup client", func() {
 			bare := &bluekingRealm{}
 
-			grantable, err := bare.FilterGrantableAudiences(ctx, "",
+			displays, err := bare.ResolveGrantableAudiences(ctx, "",
 				[]string{"mcp:s1", "mcp:*", "gateway:gw/api:a1", "gateway:*/api:*"})
 			require.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), []string{"mcp:*", "gateway:*/api:*"}, grantable)
+			assert.ElementsMatch(GinkgoT(), []string{"mcp:*", "gateway:*/api:*"}, keys(displays))
 		})
 
 		It("should error on a token it cannot parse", func() {
-			_, err := realm.FilterGrantableAudiences(ctx, "", []string{"mcp:s1", "gateway:broken"})
+			_, err := realm.ResolveGrantableAudiences(ctx, "", []string{"mcp:s1", "gateway:broken"})
 			assert.Error(GinkgoT(), err)
 		})
 	})

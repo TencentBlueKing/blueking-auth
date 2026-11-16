@@ -21,6 +21,7 @@ package handler
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -304,48 +305,65 @@ func TestGrantableResourceRefNames(t *testing.T) {
 	})
 }
 
-// The resolve body repeats create's audience rules; if they drifted apart, a
+// The resolve query repeats create's audience rules; if they drifted apart, a
 // share link create would accept could be refused here, or the other way round.
 func TestGrantableResourceResolveBinding(t *testing.T) {
-	audienceBody := func(audience ...string) string {
-		quoted := make([]string, len(audience))
-		for i, aud := range audience {
-			quoted[i] = strconv.Quote(aud)
+	gin.SetMode(gin.TestMode)
+
+	resolve := func(audiences ...string) ([]string, error) {
+		query := url.Values{"audiences": {strings.Join(audiences, ",")}}
+		if len(audiences) == 0 {
+			query = url.Values{}
 		}
-		return `{"audience":[` + strings.Join(quoted, ",") + `]}`
+
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodGet, "/?"+query.Encode(), nil)
+
+		var req grantableResourceResolveRequest
+		if err := c.ShouldBindQuery(&req); err != nil {
+			return nil, err
+		}
+		return req.audiences()
 	}
 	numbered := func(n int) []string {
-		audience := make([]string, n)
-		for i := range audience {
-			audience[i] = "mcp:s" + strconv.Itoa(i)
+		audiences := make([]string, n)
+		for i := range audiences {
+			audiences[i] = "mcp:s" + strconv.Itoa(i)
 		}
-		return audience
+		return audiences
 	}
 
-	t.Run("binds the audience", func(t *testing.T) {
-		var req grantableResourceResolveRequest
-		require.NoError(t, bindJSON(t, audienceBody("mcp:demo", "gateway:gw/api:*"), &req))
-		assert.Equal(t, []string{"mcp:demo", "gateway:gw/api:*"}, req.Audience)
+	t.Run("splits the audiences on commas, in order", func(t *testing.T) {
+		audiences, err := resolve("mcp:demo", "gateway:gw/api:*")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"mcp:demo", "gateway:gw/api:*"}, audiences)
 	})
 
-	t.Run("rejects a missing or empty audience", func(t *testing.T) {
-		assert.Error(t, bindJSON(t, `{}`, &grantableResourceResolveRequest{}))
-		assert.Error(t, bindJSON(t, audienceBody(), &grantableResourceResolveRequest{}))
+	t.Run("rejects missing or empty audiences", func(t *testing.T) {
+		_, err := resolve()
+		assert.Error(t, err)
+
+		_, err = resolve("")
+		assert.Error(t, err)
 	})
 
 	t.Run("accepts 100 and rejects 101, as create does", func(t *testing.T) {
-		var req grantableResourceResolveRequest
-		require.NoError(t, bindJSON(t, audienceBody(numbered(100)...), &req))
-		assert.Len(t, req.Audience, 100)
+		audiences, err := resolve(numbered(100)...)
+		require.NoError(t, err)
+		assert.Len(t, audiences, 100)
 
-		assert.Error(t, bindJSON(t, audienceBody(numbered(101)...), &grantableResourceResolveRequest{}))
+		_, err = resolve(numbered(101)...)
+		assert.Error(t, err)
 	})
 
 	t.Run("accepts an entry of 128 characters and rejects 129", func(t *testing.T) {
 		atLimit := "mcp:" + strings.Repeat("a", 124)
 		require.Len(t, atLimit, 128)
 
-		require.NoError(t, bindJSON(t, audienceBody(atLimit), &grantableResourceResolveRequest{}))
-		assert.Error(t, bindJSON(t, audienceBody(atLimit+"a"), &grantableResourceResolveRequest{}))
+		_, err := resolve(atLimit)
+		require.NoError(t, err)
+
+		_, err = resolve(atLimit + "a")
+		assert.Error(t, err)
 	})
 }

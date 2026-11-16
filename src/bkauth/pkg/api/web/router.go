@@ -103,7 +103,7 @@ func Register(cfg *config.Config, r *gin.RouterGroup) {
 		// Pre-fills a selection from audiences that arrive from outside the
 		// form, such as a share link: drops what cannot be granted now and
 		// renders the rest.
-		patGroup.POST("/grantable-resources/-/resolve", handler.NewGrantableResourceResolveHandler())
+		patGroup.GET("/grantable-resources/-/resolve", handler.NewGrantableResourceResolveHandler())
 
 		patGroup.GET("", handler.NewPersonalAccessTokenListHandler(cfg))
 		patGroup.GET("/:id", handler.NewPersonalAccessTokenGetHandler(cfg))

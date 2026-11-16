@@ -119,15 +119,16 @@ func (r *bluekingRealm) ValidateAudiences(_ context.Context, audiences []string)
 	return nil
 }
 
-// FilterGrantableAudiences keeps an audience when the resource it names may be
-// granted to a personal access token now. Wildcards are kept; anything else is
-// dropped unless the lookup returned it with oauth2_personal_client_enabled on,
-// so a resource that does not exist, or whose lookup failed, is dropped too.
-func (r *bluekingRealm) FilterGrantableAudiences(
+// ResolveGrantableAudiences renders those of the given audiences whose
+// resources may be granted to a personal access token now, keyed by audience.
+// Wildcards are always kept. Anything else is kept only when the lookup returned
+// it with oauth2_personal_client_enabled on, so a resource that does not exist,
+// or whose lookup failed, is left out.
+func (r *bluekingRealm) ResolveGrantableAudiences(
 	ctx context.Context,
 	tenantID string,
 	audiences []string,
-) ([]string, error) {
+) (map[string]oauth.AudienceDisplay, error) {
 	parsed, err := parseAudiences(audiences)
 	if err != nil {
 		return nil, err
@@ -135,13 +136,13 @@ func (r *bluekingRealm) FilterGrantableAudiences(
 
 	displays := r.lookupDisplays(ctx, tenantID, parsed)
 
-	grantable := make([]string, 0, len(parsed))
+	grantable := make([]parsedAudience, 0, len(parsed))
 	for _, p := range parsed {
 		if displays.allows(p) {
-			grantable = append(grantable, p.audience)
+			grantable = append(grantable, p)
 		}
 	}
-	return grantable, nil
+	return audienceDisplays(grantable, displays), nil
 }
 
 // parsedAudience is one token split into its parts, kept alongside the token it
@@ -370,23 +371,37 @@ func (r *bluekingRealm) lookupDisplays(
 	return displays
 }
 
-// allows reports whether p may be granted, judged on what the lookups returned.
-// An entry they returned nothing for, because it does not exist or because the
-// lookup failed, is not allowed.
+// allows reports whether p may be granted, judged on what the lookups returned:
+//
+//	mcp:*                   always
+//	gateway:*/api:*         always
+//	mcp:<server>            the server came back with oauth2_personal_client_enabled on
+//	gateway:<gw>/api:*      the gateway came back
+//	gateway:<gw>/api:<api>  the API came back with oauth2_personal_client_enabled on
+//
+// An entry the lookups returned nothing for, because it does not exist or
+// because the lookup failed, is not allowed.
 func (displays displayIndex) allows(p parsedAudience) bool {
-	switch {
-	case p.name == wildcard:
-		return true
-	case p.resType == typeMCP:
+	switch p.resType {
+	case typeMCP:
+		if p.name == wildcard {
+			return true
+		}
 		server, ok := displays.mcpServers[p.name]
 		return ok && server.OAuth2PersonalClientEnabled
-	case p.apiName == wildcard:
-		_, ok := displays.gateways[p.name]
-		return ok
-	default:
-		resource, ok := displays.resources[p.name][p.apiName]
-		return ok && resource.OAuth2PersonalClientEnabled
+	case typeAPI:
+		switch {
+		case p.name == wildcard:
+			return true
+		case p.apiName == wildcard:
+			_, ok := displays.gateways[p.name]
+			return ok
+		default:
+			resource, ok := displays.resources[p.name][p.apiName]
+			return ok && resource.OAuth2PersonalClientEnabled
+		}
 	}
+	return false
 }
 
 // unionMCPNames collects the MCP names across every token, dropping the

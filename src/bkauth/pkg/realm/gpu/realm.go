@@ -118,18 +118,17 @@ func (r *gpuRealm) ValidateAudiences(_ context.Context, audiences []string) erro
 	return nil
 }
 
-// FilterGrantableAudiences ignores tenantID and filters nothing out: resource:all
-// is compiled in and always grantable, so there is nothing upstream to ask.
+// ResolveGrantableAudiences filters nothing out: resource:all is compiled in and
+// always grantable, so it renders exactly what ResolveAudienceDisplays does.
 //
 // Like ResolveAudienceDisplays it checks each entry but not how many there are;
 // the exactly-one rule is ValidateAudiences' to enforce.
-func (r *gpuRealm) FilterGrantableAudiences(_ context.Context, _ string, audiences []string) ([]string, error) {
-	for _, aud := range audiences {
-		if aud != validResource {
-			return nil, fmt.Errorf("invalid audience: must be %q, got %q", validResource, aud)
-		}
-	}
-	return audiences, nil
+func (r *gpuRealm) ResolveGrantableAudiences(
+	ctx context.Context,
+	tenantID string,
+	audiences []string,
+) (map[string]oauth.AudienceDisplay, error) {
+	return r.ResolveAudienceDisplays(ctx, tenantID, audiences)
 }
 
 // ResolveAudienceDisplays ignores tenantID and gains nothing from being handed

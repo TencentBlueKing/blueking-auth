@@ -2,6 +2,8 @@ package devops_test
 
 import (
 	"context"
+	"maps"
+	"slices"
 
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
@@ -100,29 +102,33 @@ var _ = Describe("devopsRealm", func() {
 		})
 	})
 
-	Describe("FilterGrantableAudiences", func() {
-		It("should keep the named services and drop the rest, in input order", func() {
-			grantable, err := r.FilterGrantableAudiences(ctx, "tencent",
+	Describe("ResolveGrantableAudiences", func() {
+		It("should render the named services and leave out the rest", func() {
+			displays, err := r.ResolveGrantableAudiences(ctx, "tencent",
 				[]string{"service:pipeline", "service:codecc"})
 			require.NoError(GinkgoT(), err)
-			assert.Equal(GinkgoT(), []string{"service:codecc"}, grantable,
+			assert.ElementsMatch(GinkgoT(), []string{"service:codecc"}, slices.Collect(maps.Keys(displays)),
 				"pipeline passes ValidateAudiences but is not a service the picker offers")
+
+			entry := displays["service:codecc"]
+			assert.Equal(GinkgoT(), "codecc", entry.Name)
+			assert.Equal(GinkgoT(), "service:codecc", entry.Audience)
 		})
 
 		It("should match the service name exactly, as lookup does", func() {
-			grantable, err := r.FilterGrantableAudiences(ctx, "", []string{"service:CodeCC"})
+			displays, err := r.ResolveGrantableAudiences(ctx, "", []string{"service:CodeCC"})
 			require.NoError(GinkgoT(), err)
-			assert.Empty(GinkgoT(), grantable)
+			assert.Empty(GinkgoT(), displays)
 		})
 
 		It("should return nothing for no tokens", func() {
-			grantable, err := r.FilterGrantableAudiences(ctx, "", nil)
+			displays, err := r.ResolveGrantableAudiences(ctx, "", nil)
 			require.NoError(GinkgoT(), err)
-			assert.Empty(GinkgoT(), grantable)
+			assert.Empty(GinkgoT(), displays)
 		})
 
 		It("should error on an invalid token", func() {
-			_, err := r.FilterGrantableAudiences(ctx, "", []string{"service:codecc", "bad"})
+			_, err := r.ResolveGrantableAudiences(ctx, "", []string{"service:codecc", "bad"})
 			assert.Error(GinkgoT(), err)
 		})
 	})
