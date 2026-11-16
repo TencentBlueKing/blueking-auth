@@ -83,13 +83,6 @@ var _ = Describe("Token format contract", func() {
 			seen[tokenCharset[i]] = true
 		}
 	})
-
-	It("keeps the legacy charset able to match retired per-realm prefixes", func() {
-		// Legacy tokens are "bk_"/"bkci_"/"bkgpu_" plus a lowercase random
-		// tail, so the underscore must be part of the accepted set.
-		Expect(legacyTokenCharset).To(ContainSubstring(string(tokenSeparator)))
-		Expect(legacyTokenLength).To(Equal(32))
-	})
 })
 
 var _ = Describe("per-family token generators", func() {
@@ -128,7 +121,7 @@ var _ = Describe("IsPersonalToken", func() {
 	It("rejects malformed input", func() {
 		Expect(IsPersonalToken("")).To(BeFalse())
 		Expect(IsPersonalToken("not-a-token")).To(BeFalse())
-		Expect(IsPersonalToken(strings.Repeat("a", legacyTokenLength))).To(BeFalse())
+		Expect(IsPersonalToken("bk_" + strings.Repeat("a", 29))).To(BeFalse())
 	})
 })
 
@@ -212,7 +205,7 @@ var _ = Describe("parseToken", func() {
 		Entry("empty", ""),
 		Entry("one character short", sampleToken[:tokenLength-1]),
 		Entry("one character too long", sampleToken+"x"),
-		Entry("legacy format", "bk_"+strings.Repeat("a", legacyTokenLength-3)),
+		Entry("retired 32-char format", "bk_"+strings.Repeat("a", 29)),
 		Entry("wrong product prefix", "xk"+sampleToken[2:]),
 		Entry("missing separator", replaceAt(sampleToken, tokenSeparatorOffset, 'x')),
 		Entry("unregistered type code", replaceAt(sampleToken, tokenTypeCodeOffset, 'z')),
@@ -231,15 +224,9 @@ var _ = Describe("IsAcceptedTokenFormat", func() {
 		Expect(IsAcceptedTokenFormat(raw)).To(BeTrue())
 	})
 
-	DescribeTable("accepts the current format and the legacy one it replaced",
-		func(raw string) {
-			Expect(IsAcceptedTokenFormat(raw)).To(BeTrue())
-		},
-		Entry("current format", sampleToken),
-		Entry("legacy blueking prefix", "bk_"+strings.Repeat("a", 29)),
-		Entry("legacy devops prefix", "bkci_"+strings.Repeat("b3", 13)+"c"),
-		Entry("legacy gpu prefix", "bkgpu_"+strings.Repeat("c", 26)),
-	)
+	It("accepts the fixed sample token", func() {
+		Expect(IsAcceptedTokenFormat(sampleToken)).To(BeTrue())
+	})
 
 	DescribeTable("rejects input that cannot have been issued here",
 		func(raw string) {
@@ -247,8 +234,9 @@ var _ = Describe("IsAcceptedTokenFormat", func() {
 		},
 		Entry("current length but bad checksum", mutateAt(sampleToken, tokenLength-1)),
 		Entry("current length, all-'a' random segment", "bko_"+strings.Repeat("a", tokenLength-4)),
-		Entry("legacy length with uppercase", "BK_"+strings.Repeat("a", 29)),
-		Entry("legacy length with hyphen", "bk-"+strings.Repeat("a", 29)),
+		Entry("retired blueking format", "bk_"+strings.Repeat("a", 29)),
+		Entry("retired devops format", "bkci_"+strings.Repeat("b3", 13)+"c"),
+		Entry("retired gpu format", "bkgpu_"+strings.Repeat("c", 26)),
 		Entry("one char over current length", strings.Repeat("a", tokenLength+1)),
 		Entry("empty", ""),
 		Entry("garbage", "not-a-token"),
@@ -279,7 +267,7 @@ var _ = Describe("MaskToken", func() {
 			Expect(MaskToken(raw)).To(Equal(tokenMaskPlaceholder))
 		},
 		Entry("empty", ""),
-		Entry("legacy format", "bk_"+strings.Repeat("a", 29)),
+		Entry("retired 32-char format", "bk_"+strings.Repeat("a", 29)),
 		Entry("tampered checksum", mutateAt(sampleToken, tokenLength-1)),
 	)
 })

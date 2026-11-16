@@ -104,13 +104,6 @@ const (
 	tokenMaskVisibleRandom = 4
 	tokenMaskPlaceholder   = "******"
 	tokenMaskLength        = tokenPrefixLength + tokenMaskVisibleRandom + len(tokenMaskPlaceholder)
-
-	// legacyTokenLength and legacyTokenCharset describe the format that
-	// preceded this one: 32 characters made of lowercase alphanumerics plus the
-	// single '_' of a retired per-realm prefix ("bk_", "bkci_", "bkgpu_").
-	// IsAcceptedTokenFormat still accepts it during the migration window.
-	legacyTokenLength  = 32
-	legacyTokenCharset = "0123456789abcdefghijklmnopqrstuvwxyz_"
 )
 
 // registeredTokenTypeCodes is the set of type codes parseToken accepts.
@@ -237,17 +230,9 @@ func parseToken(raw string) (parsedToken, error) {
 // service, letting callers reject malformed input before it reaches the cache
 // and the database. It is a pure string check: a token that passes here may
 // still be unknown, expired or revoked.
-//
-// Tokens in the format that preceded the current one are accepted too, so that
-// refresh tokens issued before the switch stay valid for their full TTL instead
-// of forcing those users to re-authorize. That bypass is temporary; when no
-// legacy tokens remain in circulation, the second check below can be deleted
-// along with legacyTokenLength and legacyTokenCharset.
 func IsAcceptedTokenFormat(raw string) bool {
-	if _, err := parseToken(raw); err == nil {
-		return true
-	}
-	return len(raw) == legacyTokenLength && withinCharset(raw, legacyTokenCharset)
+	_, err := parseToken(raw)
+	return err == nil
 }
 
 // MaskToken renders a token for display: the full prefix plus the first few
