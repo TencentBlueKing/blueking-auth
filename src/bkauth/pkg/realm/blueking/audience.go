@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"go.uber.org/zap"
 
@@ -44,6 +45,10 @@ const (
 
 	displayAllMCPServers = "所有 MCP Server"
 	displayAllAPIs       = "所有 API"
+
+	maxMCPServerNameLength = 64
+	maxGatewayNameLength   = 64
+	maxResourceNameLength  = 256
 )
 
 // mcpAudience and gatewayAPIAudience are the only places an audience is spelled.
@@ -107,13 +112,42 @@ func parseBluekingAudience(aud string) (resType, name, apiName string, err error
 	return "", "", "", fmt.Errorf("invalid audience: unrecognized format %q", aud)
 }
 
+// ValidateAudiences also holds each name to the naming limits. Those are
+// checked here, on write, rather than in parseBluekingAudience: the renderers
+// parse stored tokens too, and a token stored before the limits were checked
+// must still render.
 func (r *bluekingRealm) ValidateAudiences(_ context.Context, audiences []string) error {
 	if len(audiences) == 0 {
 		return fmt.Errorf("empty audience list")
 	}
 	for _, aud := range audiences {
-		if _, _, _, err := parseBluekingAudience(aud); err != nil {
+		resType, name, apiName, err := parseBluekingAudience(aud)
+		if err != nil {
 			return err
+		}
+		if err := validateNameLengths(aud, resType, name, apiName); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateNameLengths(aud, resType, name, apiName string) error {
+	tooLong := func(what string, limit int) error {
+		return fmt.Errorf("invalid audience: %s in %q must be at most %d characters", what, aud, limit)
+	}
+
+	switch resType {
+	case typeMCP:
+		if utf8.RuneCountInString(name) > maxMCPServerNameLength {
+			return tooLong("MCP server name", maxMCPServerNameLength)
+		}
+	case typeAPI:
+		if utf8.RuneCountInString(name) > maxGatewayNameLength {
+			return tooLong("gateway name", maxGatewayNameLength)
+		}
+		if utf8.RuneCountInString(apiName) > maxResourceNameLength {
+			return tooLong("api name", maxResourceNameLength)
 		}
 	}
 	return nil

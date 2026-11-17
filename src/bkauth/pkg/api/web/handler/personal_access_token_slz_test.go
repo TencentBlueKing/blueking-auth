@@ -132,6 +132,27 @@ func TestPersonalAccessTokenAudienceCountBinding(t *testing.T) {
 	})
 }
 
+// The backstop must admit the longest token any realm accepts, which today is a
+// blueking API grant with both names at their limits.
+func TestPersonalAccessTokenAudienceLengthBinding(t *testing.T) {
+	atLimit := "gateway:" + strings.Repeat("g", 64) + "/api:" + strings.Repeat("a", 256)
+	require.Len(t, atLimit, 333)
+
+	audienceBody := func(aud string) string {
+		return `{"name":"ci","audience":["` + aud + `"],"expires_at":1786521750}`
+	}
+
+	t.Run("create accepts 333 and rejects 334", func(t *testing.T) {
+		require.NoError(t, bindJSON(t, audienceBody(atLimit), &createPersonalAccessTokenRequest{}))
+		assert.Error(t, bindJSON(t, audienceBody(atLimit+"a"), &createPersonalAccessTokenRequest{}))
+	})
+
+	t.Run("update accepts 333 and rejects 334", func(t *testing.T) {
+		require.NoError(t, bindJSON(t, audienceBody(atLimit), &updatePersonalAccessTokenRequest{}))
+		assert.Error(t, bindJSON(t, audienceBody(atLimit+"a"), &updatePersonalAccessTokenRequest{}))
+	})
+}
+
 func TestNormalizeAudience(t *testing.T) {
 	tests := []struct {
 		name  string

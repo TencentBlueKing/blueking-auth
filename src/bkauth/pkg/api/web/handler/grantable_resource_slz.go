@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"bkauth/pkg/api/common"
 )
@@ -156,13 +155,10 @@ func (q *grantableResourceQueryRequest) offset() int {
 	return (page - 1) * q.limit()
 }
 
-// The limits createPersonalAccessTokenRequest's audience tags spell as literals.
-// The resolve query carries the same list joined into one string, where binding
-// tags cannot reach the entries, so its parser applies these instead and they
-// must move with those tags.
+// maxAudiences must match the count in createPersonalAccessTokenRequest's
+// audience tag.
 const (
 	maxAudiences      = 100
-	maxAudienceLength = 128
 	audienceSeparator = ","
 )
 
@@ -172,19 +168,12 @@ type grantableResourceResolveRequest struct {
 	Audiences string `form:"audiences" binding:"required"`
 }
 
-// audiences splits Audiences and applies create's count and length limits.
+// audiences splits Audiences and applies create's count.
 // Blank entries are counted and left for normalizeAudience to drop, as create
 // counts them before normalising too.
 func (q *grantableResourceResolveRequest) audiences() ([]string, error) {
 	if strings.Count(q.Audiences, audienceSeparator) >= maxAudiences {
 		return nil, fmt.Errorf("audiences must hold at most %d entries", maxAudiences)
 	}
-
-	audiences := strings.Split(q.Audiences, audienceSeparator)
-	for _, aud := range audiences {
-		if utf8.RuneCountInString(aud) > maxAudienceLength {
-			return nil, fmt.Errorf("each audience must be at most %d characters", maxAudienceLength)
-		}
-	}
-	return audiences, nil
+	return strings.Split(q.Audiences, audienceSeparator), nil
 }

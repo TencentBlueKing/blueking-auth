@@ -305,7 +305,7 @@ func TestGrantableResourceRefNames(t *testing.T) {
 	})
 }
 
-// The resolve query repeats create's audience rules; if they drifted apart, a
+// The resolve query repeats create's audience count; if the two drifted apart, a
 // share link create would accept could be refused here, or the other way round.
 func TestGrantableResourceResolveBinding(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -356,14 +356,11 @@ func TestGrantableResourceResolveBinding(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("accepts an entry of 128 characters and rejects 129", func(t *testing.T) {
-		atLimit := "mcp:" + strings.Repeat("a", 124)
-		require.Len(t, atLimit, 128)
+	t.Run("leaves entry length to the realm", func(t *testing.T) {
+		long := "mcp:" + strings.Repeat("a", 1024)
 
-		_, err := resolve(atLimit)
+		audiences, err := resolve(long)
 		require.NoError(t, err)
-
-		_, err = resolve(atLimit + "a")
-		assert.Error(t, err)
+		assert.Equal(t, []string{long}, audiences)
 	})
 }
