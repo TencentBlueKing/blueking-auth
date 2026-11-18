@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
@@ -56,6 +57,13 @@ var _ = Describe("bluekingRealm audiences", func() {
 
 		It("should reject an unknown prefix", func() {
 			assert.Error(GinkgoT(), New().ValidateAudiences(ctx, []string{"service:codecc"}))
+		})
+
+		It("should leave name lengths to the gateway", func() {
+			assert.NoError(GinkgoT(), New().ValidateAudiences(ctx, []string{
+				"mcp:" + strings.Repeat("m", 100),
+				"gateway:" + strings.Repeat("g", 100) + "/api:" + strings.Repeat("a", 300),
+			}))
 		})
 	})
 
