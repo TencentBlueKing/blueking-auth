@@ -107,11 +107,6 @@ func parseBluekingAudience(aud string) (resType, name, apiName string, err error
 	return "", "", "", fmt.Errorf("invalid audience: unrecognized format %q", aud)
 }
 
-// ValidateAudiences checks the shape of each token and nothing about the names
-// inside it. Whether a name follows the gateway's naming rules, or names anything
-// at all, is the gateway's to decide when it matches: a token naming nothing
-// matches nothing, and holding names to a copy of those rules here would turn
-// away real resources whenever the gateway relaxed them.
 func (r *bluekingRealm) ValidateAudiences(_ context.Context, audiences []string) error {
 	if len(audiences) == 0 {
 		return fmt.Errorf("empty audience list")
