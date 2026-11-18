@@ -142,7 +142,12 @@ var _ = Describe("oauthAuthorizationCodeService", func() {
 			mockManager.EXPECT().Get(gomock.Any(), "code-1").Return(code, nil)
 
 			_, err := svc.ValidateAndConsume(
-				context.Background(), "blueking", "code-1", "client-1", "https://example.com/callback", "wrong-verifier",
+				context.Background(),
+				"blueking",
+				"code-1",
+				"client-1",
+				"https://example.com/callback",
+				"wrong-verifier",
 			)
 
 			assert.ErrorIs(GinkgoT(), err, oauth.ErrInvalidCodeVerifier)

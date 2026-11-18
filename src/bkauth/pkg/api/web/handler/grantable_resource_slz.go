@@ -154,3 +154,26 @@ func (q *grantableResourceQueryRequest) offset() int {
 	}
 	return (page - 1) * q.limit()
 }
+
+// maxAudiences must match the count in createPersonalAccessTokenRequest's
+// audience tag.
+const (
+	maxAudiences      = 100
+	audienceSeparator = ","
+)
+
+// grantableResourceResolveRequest is the query of the resolve endpoint, whose
+// audiences arrive joined by audienceSeparator.
+type grantableResourceResolveRequest struct {
+	Audiences string `form:"audiences" binding:"required"`
+}
+
+// audiences splits Audiences and applies create's count.
+// Blank entries are counted and left for normalizeAudience to drop, as create
+// counts them before normalising too.
+func (q *grantableResourceResolveRequest) audiences() ([]string, error) {
+	if strings.Count(q.Audiences, audienceSeparator) >= maxAudiences {
+		return nil, fmt.Errorf("audiences must hold at most %d entries", maxAudiences)
+	}
+	return strings.Split(q.Audiences, audienceSeparator), nil
+}

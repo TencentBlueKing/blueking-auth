@@ -29,7 +29,8 @@ import (
 
 var _ = Describe("URL", func() {
 	Describe("URLJoin", func() {
-		DescribeTable("should join base and path segments",
+		DescribeTable(
+			"should join base and path segments",
 			func(expected, base string, elem ...string) {
 				assert.Equal(GinkgoT(), expected, util.URLJoin(base, elem...))
 			},
@@ -39,7 +40,12 @@ var _ = Describe("URL", func() {
 			Entry("base with trailing slash", "http://example.com/api", "http://example.com/", "api"),
 			Entry("segment with leading slash", "http://example.com/api", "http://example.com", "/api"),
 			Entry("base with path", "http://example.com/v1/api/users", "http://example.com/v1", "api", "users"),
-			Entry("segments needing encoding", "http://example.com/path%20with%20spaces", "http://example.com", "path with spaces"),
+			Entry(
+				"segments needing encoding",
+				"http://example.com/path%20with%20spaces",
+				"http://example.com",
+				"path with spaces",
+			),
 		)
 
 		It("should return empty string for malformed base", func() {

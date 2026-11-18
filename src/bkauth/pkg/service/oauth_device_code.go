@@ -41,7 +41,10 @@ type OAuthDeviceCodeService interface {
 	GetByUserCode(ctx context.Context, userCode string) (types.PendingDeviceCode, error)
 	ApproveByUserCode(ctx context.Context, tenantID, userCode, sub, username string, audience []string) error
 	DenyByUserCode(ctx context.Context, userCode string) error
-	PollAndConsumeDeviceCode(ctx context.Context, realmName, deviceCode, clientID string) (types.ApprovedDeviceCode, error)
+	PollAndConsumeDeviceCode(
+		ctx context.Context,
+		realmName, deviceCode, clientID string,
+	) (types.ApprovedDeviceCode, error)
 }
 
 type oauthDeviceCodeService struct {

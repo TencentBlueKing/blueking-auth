@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
@@ -54,6 +57,210 @@ var _ = Describe("bluekingRealm audiences", func() {
 
 		It("should reject an unknown prefix", func() {
 			assert.Error(GinkgoT(), New().ValidateAudiences(ctx, []string{"service:codecc"}))
+		})
+
+		It("should leave name lengths to the gateway", func() {
+			assert.NoError(GinkgoT(), New().ValidateAudiences(ctx, []string{
+				"mcp:" + strings.Repeat("m", 100),
+				"gateway:" + strings.Repeat("g", 100) + "/api:" + strings.Repeat("a", 300),
+			}))
+		})
+	})
+
+	Describe("ResolveGrantableAudiences", func() {
+		var (
+			ctl        *gomock.Controller
+			mockClient *mock.MockLookupClient
+			realm      *bluekingRealm
+			builtFor   string
+		)
+
+		BeforeEach(func() {
+			ctl = gomock.NewController(GinkgoT())
+			mockClient = mock.NewMockLookupClient(ctl)
+			builtFor = ""
+			realm = &bluekingRealm{
+				newLookupClient: func(tenantID string) bkapigateway.LookupClient {
+					builtFor = tenantID
+					return mockClient
+				},
+			}
+		})
+
+		AfterEach(func() { ctl.Finish() })
+
+		keys := func(displays map[string]oauth.AudienceDisplay) []string {
+			return slices.Collect(maps.Keys(displays))
+		}
+
+		It("should keep the wildcards without asking upstream", func() {
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"mcp:*", "gateway:*/api:*"})
+			require.NoError(GinkgoT(), err)
+			assert.ElementsMatch(GinkgoT(), []string{"mcp:*", "gateway:*/api:*"}, keys(displays))
+		})
+
+		It("should keep an MCP server open to personal tokens and drop a closed one", func() {
+			mockClient.EXPECT().LookupMCPServer(gomock.Any(), []string{"open", "closed"}).Return(
+				map[string]bkapigateway.MCPServer{
+					"open":   {Name: "open", OAuth2PersonalClientEnabled: true},
+					"closed": {Name: "closed", OAuth2PersonalClientEnabled: false},
+				}, nil,
+			)
+
+			displays, err := realm.ResolveGrantableAudiences(ctx, "tencent", []string{"mcp:open", "mcp:closed"})
+			require.NoError(GinkgoT(), err)
+
+			assert.ElementsMatch(GinkgoT(), []string{"mcp:open"}, keys(displays))
+			assert.Equal(GinkgoT(), "tencent", builtFor)
+		})
+
+		It("should drop an MCP server the lookup did not return", func() {
+			mockClient.EXPECT().LookupMCPServer(gomock.Any(), []string{"ghost"}).Return(
+				map[string]bkapigateway.MCPServer{}, nil,
+			)
+
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"mcp:ghost"})
+			require.NoError(GinkgoT(), err)
+			assert.Empty(GinkgoT(), displays)
+		})
+
+		It("should drop the MCP servers when their lookup fails", func() {
+			// Unlike the token pages, which fall back to the raw name, a share
+			// link pre-fills nothing it could not confirm.
+			mockClient.EXPECT().LookupMCPServer(gomock.Any(), []string{"s1"}).Return(
+				nil, errors.New("network error"),
+			)
+
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"mcp:s1", "mcp:*"})
+			require.NoError(GinkgoT(), err)
+			assert.ElementsMatch(GinkgoT(), []string{"mcp:*"}, keys(displays))
+		})
+
+		It("should keep a gateway-wide grant on a gateway that exists", func() {
+			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"gw"}).Return(
+				map[string]bkapigateway.Gateway{"gw": {Name: "gw"}}, nil,
+			)
+
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"gateway:gw/api:*"})
+			require.NoError(GinkgoT(), err)
+			assert.ElementsMatch(GinkgoT(), []string{"gateway:gw/api:*"}, keys(displays))
+		})
+
+		It("should drop a gateway-wide grant on a gateway that does not exist", func() {
+			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"ghost"}).Return(
+				map[string]bkapigateway.Gateway{}, nil,
+			)
+
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"gateway:ghost/api:*"})
+			require.NoError(GinkgoT(), err)
+			assert.Empty(GinkgoT(), displays)
+		})
+
+		It("should drop the gateway-wide grants when the gateway lookup fails", func() {
+			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"gw"}).Return(
+				nil, errors.New("network error"),
+			)
+
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"gateway:gw/api:*"})
+			require.NoError(GinkgoT(), err)
+			assert.Empty(GinkgoT(), displays)
+		})
+
+		It("should keep an API open to personal tokens and drop a closed or missing one", func() {
+			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"gw"}).Return(
+				map[string]bkapigateway.Gateway{"gw": {Name: "gw"}}, nil,
+			)
+			mockClient.EXPECT().LookupReleasedResource(gomock.Any(), "gw", []string{"open", "closed", "ghost"}).Return(
+				map[string]bkapigateway.Resource{
+					"open":   {Name: "open", OAuth2PersonalClientEnabled: true},
+					"closed": {Name: "closed", OAuth2PersonalClientEnabled: false},
+				}, nil,
+			)
+
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{
+				"gateway:gw/api:open", "gateway:gw/api:closed", "gateway:gw/api:ghost",
+			})
+			require.NoError(GinkgoT(), err)
+			assert.ElementsMatch(GinkgoT(), []string{"gateway:gw/api:open"}, keys(displays))
+		})
+
+		It("should drop every API of a gateway that answers 404, and only those", func() {
+			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"gone", "alive"}).Return(
+				map[string]bkapigateway.Gateway{"alive": {Name: "alive"}}, nil,
+			)
+			mockClient.EXPECT().LookupReleasedResource(gomock.Any(), "gone", []string{"a1"}).Return(
+				nil, &bkapigateway.APIError{StatusCode: 404, Code: "NOT_FOUND"},
+			)
+			mockClient.EXPECT().LookupReleasedResource(gomock.Any(), "alive", []string{"a2"}).Return(
+				map[string]bkapigateway.Resource{"a2": {Name: "a2", OAuth2PersonalClientEnabled: true}}, nil,
+			)
+
+			displays, err := realm.ResolveGrantableAudiences(ctx, "",
+				[]string{"gateway:gone/api:a1", "gateway:alive/api:a2"})
+			require.NoError(GinkgoT(), err)
+			assert.ElementsMatch(GinkgoT(), []string{"gateway:alive/api:a2"}, keys(displays))
+		})
+
+		It("should drop the APIs of a gateway whose lookup fails", func() {
+			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"gw"}).Return(
+				map[string]bkapigateway.Gateway{"gw": {Name: "gw"}}, nil,
+			)
+			mockClient.EXPECT().LookupReleasedResource(gomock.Any(), "gw", []string{"a1"}).Return(
+				nil, errors.New("network error"),
+			)
+
+			displays, err := realm.ResolveGrantableAudiences(ctx, "", []string{"gateway:gw/api:a1"})
+			require.NoError(GinkgoT(), err)
+			assert.Empty(GinkgoT(), displays)
+		})
+
+		It("should render each entry from the one lookup that confirmed it", func() {
+			// Each lookup is expected once, so a second round for rendering fails
+			// the test.
+			mockClient.EXPECT().LookupMCPServer(gomock.Any(), []string{"s1"}).Return(
+				map[string]bkapigateway.MCPServer{
+					"s1": {Name: "s1", Title: "Server One", IsPublic: false, OAuth2PersonalClientEnabled: true},
+				}, nil,
+			)
+			mockClient.EXPECT().LookupGateway(gomock.Any(), []string{"gw"}).Return(
+				map[string]bkapigateway.Gateway{"gw": {Name: "gw", IsOfficial: true}}, nil,
+			)
+			mockClient.EXPECT().LookupReleasedResource(gomock.Any(), "gw", []string{"a1"}).Return(
+				map[string]bkapigateway.Resource{
+					"a1": {Name: "a1", Description: "API One", IsPublic: true, OAuth2PersonalClientEnabled: true},
+				}, nil,
+			)
+
+			displays, err := realm.ResolveGrantableAudiences(ctx, "",
+				[]string{"gateway:gw/api:a1", "mcp:*", "mcp:s1", "gateway:*/api:*"})
+			require.NoError(GinkgoT(), err)
+			assert.ElementsMatch(GinkgoT(),
+				[]string{"gateway:gw/api:a1", "mcp:*", "mcp:s1", "gateway:*/api:*"}, keys(displays))
+
+			server := displays["mcp:s1"]
+			assert.Equal(GinkgoT(), "Server One", server.DisplayName)
+			assert.Equal(GinkgoT(), oauth.Extras{"is_public": false}, server.Extras)
+
+			api := displays["gateway:gw/api:a1"]
+			assert.Equal(GinkgoT(), "API One", api.DisplayName)
+			assert.Equal(GinkgoT(), oauth.Extras{"is_public": true, "is_official": true}, api.Extras)
+
+			assert.Equal(GinkgoT(), oauth.AudienceLevelNone, displays["mcp:*"].Level)
+			assert.Equal(GinkgoT(), oauth.AudienceLevelNone, displays["gateway:*/api:*"].Level)
+		})
+
+		It("should keep only the wildcards when built without a lookup client", func() {
+			bare := &bluekingRealm{}
+
+			displays, err := bare.ResolveGrantableAudiences(ctx, "",
+				[]string{"mcp:s1", "mcp:*", "gateway:gw/api:a1", "gateway:*/api:*"})
+			require.NoError(GinkgoT(), err)
+			assert.ElementsMatch(GinkgoT(), []string{"mcp:*", "gateway:*/api:*"}, keys(displays))
+		})
+
+		It("should error on a token it cannot parse", func() {
+			_, err := realm.ResolveGrantableAudiences(ctx, "", []string{"mcp:s1", "gateway:broken"})
+			assert.Error(GinkgoT(), err)
 		})
 	})
 

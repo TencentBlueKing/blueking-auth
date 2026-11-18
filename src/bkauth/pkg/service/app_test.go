@@ -318,7 +318,11 @@ var _ = Describe("App", func() {
 			mockAccessKeyManager.EXPECT().
 				CreateWithTx(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(dao.AccessKey{})).
 				DoAndReturn(func(_ context.Context, _ *sqlx.Tx, secret dao.AccessKey) (int64, error) {
-					assertProvidedAccessKey(secret, "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", "specified when the app is created")
+					assertProvidedAccessKey(
+						secret,
+						"4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
+						"specified when the app is created",
+					)
 					return int64(1), nil
 				})
 
@@ -386,7 +390,11 @@ var _ = Describe("App", func() {
 			mockAccessKeyManager.EXPECT().
 				CreateWithTx(gomock.Any(), gomock.Any(), gomock.AssignableToTypeOf(dao.AccessKey{})).
 				DoAndReturn(func(_ context.Context, _ *sqlx.Tx, secret dao.AccessKey) (int64, error) {
-					assertProvidedAccessKey(secret, "4d7a-b6b8-f3c255fff041-a59ddb37-94ae", "specified when the app is created")
+					assertProvidedAccessKey(
+						secret,
+						"4d7a-b6b8-f3c255fff041-a59ddb37-94ae",
+						"specified when the app is created",
+					)
 					return int64(0), errors.New("error")
 				})
 

@@ -21,6 +21,9 @@ package handler
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -299,5 +302,65 @@ func TestGrantableResourceRefNames(t *testing.T) {
 		_, err := (&grantableResourceRefRequest{}).names()
 
 		assert.ErrorIs(t, err, errMalformedLevelPairs)
+	})
+}
+
+// The resolve query repeats create's audience count; if the two drifted apart, a
+// share link create would accept could be refused here, or the other way round.
+func TestGrantableResourceResolveBinding(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	resolve := func(audiences ...string) ([]string, error) {
+		query := url.Values{"audiences": {strings.Join(audiences, ",")}}
+		if len(audiences) == 0 {
+			query = url.Values{}
+		}
+
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodGet, "/?"+query.Encode(), nil)
+
+		var req grantableResourceResolveRequest
+		if err := c.ShouldBindQuery(&req); err != nil {
+			return nil, err
+		}
+		return req.audiences()
+	}
+	numbered := func(n int) []string {
+		audiences := make([]string, n)
+		for i := range audiences {
+			audiences[i] = "mcp:s" + strconv.Itoa(i)
+		}
+		return audiences
+	}
+
+	t.Run("splits the audiences on commas, in order", func(t *testing.T) {
+		audiences, err := resolve("mcp:demo", "gateway:gw/api:*")
+		require.NoError(t, err)
+		assert.Equal(t, []string{"mcp:demo", "gateway:gw/api:*"}, audiences)
+	})
+
+	t.Run("rejects missing or empty audiences", func(t *testing.T) {
+		_, err := resolve()
+		assert.Error(t, err)
+
+		_, err = resolve("")
+		assert.Error(t, err)
+	})
+
+	t.Run("accepts 100 and rejects 101, as create does", func(t *testing.T) {
+		audiences, err := resolve(numbered(100)...)
+		require.NoError(t, err)
+		assert.Len(t, audiences, 100)
+
+		_, err = resolve(numbered(101)...)
+		assert.Error(t, err)
+	})
+
+	t.Run("leaves entry length to the realm", func(t *testing.T) {
+		long := "mcp:" + strings.Repeat("a", 1024)
+
+		audiences, err := resolve(long)
+		require.NoError(t, err)
+		assert.Equal(t, []string{long}, audiences)
 	})
 }

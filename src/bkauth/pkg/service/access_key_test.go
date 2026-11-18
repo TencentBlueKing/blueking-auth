@@ -302,7 +302,9 @@ var _ = Describe("accessKeyService", func() {
 		It("exists error", func() {
 			mockManager := mock.NewMockAccessKeyManager(ctl)
 			mockManager.EXPECT().Count(gomock.Any(), "testApp").Return(int64(MinSecretsPreApp), nil)
-			mockManager.EXPECT().ExistsByAppCodeAndID(gomock.Any(), "testApp", int64(1)).Return(false, errors.New("db error"))
+			mockManager.EXPECT().
+				ExistsByAppCodeAndID(gomock.Any(), "testApp", int64(1)).
+				Return(false, errors.New("db error"))
 
 			svc := accessKeyService{manager: mockManager}
 			err := svc.DeleteByID(context.Background(), "testApp", 1)

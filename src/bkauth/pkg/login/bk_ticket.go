@@ -37,7 +37,8 @@ func newBKTicketAuthenticator(loginURL string) *bkTicketAuthenticator {
 	}
 }
 
-func (a *bkTicketAuthenticator) CookieName() string  { return "bk_ticket" }
+func (a *bkTicketAuthenticator) CookieName() string { return "bk_ticket" }
+
 func (a *bkTicketAuthenticator) GetLoginURL() string { return a.loginURL }
 
 func (a *bkTicketAuthenticator) CheckLogin(ctx context.Context, token string) (AuthResult, error) {

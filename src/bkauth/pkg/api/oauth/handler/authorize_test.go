@@ -24,10 +24,9 @@ import (
 	"net/http/httptest"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/mock/gomock"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"go.uber.org/mock/gomock"
 
 	"bkauth/pkg/oauth"
 	"bkauth/pkg/realm/blueking"

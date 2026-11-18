@@ -148,6 +148,15 @@ type Realm interface {
 	// personal access token can still be written while the gateway is down.
 	ValidateAudiences(ctx context.Context, audiences []string) error
 
+	// ResolveGrantableAudiences renders those of the given audiences whose resources
+	// may be granted to a personal access token now, keyed by audience. A key is
+	// absent when its resource is missing, closed to personal access tokens, or
+	// could not be confirmed because the upstream failed: nothing unconfirmed is
+	// reported as grantable.
+	ResolveGrantableAudiences(
+		ctx context.Context, tenantID string, audiences []string,
+	) (map[string]AudienceDisplay, error)
+
 	// ResolveAudienceDisplays renders the given tokens, keyed by the token each
 	// rendering is of. tenantID scopes the upstream lookups; leaving it empty
 	// yields only tenant-neutral data.

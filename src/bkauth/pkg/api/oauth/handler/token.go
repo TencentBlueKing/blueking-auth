@@ -22,13 +22,13 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"bkauth/pkg/config"
 	"bkauth/pkg/oauth"
 	"bkauth/pkg/service"
 	"bkauth/pkg/service/types"
 	"bkauth/pkg/util"
-
-	"github.com/gin-gonic/gin"
 )
 
 // TokenRequest represents a token request.
@@ -148,7 +148,14 @@ func handleAuthorizationCodeGrant(c *gin.Context, cfg *config.Config, req TokenR
 	// single in-process DB call, and the consequence is a minor UX inconvenience.
 	realmName := util.GetRealmName(c)
 	authCodeSvc := service.NewOAuthAuthorizationCodeService()
-	authCode, err := authCodeSvc.ValidateAndConsume(ctx, realmName, req.Code, clientID, req.RedirectURI, req.CodeVerifier)
+	authCode, err := authCodeSvc.ValidateAndConsume(
+		ctx,
+		realmName,
+		req.Code,
+		clientID,
+		req.RedirectURI,
+		req.CodeVerifier,
+	)
 	if err != nil {
 		handleTokenError(c, err)
 		return

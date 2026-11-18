@@ -132,6 +132,25 @@ func TestPersonalAccessTokenAudienceCountBinding(t *testing.T) {
 	})
 }
 
+func TestPersonalAccessTokenAudienceLengthBinding(t *testing.T) {
+	atLimit := "gateway:gw/api:" + strings.Repeat("a", 512-len("gateway:gw/api:"))
+	require.Len(t, atLimit, 512)
+
+	audienceBody := func(aud string) string {
+		return `{"name":"ci","audience":["` + aud + `"],"expires_at":1786521750}`
+	}
+
+	t.Run("create accepts 512 and rejects 513", func(t *testing.T) {
+		require.NoError(t, bindJSON(t, audienceBody(atLimit), &createPersonalAccessTokenRequest{}))
+		assert.Error(t, bindJSON(t, audienceBody(atLimit+"a"), &createPersonalAccessTokenRequest{}))
+	})
+
+	t.Run("update accepts 512 and rejects 513", func(t *testing.T) {
+		require.NoError(t, bindJSON(t, audienceBody(atLimit), &updatePersonalAccessTokenRequest{}))
+		assert.Error(t, bindJSON(t, audienceBody(atLimit+"a"), &updatePersonalAccessTokenRequest{}))
+	})
+}
+
 func TestNormalizeAudience(t *testing.T) {
 	tests := []struct {
 		name  string

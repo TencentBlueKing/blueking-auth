@@ -34,6 +34,10 @@ import (
 // update request repeats it and the two must move together, or a token created
 // here could not be saved back unchanged.
 //
+// Nor does the per-entry max=512, since audience is a JSON column: it only caps
+// oversized input. Whether a name is valid is for the upstream that owns it to
+// decide.
+//
 // ExpiresAt is an absolute Unix-second timestamp rather than a lifetime. The
 // client picks a date; sending a duration would have it computed against the
 // client's clock and re-anchored to the server's, storing an expiry a round trip
@@ -48,7 +52,7 @@ import (
 type createPersonalAccessTokenRequest struct {
 	Name        string   `json:"name" binding:"required,max=64"`
 	Description string   `json:"description" binding:"omitempty,max=255"`
-	Audience    []string `json:"audience" binding:"required,min=1,max=100,dive,max=128"`
+	Audience    []string `json:"audience" binding:"required,min=1,max=100,dive,max=512"`
 	ExpiresAt   int64    `json:"expires_at"`
 }
 
@@ -72,7 +76,7 @@ type createPersonalAccessTokenRequest struct {
 type updatePersonalAccessTokenRequest struct {
 	Name        string   `json:"name" binding:"required,max=64"`
 	Description string   `json:"description" binding:"omitempty,max=255"`
-	Audience    []string `json:"audience" binding:"required,min=1,max=100,dive,max=128"`
+	Audience    []string `json:"audience" binding:"required,min=1,max=100,dive,max=512"`
 	ExpiresAt   int64    `json:"expires_at"`
 }
 
