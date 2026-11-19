@@ -20,10 +20,12 @@ export default class RequestError extends Error {
   code: number | string;
   message: string;
   response: any;
-  constructor(code: number | string, message: string, response?: any) {
-    super();
+  config?: any;
+  constructor(code: number | string, message: string, response?: any, config?: any) {
+    super(message);
     this.code = code;
     this.message = message;
     this.response = response;
+    this.config = config;
   }
 }

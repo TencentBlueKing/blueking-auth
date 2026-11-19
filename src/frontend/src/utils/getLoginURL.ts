@@ -17,10 +17,12 @@
  */
 
 // 获取登录地址
-export const getLoginURL = (url: string, cUrl: string, size: string) => {
-  const loginUrl = new URL(url);
-  loginUrl.searchParams.append('size', size);
-  loginUrl.searchParams.append('is_from_logout', '1');
-  loginUrl.searchParams.append('c_url', cUrl);
+export const getLoginURL = (url: string, cUrl: string, size?: string) => {
+  const loginUrl = new URL(url, window.location.origin);
+  if (size !== undefined) {
+    loginUrl.searchParams.set('size', size);
+  }
+  loginUrl.searchParams.set('is_from_logout', '1');
+  loginUrl.searchParams.set('c_url', cUrl);
   return loginUrl.href;
 };

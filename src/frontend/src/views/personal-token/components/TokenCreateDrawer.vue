@@ -14,9 +14,111 @@
 
     <!-- 抽屉主体 -->
     <div
-      v-bkloading="{ loading: initializing }"
+      v-bkloading="{ loading: initializing || shareResolving }"
       class="drawer-body"
     >
+      <!-- 授权范围链接预填提示区 -->
+      <div
+        v-if="share && !isEdit"
+        class="share-notices"
+      >
+        <BkAlert
+          v-if="showShareNoticeAlert"
+          class="share-notice"
+          :theme="hasOtherShareWarnings ? 'warning' : 'info'"
+          :show-icon="false"
+        >
+          <template #title>
+            <div class="share-notice-body">
+              <div v-if="showSharePrefilledHint">
+                {{ t('已按授权范围链接预填，请确认后点击「生成令牌」') }}
+              </div>
+              <div
+                v-for="item in shareWarningItems"
+                :key="item.key"
+              >
+                {{ item.message }}
+                <BkButton
+                  v-if="item.retryable"
+                  theme="primary"
+                  text
+                  @click="retryShareResolution"
+                >
+                  {{ t('重试') }}
+                </BkButton>
+              </div>
+            </div>
+          </template>
+        </BkAlert>
+
+        <!-- 链接中无法选中的授权范围折叠面板 -->
+        <div
+          v-if="parsedSharedAudienceIssues.length"
+          class="share-issues-panel"
+        >
+          <div
+            class="share-issues-header"
+            :class="{ 'is-expanded': shareIssuesExpanded }"
+            @click="toggleShareIssuesExpanded"
+          >
+            <div class="share-issues-header-left">
+              <CommonIcon
+                class="share-issues-icon"
+                name="danger-fill"
+                size="14"
+                color="#ff9c01"
+              />
+              <span class="share-issues-title">{{ t('链接中以下几项授权范围无法选中') }}</span>
+              <span class="share-issues-count">
+                {{ t('{count} 项', { count: parsedSharedAudienceIssues.length }) }}
+              </span>
+            </div>
+            <AngleUp
+              class="share-issues-arrow"
+              :class="{ 'is-collapsed': !shareIssuesExpanded }"
+            />
+          </div>
+          <div
+            v-show="shareIssuesExpanded"
+            class="share-issues-body"
+          >
+            <div class="share-issues-grid">
+              <div
+                v-for="item in parsedSharedAudienceIssues"
+                :key="item.audience"
+                class="share-issue-card"
+              >
+                <BkTag
+                  v-if="item.tagLabel"
+                  class="share-issue-tag"
+                  size="small"
+                  :theme="item.tagTheme"
+                >
+                  {{ item.tagLabel }}
+                </BkTag>
+                <bdi
+                  v-if="item.isRawAudience"
+                  v-bk-ellipsis
+                  class="share-issue-name"
+                >{{ item.displayName }}</bdi>
+                <span
+                  v-else
+                  v-bk-ellipsis
+                  class="share-issue-name"
+                >{{ item.displayName }}</span>
+                <BkTag
+                  v-if="item.reason === 'invalid-format'"
+                  class="share-issue-error-tag"
+                  size="small"
+                  theme="danger"
+                >
+                  {{ t('格式错误') }}
+                </BkTag>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <!-- 基础信息表单 -->
       <BkForm
         ref="formRef"
@@ -208,7 +310,10 @@
                             size="small"
                             @change="(value: CheckboxValue) => handleAudienceChange(item.audience, value)"
                           >
-                            {{ item.display_name }}（{{ item.name }}）
+                            <span
+                              v-bk-tooltips="getResourceItemTooltip(item)"
+                              class="resource-item-name"
+                            >{{ getResourceItemName(item) }}</span>
                           </BkCheckbox>
                           <span
                             v-else
@@ -229,7 +334,10 @@
                         size="small"
                         @change="(value: CheckboxValue) => handleAudienceChange(resource.audience, value)"
                       >
-                        {{ resource.display_name }}（{{ resource.name }}）
+                        <span
+                          v-bk-tooltips="getResourceItemTooltip(resource)"
+                          class="resource-item-name"
+                        >{{ getResourceItemName(resource) }}</span>
                       </BkCheckbox>
                     </div>
                   </template>
@@ -474,6 +582,7 @@
       <BkButton
         theme="primary"
         :loading="submitting"
+        :disabled="initializing || shareResolving || (!isEdit && createLimitReached)"
         @click="handleSubmit"
       >
         {{ primaryButtonText }}
@@ -484,6 +593,13 @@
       >
         {{ t('取消') }}
       </BkButton>
+      <BkButton
+        class="ml-8px"
+        :disabled="!hasSelectedResource || initializing || shareResolving"
+        @click="handleCopyShareLink"
+      >
+        {{ t('复制授权范围链接') }}
+      </BkButton>
     </template>
   </BkSideslider>
 
@@ -491,7 +607,7 @@
   <BkDialog
     v-model:is-show="createdDialogShow"
     class="token-created-dialog"
-    width="520"
+    width="560"
     :title="''"
     :quick-close="false"
     @closed="handleCreatedDialogClosed"
@@ -517,18 +633,42 @@
           {{ createdTokenName || '--' }}
         </div>
         <div class="created-info-label mt-12px">
-          {{ t('令牌（access_token）') }}
+          {{ t('令牌 (personal_access_token)') }}
         </div>
-        <div class="created-token-value">
-          <span>{{ createdResult?.token || '--' }}</span>
-          <BkButton
-            v-if="createdResult?.token"
-            class="copy-token-button"
-            text
-            @click="handleCopyToken"
-          >
-            <Copy />
+        <div class="created-token-box">
+          {{ createdResult?.token || '--' }}
+        </div>
+        <!-- 裸令牌与含 Bearer 前缀令牌同级复制操作 -->
+        <div
+          v-if="createdResult?.token"
+          class="created-token-actions"
+        >
+          <BkButton @click="() => handleCopyToken('raw')">
+            <Copy class="copy-button-icon" />
+            <span>{{ t('复制令牌') }}</span>
           </BkButton>
+          <BkButton @click="() => handleCopyToken('bearer')">
+            <Copy class="copy-button-icon" />
+            <span>{{ t('复制含 Bearer 前缀的令牌') }}</span>
+          </BkButton>
+        </div>
+        <!-- 两种复制方式的适用场景说明 -->
+        <div class="created-token-hints">
+          <div class="created-token-hint">
+            <span class="hint-label">{{ t('复制令牌：') }}</span>
+            <span>{{ t('用于 bk-cli 登录等需要令牌本身的场景') }}</span>
+          </div>
+          <div class="created-token-hint">
+            <span class="hint-label">{{ t('复制含 Bearer 前缀的令牌：') }}</span>
+            <I18nT
+              keypath="用于调用 API、配置 MCP，请求头格式为 {header}"
+              tag="span"
+            >
+              <template #header>
+                <code class="token-header-code">Authorization: Bearer &lt;token&gt;</code>
+              </template>
+            </I18nT>
+          </div>
         </div>
       </div>
     </div>
@@ -543,6 +683,7 @@
 
 <script setup lang="ts">
 import {
+  AngleUp,
   CloseLine,
   Copy,
   Del,
@@ -572,19 +713,33 @@ import {
   messageWarn,
 } from '@/utils';
 import {
+  type IPersonalTokenShare,
+  type ISharedAudienceIssue,
+  MAX_SHARED_AUDIENCES,
+  type SharedAudienceIssueTagType,
+  getSharedExpiry,
+  parseSharedAudienceIssue,
+  resolveSharedAudiences,
+  useCopyPersonalTokenShareLink,
+} from '../share';
+import {
   dateToUnixSeconds,
   getEndOfDay,
   getEstimatedMaxExpiresAt,
+  parsePersonalTokenAudience,
   unixSecondsToDate,
 } from '../utils';
 
 type DateShortcutChange = (date: Date, visible?: boolean) => void;
 type CheckboxValue = boolean | number | string;
 type CustomResourceField = 'gatewayName' | 'resourceName';
+type TokenCopyMode = 'raw' | 'bearer';
 
 interface IProps {
   realm: PersonalTokenRealm
   token?: IPersonalToken | null
+  share?: IPersonalTokenShare | null
+  createLimitReached?: boolean
 }
 
 interface IEmits { success: [] }
@@ -646,18 +801,26 @@ interface IPopoverClickOutsideEvent {
   isShow: boolean
 }
 
+interface IShareWarningItem {
+  key: string
+  message: string
+  retryable?: boolean
+}
+
 const isShow = defineModel<boolean>('isShow', { default: false });
 
 const {
   realm,
   token = null,
+  share = null,
+  createLimitReached = false,
 } = defineProps<IProps>();
 
 const emit = defineEmits<IEmits>();
 
-const envStore = useEnv();
-
 const { t } = useI18n();
+const envStore = useEnv();
+const copyShareLink = useCopyPersonalTokenShareLink();
 
 const formData = ref<IFormData>({
   name: '',
@@ -691,15 +854,23 @@ const customResourceLoading = ref(false);
 // 编辑时保留原始秒级时间，避免无改动时重复转换
 const originalExpiresAt = ref<number | null>(null);
 const resourceError = ref(false);
+const shareResolving = shallowRef(false);
+const shareResolutionFailed = shallowRef(false);
+const sharedExpiryInvalid = shallowRef(false);
+const sharedAudienceIssues = shallowRef<ISharedAudienceIssue[]>([]);
+const shareIssuesExpanded = shallowRef(true);
 
 const formRef = useTemplateRef<IFormInstance>('formRef');
 const customResourceFormRefs = useTemplateRef<IFormInstance[]>('customResourceFormRefs');
 
 const pageSizeOptions = [5, 10, 20];
+// 无法选中的授权范围不超过该数量时默认展开，超过则默认收起
+const DEFAULT_EXPANDED_ISSUE_LIMIT = 6;
 // 每种资源类型分别维护搜索防抖计时器
 const searchTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // 标识最新抽屉初始化请求，防止切换令牌后旧响应回写
 let drawerRequestId = 0;
+let drawerController: AbortController | null = null;
 // 标识最新非公开资源查询，关闭气泡后忽略旧响应
 let customResourceRequestId = 0;
 
@@ -771,6 +942,101 @@ const resourceCards = computed<IResourceCard[]>(() => resourceTypes.value
   .filter((card): card is IResourceCard => Boolean(card.state)));
 
 const hasSelectedResource = computed(() => selectedAudience.value.some(Boolean));
+const sharedSelectAllTypes = computed(() => resourceTypes.value
+  .filter(type => type.audience && selectedAudience.value.includes(type.audience))
+  .map(type => type.display_name));
+
+// 统一汇总除无法选中列表外的链接告警，避免模板与判断逻辑重复
+const shareWarningItems = computed<IShareWarningItem[]>(() => {
+  if (!share || isEdit.value) {
+    return [];
+  }
+  const items: IShareWarningItem[] = [];
+  if (sharedSelectAllTypes.value.length) {
+    items.push({
+      key: 'select-all',
+      message: t('当前全选范围为 {types}，包含后续新增资源', { types: sharedSelectAllTypes.value.join(' / ') }),
+    });
+  }
+  if (realm === 'bk-gpu' && share.audience.length > 1) {
+    items.push({
+      key: 'bk-gpu-single',
+      message: t('bk-gpu 仅支持一项授权范围'),
+    });
+  }
+  if (sharedExpiryInvalid.value) {
+    items.push({
+      key: 'expiry-invalid',
+      message: t('链接中的有效期不可用，请重新选择过期时间'),
+    });
+  }
+  if (createLimitReached) {
+    items.push({
+      key: 'create-limit',
+      message: t('活跃令牌数量已达上限，请先撤销一个现有令牌。'),
+    });
+  }
+  if (share.audience.length > MAX_SHARED_AUDIENCES) {
+    items.push({
+      key: 'max-audiences',
+      message: t('授权范围链接最多支持 {count} 项授权范围，请减少后重试', { count: MAX_SHARED_AUDIENCES }),
+    });
+  }
+  if (shareResolutionFailed.value) {
+    items.push({
+      key: 'resolve-failed',
+      message: t('链接中的授权范围校验失败'),
+      retryable: true,
+    });
+  }
+  return items;
+});
+
+const hasOtherShareWarnings = computed(() => shareWarningItems.value.length > 0);
+
+// 仅在授权范围完成校验且无无法选中项时展示“已预填”提示，避免与超限或失败告警矛盾
+const showSharePrefilledHint = computed(() => Boolean(
+  share
+  && !isEdit.value
+  && !shareResolving.value
+  && !shareResolutionFailed.value
+  && share.audience.length <= MAX_SHARED_AUDIENCES
+  && !sharedAudienceIssues.value.length,
+));
+
+// 无异常时展示 info 提示；存在其他告警时展示 warning 提示；仅有无法选中项时只展示独立折叠面板
+const showShareNoticeAlert = computed(() => (
+  hasOtherShareWarnings.value || showSharePrefilledHint.value
+));
+
+const parsedSharedAudienceIssues = computed(() => {
+  const tagLabelMap: Record<SharedAudienceIssueTagType, string> = {
+    mcp: 'MCP',
+    api: 'API',
+    gateway: t('网关'),
+    service: t('服务'),
+    resource: t('资源'),
+  };
+  return sharedAudienceIssues.value.map((issue) => {
+    const parsed = parseSharedAudienceIssue(realm, issue);
+    const displayName = parsed.isRawAudience
+      ? (parsed.name || t('空值'))
+      : parsed.tagType === 'api' && parsed.gateway
+        ? t('{name}（{gateway}）', {
+          name: parsed.name,
+          gateway: parsed.gateway,
+        })
+        : parsed.name;
+    return {
+      audience: parsed.audience,
+      reason: parsed.reason,
+      tagLabel: parsed.tagType ? tagLabelMap[parsed.tagType] : '',
+      tagTheme: parsed.tagType === 'gateway' ? ('warning' as const) : undefined,
+      displayName,
+      isRawAudience: parsed.isRawAudience,
+    };
+  });
+});
 
 const activeCustomResourceType = computed(() => resourceTypes.value
   .find(resourceType => resourceType.name === customResourceTypeName.value));
@@ -832,6 +1098,9 @@ const disabledDate = (date: Date) => {
 
 // 选择日期时统一使用当天最后一秒
 const handleExpiredAtChange = (_value: string, selectionType?: string) => {
+  if (formData.value.expiredAt) {
+    sharedExpiryInvalid.value = false;
+  }
   if (selectionType !== 'date' || !formData.value.expiredAt) {
     return;
   }
@@ -849,6 +1118,7 @@ const handleDateShortcut = (days: number, change: DateShortcutChange) => {
     return;
   }
   formData.value.expiredAt = endOfDay;
+  sharedExpiryInvalid.value = false;
   change(endOfDay, false);
 };
 
@@ -943,13 +1213,6 @@ const getCustomResourceDisplayName = (item: ICustomResourceItem) => [
   item.resource.display_name,
 ].filter(Boolean).join(' / ');
 
-const getGatewayNameFromAudience = (audience: string) => {
-  const gatewayAudience = audience.split('/')[0] ?? '';
-  return gatewayAudience.startsWith('gateway:')
-    ? gatewayAudience.slice('gateway:'.length)
-    : '';
-};
-
 const getResourceState = (typeName: string) => resourceStates.value[typeName];
 
 // 后端使用“末级层级:关键字”的格式搜索资源
@@ -1011,7 +1274,7 @@ const getSelectableResources = (resources: IGrantableResource[]): IGrantableReso
 
 // 新建时仅有一种类型和一个可选资源则默认选中
 const selectOnlyGrantableResource = () => {
-  if (isEdit.value || hasSelectedResource.value || !resourceTypes.value.length || resourceTypes.value.length > 1) {
+  if (share || isEdit.value || hasSelectedResource.value || resourceTypes.value.length !== 1) {
     return;
   }
   const resourceType = resourceTypes.value[0];
@@ -1035,7 +1298,7 @@ const loadResourceTypes = async (currentRealm: PersonalTokenRealm, requestId: nu
   resourceStates.value = Object.fromEntries(types.map(type => [type.name, createResourceState()]));
   resourceTypes.value = types;
   types.forEach(registerResourceTypeAudience);
-  await Promise.all(types.map(type => fetchGrantableResources(type, currentRealm)));
+  await Promise.allSettled(types.map(type => fetchGrantableResources(type, currentRealm)));
   if (drawerRequestId === requestId && realm === currentRealm && isShow.value) {
     selectOnlyGrantableResource();
   }
@@ -1435,6 +1698,14 @@ const isNonPublicResource = (resource: IPersonalTokenResource) =>
   Object.prototype.hasOwnProperty.call(resource.extras ?? {}, 'is_public')
   && resource.extras?.is_public === false;
 
+const getResourceItemName = (resource: IGrantableResource) => `${resource.display_name}（${resource.name}）`;
+
+const getResourceItemTooltip = (resource: IGrantableResource) => ({
+  content: getResourceItemName(resource),
+  delay: 300,
+  extCls: 'token-resource-name-tooltip',
+});
+
 const getPreviewItemName = (resource: IPersonalTokenResource) => (
   resource.name === resource.display_name
     ? resource.display_name
@@ -1469,29 +1740,37 @@ const buildPayload = (): IPersonalTokenPayload => {
 
 // 根据抽屉模式分别执行新建或编辑流程
 const handleSubmit = async () => {
-  try {
-    await formRef.value?.validate();
-  }
-  catch {
+  if (submitting.value || initializing.value || shareResolving.value || (!isEdit.value && createLimitReached)) {
     return;
   }
-  if (!validateResources()) {
-    return;
-  }
-
+  const requestId = drawerRequestId;
   submitting.value = true;
   try {
+    try {
+      await formRef.value?.validate();
+    }
+    catch {
+      return;
+    }
+    if (drawerRequestId !== requestId || !isShow.value || !validateResources()) {
+      return;
+    }
+
     const payload = buildPayload();
     if (isEdit.value && token) {
       await updatePersonalToken(realm, token.id, payload);
       messageSuccess(t('编辑成功'));
-      isShow.value = false;
+      if (drawerRequestId === requestId) {
+        isShow.value = false;
+      }
       emit('success');
       return;
     }
-    createdTokenName.value = payload.name;
     createdResult.value = await createPersonalToken(realm, payload);
-    isShow.value = false;
+    createdTokenName.value = payload.name;
+    if (drawerRequestId === requestId) {
+      isShow.value = false;
+    }
     emit('success');
     await nextTick();
     createdDialogShow.value = true;
@@ -1505,16 +1784,29 @@ const handleCancel = () => {
   isShow.value = false;
 };
 
-const handleCopyToken = async () => {
-  if (!createdResult.value?.token) {
+const handleCopyShareLink = () => copyShareLink(realm, buildPayload());
+
+// 按指定方式复制明文令牌，并区分成功与失败提示
+const handleCopyToken = async (mode: TokenCopyMode) => {
+  const rawToken = createdResult.value?.token?.trim();
+  if (!rawToken) {
     return;
   }
+  const copyText = mode === 'bearer' ? `Bearer ${rawToken}` : rawToken;
   try {
-    await navigator.clipboard.writeText(createdResult.value.token);
-    messageSuccess(t('复制成功'));
+    await navigator.clipboard.writeText(copyText);
+    messageSuccess(
+      mode === 'bearer'
+        ? t('已复制（含 Bearer 前缀）')
+        : t('已复制令牌'),
+    );
   }
   catch {
-    messageError(t('复制失败'));
+    messageError(
+      mode === 'bearer'
+        ? t('复制含 Bearer 前缀的令牌失败')
+        : t('复制令牌失败'),
+    );
   }
 };
 
@@ -1545,33 +1837,32 @@ const resetState = () => {
   };
   originalExpiresAt.value = null;
   resourceError.value = false;
+  shareResolving.value = false;
+  shareResolutionFailed.value = false;
+  sharedExpiryInvalid.value = false;
+  sharedAudienceIssues.value = [];
+  shareIssuesExpanded.value = true;
   nextTick(() => {
     formRef.value?.clearValidate();
     customResourceFormRefs.value?.[0]?.clearValidate();
   });
 };
 
-// 回填编辑数据，并展开包含已选资源的分组
-const applyDetail = (detail: IPersonalToken) => {
-  formData.value = {
-    name: detail.name,
-    description: detail.description,
-    expiredAt: unixSecondsToDate(detail.expires_at),
-    // permanent: false,
-  };
-  originalExpiresAt.value = detail.expires_at;
-  selectedAudience.value = detail.audience.filter(Boolean);
-  detail.resources?.forEach((resource) => {
+// 回显已有授权范围，并展开包含已选资源的分组。
+const applyResourceSelection = (audience: string[], resources: IPersonalTokenResource[] | null) => {
+  selectedAudience.value = audience.filter(Boolean);
+  resources?.forEach((resource) => {
     registerSelectedResource(resource);
     if (
       realm === 'blueking'
       && (resource.type === 'mcp' || resource.type === 'api')
       && isNonPublicResource(resource)
     ) {
-      registerCustomResource(getGatewayNameFromAudience(resource.audience), resource);
+      const gatewayName = parsePersonalTokenAudience(realm, resource.audience)?.gateway ?? '';
+      registerCustomResource(gatewayName, resource);
     }
   });
-  if (detail.resources) {
+  if (resources) {
     resourceTypes.value
       .filter(resourceType => isTypeSelectAllSelected(resourceType))
       .forEach(resourceType => handleResourceTypeAudienceChange(resourceType, true));
@@ -1588,8 +1879,83 @@ const applyDetail = (detail: IPersonalToken) => {
   });
 };
 
+const applyDetail = (detail: IPersonalToken) => {
+  formData.value = {
+    name: detail.name,
+    description: detail.description,
+    expiredAt: unixSecondsToDate(detail.expires_at),
+    // permanent: false,
+  };
+  originalExpiresAt.value = detail.expires_at;
+  applyResourceSelection(detail.audience, detail.resources);
+};
+
+const loadSharedFields = async (input: IPersonalTokenShare, signal: AbortSignal) => {
+  formData.value.name = input.name;
+  formData.value.description = input.description;
+  if (!input.expiresAt) {
+    return;
+  }
+  try {
+    await envStore.ensureEnv();
+    if (!signal.aborted) {
+      formData.value.expiredAt = getSharedExpiry(input.expiresAt, envStore.env.personal_token_policy.max_ttl);
+      sharedExpiryInvalid.value = !formData.value.expiredAt;
+    }
+  }
+  catch {
+    if (!signal.aborted) {
+      sharedExpiryInvalid.value = true;
+    }
+  }
+};
+
+const loadSharedResources = async (input: IPersonalTokenShare, signal: AbortSignal, catalogReady: Promise<void>) => {
+  const requestId = drawerRequestId;
+  const currentRealm = realm;
+  shareResolving.value = true;
+  shareResolutionFailed.value = false;
+  try {
+    const [, resolved] = await Promise.all([
+      catalogReady,
+      input.audience.length <= MAX_SHARED_AUDIENCES
+        ? resolveSharedAudiences(currentRealm, input.audience, signal)
+        : null,
+    ]);
+    if (signal.aborted || drawerRequestId !== requestId || !isShow.value || !resolved) {
+      return;
+    }
+    sharedAudienceIssues.value = resolved.issues;
+    shareIssuesExpanded.value = resolved.issues.length <= DEFAULT_EXPANDED_ISSUE_LIMIT;
+    const sharedAudience = resolved.resources.map(resource => resource.audience);
+    const audience = [...new Set([...selectedAudience.value, ...sharedAudience])];
+    applyResourceSelection(audience, resolved.resources);
+  }
+  catch {
+    if (!signal.aborted && drawerRequestId === requestId) {
+      shareResolutionFailed.value = true;
+    }
+  }
+  finally {
+    if (drawerRequestId === requestId) {
+      shareResolving.value = false;
+    }
+  }
+};
+
+const toggleShareIssuesExpanded = () => {
+  shareIssuesExpanded.value = !shareIssuesExpanded.value;
+};
+
+const retryShareResolution = () => {
+  if (share && drawerController && !shareResolving.value) {
+    const catalogReady = resourceTypes.value.length ? Promise.resolve() : loadResourceTypes(realm, drawerRequestId);
+    void loadSharedResources(share, drawerController.signal, catalogReady);
+  }
+};
+
 // 并行加载资源和令牌详情，仅应用当前抽屉的初始化结果
-const initializeDrawer = async () => {
+const initializeDrawer = async (signal: AbortSignal) => {
   resetState();
   const requestId = drawerRequestId + 1;
   drawerRequestId = requestId;
@@ -1597,13 +1963,21 @@ const initializeDrawer = async () => {
   const currentRealm = realm;
   initializing.value = true;
   try {
-    const detailPromise = tokenId
-      ? getPersonalTokenDetail(currentRealm, tokenId)
-      : Promise.resolve(null);
-    await loadResourceTypes(currentRealm, requestId);
-    const detail = await detailPromise;
+    const catalogReady = loadResourceTypes(currentRealm, requestId);
+    if (!tokenId && share) {
+      await Promise.all([
+        loadSharedFields(share, signal),
+        loadSharedResources(share, signal, catalogReady),
+      ]);
+      return;
+    }
+    const [, detail] = await Promise.all([
+      catalogReady,
+      tokenId ? getPersonalTokenDetail(currentRealm, tokenId) : null,
+    ]);
     if (
-      drawerRequestId === requestId
+      !signal.aborted
+      && drawerRequestId === requestId
       && isShow.value
       && realm === currentRealm
       && token?.id === tokenId
@@ -1620,6 +1994,9 @@ const initializeDrawer = async () => {
 };
 
 const handleClosed = () => {
+  if (isShow.value) {
+    return;
+  }
   // 使抽屉关闭前尚未完成的初始化请求失效
   drawerRequestId += 1;
   initializing.value = false;
@@ -1632,11 +2009,16 @@ const handleCreatedDialogClosed = () => {
 };
 
 watch(
-  [isShow, () => realm],
-  ([visible]) => {
-    if (visible) {
-      initializeDrawer();
+  [isShow, () => realm, () => token?.id, () => share],
+  ([visible], _, onCleanup) => {
+    if (!visible) {
+      drawerController = null;
+      return;
     }
+    const controller = new AbortController();
+    drawerController = controller;
+    onCleanup(() => controller.abort());
+    void initializeDrawer(controller.signal);
   },
   { immediate: true },
 );
@@ -1648,6 +2030,132 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
+.share-notices {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.share-notice {
+
+  :deep(.bk-alert-wraper) {
+    padding: 10px 14px;
+  }
+}
+
+.share-notice-body {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  line-height: 20px;
+  color: #313238;
+  gap: 6px;
+}
+
+.share-issues-panel {
+  overflow: hidden;
+  border: 1px solid #ffdfac;
+  border-radius: 2px;
+}
+
+.share-issues-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  cursor: pointer;
+  background-color: #fcf4e7;
+  user-select: none;
+
+  &.is-expanded {
+    border-bottom: 1px solid #ffeacb;
+  }
+}
+
+.share-issues-header-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.share-issues-icon {
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.share-issues-title {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+  color: #e38b00;
+}
+
+.share-issues-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 20px;
+  color: #e38b00;
+  background-color: #f8e8c7;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.share-issues-arrow {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: #979ba5;
+  transition: transform 0.2s;
+
+  &.is-collapsed {
+    transform: rotate(180deg);
+  }
+}
+
+.share-issues-body {
+  max-height: 180px;
+  padding: 10px 12px;
+  overflow-y: auto;
+  background-color: #fafbfd;
+}
+
+.share-issues-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.share-issue-card {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px 10px;
+  background-color: #fff;
+  border: 1px solid #f0f1f5;
+  border-radius: 2px;
+  gap: 6px;
+}
+
+.share-issue-tag,
+.share-issue-error-tag {
+  flex-shrink: 0;
+}
+
+.share-issue-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 20px;
+  color: #63656e;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .drawer-body {
   min-height: 720px;
   padding: 16px 24px 32px;
@@ -1799,8 +2307,24 @@ onBeforeUnmount(() => {
   }
 
   :deep(.resource-checkbox-list .bk-checkbox) {
+    max-width: 100%;
     margin-left: 0;
     font-size: 12px;
+  }
+
+  :deep(.resource-checkbox-list .bk-checkbox-input) {
+    flex-shrink: 0;
+  }
+
+  :deep(.resource-checkbox-list .bk-checkbox-label) {
+    min-width: 0;
+  }
+
+  .resource-item-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .resource-item-label {
@@ -2029,6 +2553,7 @@ onBeforeUnmount(() => {
     padding: 16px;
     margin-top: 12px;
     background-color: #f5f7fa;
+    border-radius: 2px;
   }
 
   .created-info-label {
@@ -2036,28 +2561,68 @@ onBeforeUnmount(() => {
     color: #979ba5;
   }
 
-  .created-info-value,
-  .created-token-value {
+  .created-info-value {
     margin-top: 4px;
     font-size: 14px;
     color: #313238;
   }
 
-  .created-token-value {
-    display: flex;
-    align-items: flex-start;
+  .created-token-box {
+    padding: 10px 12px;
+    margin-top: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 22px;
+    color: #313238;
     word-break: break-all;
-    gap: 8px;
-
-    span {
-      flex: 1;
-      min-width: 0;
-    }
+    background-color: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
   }
 
-  .copy-token-button {
-    flex-shrink: 0;
-    color: #3a84ff;
+  .created-token-actions {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    gap: 10px;
+  }
+
+  .copy-button-icon {
+    margin-right: 6px;
+    font-size: 14px;
+    color: #979ba5;
+  }
+
+  .created-token-hints {
+    display: flex;
+    flex-direction: column;
+    margin-top: 16px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+    gap: 8px;
+  }
+
+  .created-token-hint {
+    overflow-wrap: break-word;
+
+    .hint-label {
+      margin-right: 4px;
+      color: #313238;
+    }
+
+    .token-header-code {
+      display: inline-block;
+      max-width: 100%;
+      padding: 0 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+      font-size: 12px;
+      line-height: 20px;
+      color: #313238;
+      background-color: #eaebf0;
+      border-radius: 2px;
+      overflow-wrap: anywhere;
+    }
   }
 }
 
@@ -2078,5 +2643,10 @@ onBeforeUnmount(() => {
 <style lang="scss">
 .custom-resource-popover {
   padding: 0 !important;
+}
+
+.token-resource-name-tooltip {
+  max-width: min(480px, 90vw);
+  overflow-wrap: anywhere;
 }
 </style>
