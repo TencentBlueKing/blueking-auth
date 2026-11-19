@@ -11,7 +11,10 @@
         <div class="header-left">
           <span class="header-title">令牌详情</span>
           <span class="header-divider">|</span>
-          <span class="header-name">{{ displayName }}</span>
+          <span
+            class="header-name"
+            :title="displayName"
+          >{{ displayName }}</span>
         </div>
         <div class="header-actions">
           <BkButton
@@ -31,6 +34,12 @@
             @click="handleRevoke"
           >
             撤销
+          </BkButton>
+          <BkButton
+            :disabled="loading || !detail?.audience.length"
+            @click="handleShare"
+          >
+            {{ t('复制授权范围链接') }}
           </BkButton>
         </div>
       </div>
@@ -171,6 +180,7 @@ import {
   getPersonalTokenDetail,
   revokePersonalToken,
 } from '@/services/source/personal-token';
+import { useCopyPersonalTokenShareLink } from '../share';
 import {
   type TokenStatus,
   formatUnixSeconds,
@@ -213,6 +223,7 @@ const {
 const emit = defineEmits<IEmits>();
 
 const { t } = useI18n();
+const copyShareLink = useCopyPersonalTokenShareLink();
 
 // 临期阈值（天）
 const EXPIRING_THRESHOLD_DAYS = 7;
@@ -393,6 +404,12 @@ const fetchDetail = async () => {
   }
 };
 
+const handleShare = () => {
+  if (detail.value) {
+    return copyShareLink(realm, { audience: detail.value.audience });
+  }
+};
+
 const handleEdit = () => {
   const currentToken = detail.value ?? token;
   if (currentToken) {
@@ -469,17 +486,30 @@ defineExpose({ refresh: fetchDetail });
 </script>
 
 <style scoped lang="scss">
+.token-detail-drawer :deep(.bk-sideslider-title) {
+  min-width: 0;
+}
+
 .detail-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
   padding-right: 24px;
+  gap: 12px;
 
   .header-left {
     display: flex;
     align-items: center;
+    flex: 1;
+    min-width: 0;
     font-size: 16px;
+
+    .header-title,
+    .header-divider {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
 
     .header-title {
       color: #313238;
@@ -491,19 +521,24 @@ defineExpose({ refresh: fetchDetail });
     }
 
     .header-name {
+      min-width: 0;
+      overflow: hidden;
       font-size: 14px;
       color: #979ba5;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 
   .header-actions {
     display: flex;
+    flex-shrink: 0;
     gap: 8px;
 
     :deep(.bk-button) {
-      width: 48px;
       height: 26px;
-      padding: 0;
+      min-width: 48px;
+      padding: 0 10px;
     }
 
     :deep(.bk-button-text) {

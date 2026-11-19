@@ -159,3 +159,17 @@ export const lookupGrantableResource = (
   params,
   { catchError: true },
 );
+
+export const getGrantableAudiencesResolvePath = (realm: PersonalTokenRealm) =>
+  `/api/v1/web/realms/${realm}/personal-tokens/grantable-resources/-/resolve`;
+
+/** 批量获取当前仍可授予的资源，响应中省略未找到或不可授权的项。 */
+export const resolveGrantableAudiences = (realm: PersonalTokenRealm, audiences: string[], signal: AbortSignal) =>
+  http.get<IPersonalTokenResource[]>(
+    getGrantableAudiencesResolvePath(realm),
+    { audiences: audiences.join(',') },
+    {
+      catchError: true,
+      signal,
+    },
+  );

@@ -19,7 +19,7 @@
 import type { AxiosError, AxiosInterceptorManager, AxiosResponse } from 'axios';
 import { Message } from 'bkui-vue';
 
-import { downloadFile, messageError, parseURL } from '@/utils';
+import { downloadFile, getLoginURL, messageError } from '@/utils';
 
 import { showLoginModal } from '@blueking/login-modal';
 
@@ -47,18 +47,12 @@ const errorMessageMap = {
 };
 
 const redirectLogin = (loginUrl: string) => {
-  const { protocol, host, pathname } = parseURL(loginUrl);
-  const domain = `${protocol}://${host}${pathname}`;
-
   if (hasLoggedIn) {
     const loginSuccessURL = `${window.location.origin}/login-success.html`;
-    showLoginModal({
-      loginUrl:
-        `${domain}?is_from_logout=1&c_url=${decodeURIComponent(loginSuccessURL)}`,
-    });
+    showLoginModal({ loginUrl: getLoginURL(loginUrl, loginSuccessURL) });
   }
   else {
-    window.location.href = `${domain}?is_from_logout=1&c_url=${decodeURIComponent(window.location.href)}`;
+    window.location.href = getLoginURL(loginUrl, window.location.href);
   }
 };
 
@@ -90,43 +84,59 @@ export default (interceptors: AxiosInterceptorManager<AxiosResponse>) => {
         }
       }> & { __CANCEL__: any },
     ) => {
-      // 超时取消
+      // 主动取消请求
       if (error.__CANCEL__) {
-        return Promise.reject(new RequestError('CANCEL', '请求已取消'));
+        return Promise.reject(new RequestError('CANCEL', '请求已取消', undefined, error.config));
+      }
+      // 请求超时（无响应体）
+      if (error.code === 'ECONNABORTED') {
+        return Promise.reject(new RequestError('ECONNABORTED', t('请求超时'), undefined, error.config));
       }
       // 处理 http 错误响应逻辑
       if (error.response) {
         // 登录状态失效
         if (error.response.data.error?.code === 'UNAUTHENTICATED') {
-          return Promise.reject(new RequestError(401, '登录状态失效', error.response));
+          return Promise.reject(new RequestError(401, '登录状态失效', error.response, error.config));
         }
         // 默认使用 http 错误描述，如果有自定义错误描述优先使用
         let errorMessage = error.response.statusText;
         if (error.response.data && error.response.data.error?.code) {
           errorMessage = error.response.data.error.message;
         }
-        return Promise.reject(new RequestError(error.response.status || -1, errorMessage, error.response));
+        return Promise.reject(
+          new RequestError(error.response.status || -1, errorMessage, error.response, error.config),
+        );
       }
-      return Promise.reject(new RequestError(-1, `${window.BK_AUTH_URL} 无法访问`));
+      return Promise.reject(new RequestError(-1, `${window.BK_AUTH_URL} 无法访问`, undefined, error.config));
     },
   );
 
   // 统一错误处理逻辑
   interceptors.use(undefined, (error: RequestError) => {
-    const errorObj = error.response.data.error;
+    // 主动取消请求保持静默
+    if (error.code === 'CANCEL') {
+      return Promise.reject(error);
+    }
+    const catchError = Boolean(error.response?.config?.payload?.catchError ?? error.config?.payload?.catchError);
+    // 无 HTTP 响应（超时或网络异常）按 catchError 策略提示
+    if (!error.response) {
+      if (!catchError) {
+        messageError(error.code === 'ECONNABORTED' ? t('请求超时') : t('网络异常，请稍后重试'));
+      }
+      return Promise.reject(error);
+    }
+    const errorObj = error.response.data?.error;
     switch (error.code) {
       // 未登陆
       case 401:
         redirectLogin(errorObj.data.login_url);
         break;
-      case 'CANCEL':
-        return Promise.reject(error);
-      // 网络超时
-      case 'ECONNABORTED':
-        messageError(t('请求超时'));
-        break;
       default:
-        if (!error.response.config.payload.catchError) {
+        if (!catchError) {
+          if (!errorObj) {
+            messageError(error.message || t('系统错误'));
+            break;
+          }
           Message({
             theme: 'error',
             actions: [

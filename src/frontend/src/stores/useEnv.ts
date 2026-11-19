@@ -24,12 +24,17 @@ import {
 
 interface IEnvState extends Omit<IEnv, 'personal_token_policy'> { personal_token_policy: IPersonalTokenPolicy }
 
-interface IState { env: IEnvState }
+interface IState {
+  env: IEnvState
+  loaded: boolean
+}
 
 const DEFAULT_PERSONAL_TOKEN_POLICY = {
   max_ttl: 94_608_000,
   max_active_per_user: 20,
 };
+
+let pendingEnvRequest: Promise<IEnvState> | null = null;
 
 export const useEnv = defineStore('useEnv', {
   state: (): IState => ({
@@ -38,22 +43,45 @@ export const useEnv = defineStore('useEnv', {
       login_url: '',
       personal_token_policy: { ...DEFAULT_PERSONAL_TOKEN_POLICY },
     },
+    loaded: false,
   }),
   actions: {
     /**
-     * 查询环境变量信息
+     * 查询环境变量信息，并发请求时复用同一 Promise
      */
     async fetchEnv() {
-      const result = await getEnv();
-      this.env = {
-        ...this.env,
-        ...(result ?? {}),
-        personal_token_policy: {
-          ...DEFAULT_PERSONAL_TOKEN_POLICY,
-          ...(result?.personal_token_policy ?? {}),
-        },
-      };
-      return this.env;
+      if (pendingEnvRequest) {
+        return pendingEnvRequest;
+      }
+      const request = getEnv()
+        .then((result) => {
+          this.env = {
+            ...this.env,
+            ...result,
+            personal_token_policy: {
+              ...DEFAULT_PERSONAL_TOKEN_POLICY,
+              ...result?.personal_token_policy,
+            },
+          };
+          this.loaded = true;
+          return this.env;
+        })
+        .finally(() => {
+          if (pendingEnvRequest === request) {
+            pendingEnvRequest = null;
+          }
+        });
+      pendingEnvRequest = request;
+      return request;
+    },
+    /**
+     * 确保环境变量至少加载一次
+     */
+    async ensureEnv() {
+      if (this.loaded) {
+        return this.env;
+      }
+      return this.fetchEnv();
     },
   },
 });

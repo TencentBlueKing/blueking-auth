@@ -81,9 +81,12 @@
 
     <!-- 新建/编辑令牌侧滑 -->
     <TokenCreateDrawer
-      v-model:is-show="createDrawerShow"
+      :is-show="createDrawerShow"
       :realm="realm"
       :token="currentRow"
+      :share="activeShare?.input"
+      :create-limit-reached="isActiveTokenLimitReached"
+      @update:is-show="handleCreateDrawerVisibility"
       @success="handleTokenUpdated"
     />
 
@@ -113,6 +116,7 @@ import {
   Tag as BkTag,
   bkTooltips,
 } from 'bkui-vue';
+import { Copy } from 'bkui-vue/lib/icon';
 import CommonTable from '@/components/common-table/Index.vue';
 import RenewDialog from './components/RenewDialog.vue';
 import TokenCreateDrawer from './components/TokenCreateDrawer.vue';
@@ -133,6 +137,12 @@ import {
 } from '@/services/source/personal-token';
 import { usePopInfoBox } from '@/hooks';
 import { useEnv } from '@/stores';
+import {
+  type IPersonalTokenShare,
+  PERSONAL_TOKEN_SHARE_QUERY_KEYS,
+  readPersonalTokenShare,
+  useCopyPersonalTokenShareLink,
+} from './share';
 import {
   SECONDS_PER_DAY,
   SECONDS_PER_HOUR,
@@ -163,12 +173,20 @@ interface ITableFilterValue {
   [key: string]: unknown
 }
 
+interface IActiveShare {
+  realm: PersonalTokenRealm
+  queryKey: string
+  input: IPersonalTokenShare
+}
+
 type TableSortValue = ITableSort | ITableSort[] | undefined;
 
 const envStore = useEnv();
 
 const { t } = useI18n();
 const route = useRoute();
+const router = useRouter();
+const copyShareLink = useCopyPersonalTokenShareLink();
 
 const searchKey = ref('');
 const filterStatus = ref<TokenStatus[]>([]);
@@ -181,6 +199,7 @@ const resourceTypes = ref<IGrantableResourceType[]>([]);
 
 // 新建/编辑侧滑
 const createDrawerShow = ref(false);
+const activeShare = shallowRef<IActiveShare | null>(null);
 
 // 详情侧滑
 const detailDrawerShow = ref(false);
@@ -197,6 +216,7 @@ const realm = computed<PersonalTokenRealm>(() => (
     ? route.params.realm
     : DEFAULT_PERSONAL_TOKEN_REALM
 ));
+const shareQueryKey = computed(() => JSON.stringify(PERSONAL_TOKEN_SHARE_QUERY_KEYS.map(key => route.query[key])));
 const tableFilterValue = computed<ITableFilterValue>(() => ({ status: tableFilterStatuses.value }));
 const maxActivePerUser = computed(() => envStore.env.personal_token_policy.max_active_per_user);
 const isActiveTokenLimitReached = computed(() => activeTokenCount.value >= maxActivePerUser.value);
@@ -307,16 +327,40 @@ const fetchResourceTypeMetadata = async (currentRealm: PersonalTokenRealm) => {
   }
 };
 
+// 渲染单条令牌的复制授权范围链接图标按钮
+const renderResourceCopyButton = (token: IPersonalToken) => {
+  if (!token.audience.length) {
+    return null;
+  }
+  return withDirectives(
+    <BkButton
+      class="resource-copy-button"
+      text
+      aria-label={t('复制授权范围链接')}
+      onClick={(event: MouseEvent) => {
+        event.stopPropagation();
+        void copyShareLink(realm.value, { audience: token.audience });
+      }}
+    >
+      <Copy />
+    </BkButton>,
+    [[bkTooltips, { content: t('复制授权范围链接') }]],
+  );
+};
+
 // 按资源类型和层级聚合授权资源标签
 const renderResource = (token: IPersonalToken) => {
   if (token.resources === null) {
     return (
       <div class="resource-cell">
-        { token.audience.map(audience => (
-          <div key={audience} class="resource-row">
-            <BkTag class="resource-count-tag">{ audience }</BkTag>
-          </div>
-        )) }
+        <div class="resource-list">
+          { token.audience.map(audience => (
+            <div key={audience} class="resource-row">
+              <BkTag class="resource-count-tag">{ audience }</BkTag>
+            </div>
+          )) }
+        </div>
+        { renderResourceCopyButton(token) }
       </div>
     );
   }
@@ -332,42 +376,45 @@ const renderResource = (token: IPersonalToken) => {
 
   return (
     <div class="resource-cell">
-      { [...new Set(resourceTypeNames)].map((typeName) => {
-        const typeResources = token.resources?.filter(resource => resource.type === typeName) ?? [];
-        const resourceType = resourceTypes.value.find(item => item.name === typeName);
-        const typeDisplayName = resourceType?.display_name ?? typeName;
-        const fallbackLevels = [...new Set(typeResources.map(item => item.level).filter(Boolean))]
-          .map(level => ({
-            name: level,
-            display_name: level,
-          }));
-        const levels = resourceType?.levels ?? fallbackLevels;
-        const allCount = typeResources.filter(resource => !resource.level).length;
+      <div class="resource-list">
+        { [...new Set(resourceTypeNames)].map((typeName) => {
+          const typeResources = token.resources?.filter(resource => resource.type === typeName) ?? [];
+          const resourceType = resourceTypes.value.find(item => item.name === typeName);
+          const typeDisplayName = resourceType?.display_name ?? typeName;
+          const fallbackLevels = [...new Set(typeResources.map(item => item.level).filter(Boolean))]
+            .map(level => ({
+              name: level,
+              display_name: level,
+            }));
+          const levels = resourceType?.levels ?? fallbackLevels;
+          const allCount = typeResources.filter(resource => !resource.level).length;
 
-        return (
-          <div key={typeName} class="resource-row">
-            <span class="resource-label">{ typeDisplayName }</span>
-            <span class="resource-colon">：</span>
-            { allCount > 0 && (
-              <BkTag class="resource-count-tag mr-4px" theme="info">
-                { '全部 ' + typeDisplayName }
-              </BkTag>
-            ) }
-            { levels.map((level) => {
-              const count = typeResources.filter(resource => resource.level === level.name).length;
-              return count > 0 && (
-                <BkTag
-                  key={level.name}
-                  class="resource-count-tag mr-4px"
-                  theme={level.name === 'gateway' ? 'warning' : undefined}
-                >
-                  { level.display_name + ' ( ' + count + ' )' }
+          return (
+            <div key={typeName} class="resource-row">
+              <span class="resource-label">{ typeDisplayName }</span>
+              <span class="resource-colon">：</span>
+              { allCount > 0 && (
+                <BkTag class="resource-count-tag mr-4px" theme="info">
+                  { '全部 ' + typeDisplayName }
                 </BkTag>
-              );
-            }) }
-          </div>
-        );
-      }) }
+              ) }
+              { levels.map((level) => {
+                const count = typeResources.filter(resource => resource.level === level.name).length;
+                return count > 0 && (
+                  <BkTag
+                    key={level.name}
+                    class="resource-count-tag mr-4px"
+                    theme={level.name === 'gateway' ? 'warning' : undefined}
+                  >
+                    { level.display_name + ' ( ' + count + ' )' }
+                  </BkTag>
+                );
+              }) }
+            </div>
+          );
+        }) }
+      </div>
+      { renderResourceCopyButton(token) }
     </div>
   );
 };
@@ -574,6 +621,47 @@ watch(
   { immediate: true },
 );
 
+watch(
+  [realm, shareQueryKey],
+  ([currentRealm, queryKey]) => {
+    const input = readPersonalTokenShare(route.query);
+    if (!input) {
+      if (activeShare.value) {
+        activeShare.value = null;
+        createDrawerShow.value = false;
+      }
+      return;
+    }
+    currentRow.value = null;
+    detailDrawerShow.value = false;
+    renewDialogShow.value = false;
+    activeShare.value = {
+      realm: currentRealm,
+      queryKey,
+      input,
+    };
+    createDrawerShow.value = true;
+  },
+  { immediate: true },
+);
+
+const handleCreateDrawerVisibility = (visible: boolean) => {
+  createDrawerShow.value = visible;
+  const closedShare = activeShare.value;
+  if (visible || !closedShare) {
+    return;
+  }
+  activeShare.value = null;
+  if (closedShare.realm === realm.value && closedShare.queryKey === shareQueryKey.value) {
+    const query = { ...route.query };
+    PERSONAL_TOKEN_SHARE_QUERY_KEYS.forEach(key => delete query[key]);
+    void router.replace({
+      query,
+      hash: route.hash,
+    });
+  }
+};
+
 const handleSearch = () => {
   fetchList({ resetPage: true });
 };
@@ -756,9 +844,16 @@ const handleDelete = (row: IPersonalTokenTableItem) => {
 
   :deep(.resource-cell) {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
     padding: 6px 0;
+    align-items: center;
+    gap: 4px;
+
+    .resource-list {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      gap: 4px;
+    }
 
     .resource-row {
       display: flex;
@@ -780,6 +875,19 @@ const handleDelete = (row: IPersonalTokenTableItem) => {
 
     .resource-count-tag {
       min-width: 72px;
+    }
+
+    .resource-copy-button {
+      display: inline-flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #979ba5;
+
+      &:hover {
+        color: #3a84ff;
+      }
     }
   }
 
