@@ -249,9 +249,18 @@ var _ = Describe("ExternalTokenAdapter", func() {
 			Entry("prefix of the native namespace", func(a *ExternalTokenAdapter) { a.TokenPrefixes = []string{"b"} }, "overlaps"),
 			Entry("prefix of the native namespace in upper case",
 				func(a *ExternalTokenAdapter) { a.TokenPrefixes = []string{"B"} }, "overlaps"),
+			// A one- or two-letter prefix would forward any garbage starting with it.
+			Entry("prefix too short", func(a *ExternalTokenAdapter) { a.TokenPrefixes = []string{"ab"} }, "at least 3"),
 			Entry("max length not above a prefix",
 				func(a *ExternalTokenAdapter) { a.MaxTokenLength = len("demo_pat_") }, "maxTokenLength"),
 		)
+	})
+
+	It("accepts a prefix of exactly the minimum length", func() {
+		a := validExternalTokenAdapter()
+		a.TokenPrefixes = []string{"abc"}
+
+		assert.NoError(GinkgoT(), a.load())
 	})
 
 	// The reserved namespace is spelled here and in pkg/oauth separately. If they

@@ -23,6 +23,7 @@ package tokenadapter
 
 import (
 	"context"
+	"crypto/x509"
 	"errors"
 	"net"
 	"net/http"
@@ -66,7 +67,8 @@ func Init(adapterEndpoint, adapterClientID, adapterClientSecret string, adapterT
 
 // describeTransportError says what failed without saying where. The standard
 // library names the target at every layer: url.Error quotes the request URL,
-// net.OpError the resolved address, net.DNSError the host name.
+// net.OpError the resolved address, net.DNSError and x509.HostnameError the
+// host name.
 func describeTransportError(err error) string {
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {
@@ -74,12 +76,15 @@ func describeTransportError(err error) string {
 	}
 
 	var dnsErr *net.DNSError
+	var hostErr x509.HostnameError
 	var opErr *net.OpError
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
 		return "timed out"
 	case errors.As(err, &dnsErr):
 		return "name resolution failed: " + dnsErr.Err
+	case errors.As(err, &hostErr):
+		return "TLS verification failed: certificate does not match the adapter host"
 	case errors.As(err, &opErr):
 		return opErr.Op + " failed: " + opErr.Err.Error()
 	default:

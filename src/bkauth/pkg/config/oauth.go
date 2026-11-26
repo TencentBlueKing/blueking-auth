@@ -31,6 +31,10 @@ const (
 
 	defaultExternalTokenMaxLength      = 256
 	defaultExternalTokenAdapterTimeout = 2 // seconds
+	// minExternalTokenPrefixLength keeps a prefix specific enough to name one
+	// vendor's format: a one-letter prefix would forward any garbage starting
+	// with that letter to the adapter as a probe.
+	minExternalTokenPrefixLength = 3
 
 	reservedNativeTokenPrefix = "bk"
 )
@@ -270,6 +274,10 @@ func (a *ExternalTokenAdapter) validate() error {
 		if strings.HasPrefix(lower, reservedNativeTokenPrefix) || strings.HasPrefix(reservedNativeTokenPrefix, lower) {
 			return fmt.Errorf("tokenPrefixes[%d] %q overlaps the %q namespace reserved for native tokens",
 				i, prefix, reservedNativeTokenPrefix)
+		}
+		if len(prefix) < minExternalTokenPrefixLength {
+			return fmt.Errorf("tokenPrefixes[%d] %q must be at least %d characters",
+				i, prefix, minExternalTokenPrefixLength)
 		}
 		if a.MaxTokenLength <= len(prefix) {
 			return fmt.Errorf("maxTokenLength %d must exceed the length of prefix %q", a.MaxTokenLength, prefix)

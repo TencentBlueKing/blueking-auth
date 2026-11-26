@@ -20,6 +20,8 @@ package tokenadapter
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"net"
 	"net/url"
@@ -46,6 +48,14 @@ var _ = DescribeTable("describeTransportError keeps what failed but not where",
 	Entry("dial",
 		&net.OpError{Op: "dial", Net: "tcp", Addr: adapterAddr, Err: errors.New("connect: connection refused")},
 		"dial failed: connect: connection refused"),
+	// The shape a real handshake yields: the hostname error wrapped by tls,
+	// whose message would quote both the cert's names and the dialled host.
+	Entry("TLS host mismatch",
+		&tls.CertificateVerificationError{Err: x509.HostnameError{
+			Certificate: &x509.Certificate{DNSNames: []string{"other.example"}},
+			Host:        "adapter.internal",
+		}},
+		"TLS verification failed: certificate does not match the adapter host"),
 	Entry("timeout", context.DeadlineExceeded, "timed out"),
 	Entry("anything else, with the URL stripped", errors.New("tls: handshake failure"), "tls: handshake failure"),
 )
