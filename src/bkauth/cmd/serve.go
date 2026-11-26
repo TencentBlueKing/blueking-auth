@@ -73,6 +73,7 @@ func serve() error {
 		return err
 	}
 	initRealms(cfg)
+	initExternalTokenAdapter(cfg)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

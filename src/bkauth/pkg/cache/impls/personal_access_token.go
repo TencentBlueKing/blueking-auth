@@ -36,8 +36,6 @@ func (k PersonalAccessTokenHashKey) Key() string {
 	return k.TokenHash
 }
 
-// retrievePersonalAccessTokenByTokenHash is a package-level var so tests can
-// inject a mock service without gomonkey (AGENTS.md 4.3, Cache/impls layer).
 var retrievePersonalAccessTokenByTokenHash = func(ctx context.Context, key cache.Key) (interface{}, error) {
 	k := key.(PersonalAccessTokenHashKey)
 

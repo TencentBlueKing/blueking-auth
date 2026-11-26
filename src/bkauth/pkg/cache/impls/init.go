@@ -37,6 +37,7 @@ var (
 	ConsentCache             *redis.Cache
 	AccessTokenCache         *redis.Cache
 	PersonalAccessTokenCache *redis.Cache
+	ExternalAccessTokenCache *redis.Cache
 )
 
 // InitCaches : Cache should only know about get/retrieve data
@@ -94,6 +95,16 @@ func InitCaches(disabled bool) {
 		// loses the read-through race. Worth weighing before raising it further:
 		// unlike an oct entry, whose token dies on its own within hours, a PAT
 		// lives for years and revocation is its only kill switch.
+		5*time.Minute,
+	)
+
+	ExternalAccessTokenCache = redis.NewCache(
+		bkauthredis.GetDefaultRedisClient(),
+		// exat = external access token
+		"exat",
+		// Upstream revocations are never pushed to bkauth, so this TTL is the
+		// whole revocation delay. Inactive answers share it: a third-party token
+		// that was unknown, revoked or expired does not become active later.
 		5*time.Minute,
 	)
 }

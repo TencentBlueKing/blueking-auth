@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/getsentry/sentry-go"
 	"go.uber.org/zap"
@@ -33,6 +34,7 @@ import (
 	"bkauth/pkg/database"
 	"bkauth/pkg/errorx"
 	"bkauth/pkg/external/bkapigateway"
+	"bkauth/pkg/external/tokenadapter"
 	"bkauth/pkg/logging"
 	"bkauth/pkg/login"
 	"bkauth/pkg/metric"
@@ -173,6 +175,15 @@ func initRealms(cfg *config.Config) {
 	oauth.RegisterRealm(blueking.New())
 	oauth.RegisterRealm(devops.New())
 	oauth.RegisterRealm(gpu.New())
+}
+
+func initExternalTokenAdapter(cfg *config.Config) {
+	adapter := cfg.OAuth.ExternalTokenAdapter
+	if !adapter.Enabled {
+		return
+	}
+	tokenadapter.Init(adapter.Endpoint, adapter.ClientID, adapter.ClientSecret,
+		time.Duration(adapter.Timeout)*time.Second)
 }
 
 func initAPIAllowList(cfg *config.Config) {

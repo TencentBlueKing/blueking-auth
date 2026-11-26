@@ -48,7 +48,7 @@ func Register(cfg *config.Config, r *gin.RouterGroup) {
 	// Token Introspection (RFC 7662) — X-Bk-App-Code/Secret auth with per-realm access control
 	realmAuth := r.Group("", RealmAuthMiddleware(cfg))
 	{
-		realmAuth.POST("/introspect", handler.NewIntrospectHandler())
+		realmAuth.POST("/introspect", handler.NewIntrospectHandler(cfg))
 	}
 
 	// Endpoints requiring OAuth client authentication

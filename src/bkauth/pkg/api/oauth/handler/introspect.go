@@ -25,6 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"bkauth/pkg/cache/impls"
+	"bkauth/pkg/config"
 	"bkauth/pkg/oauth"
 	"bkauth/pkg/service/types"
 	"bkauth/pkg/util"
@@ -65,7 +66,7 @@ type IntrospectionResponse struct {
 
 // NewIntrospectHandler creates a handler for the token introspection endpoint.
 // Authentication and per-realm authorization are handled by RealmAuthMiddleware.
-func NewIntrospectHandler() gin.HandlerFunc {
+func NewIntrospectHandler(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 
@@ -75,17 +76,8 @@ func NewIntrospectHandler() gin.HandlerFunc {
 			return
 		}
 
-		// A malformed token is reported as inactive, exactly like an unknown one:
-		// RFC 7662 mandates inactive for unknown tokens, and answering 400 here
-		// would hand the caller a way to tell "well-formed but unknown" apart
-		// from "malformed". The guard therefore changes no observable response —
-		// its only effect is keeping garbage away from Redis and MySQL.
-		if !oauth.IsAcceptedTokenFormat(req.Token) {
-			c.JSON(http.StatusOK, newInactiveIntrospectionResponse())
-			return
-		}
-
-		token, err := resolveAccessToken(ctx, req.Token)
+		realmName := util.GetRealmName(c)
+		token, err := resolveAccessToken(ctx, cfg, realmName, req.Token)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, oauth.NewServerError("failed to introspect token: "+err.Error()))
 			return
@@ -98,7 +90,6 @@ func NewIntrospectHandler() gin.HandlerFunc {
 		}
 
 		// RFC 7662: tokens not belonging to the requested realm are invisible
-		realmName := util.GetRealmName(c)
 		if token.RealmName != realmName {
 			c.JSON(http.StatusOK, newInactiveIntrospectionResponse())
 			return
@@ -108,12 +99,38 @@ func NewIntrospectHandler() gin.HandlerFunc {
 	}
 }
 
-// resolveAccessToken dispatches on the token's family code so that each family is
-// looked up in its own store. The raw token never leaves this layer — only its
-// hash is passed down. The type code is a routing hint only: it sits outside the
-// checksum's scope, so a tampered code merely routes to the wrong store where it
-// misses and reports inactive. The hash lookup remains the sole authority.
-func resolveAccessToken(ctx context.Context, raw string) (types.ResolvedAccessToken, error) {
+// resolveAccessToken routes a token by format to the one store that can own it:
+// bkauth's own for the native format, the external token adapter for a format
+// configured for it. Routing is deterministic and never falls back from one
+// store to the other, which would leak native tokens to the adapter and turn
+// every garbage token into an outbound call.
+//
+// A token that nobody owns is reported as inactive, exactly like an unknown one:
+// RFC 7662 mandates inactive for unknown tokens, and answering 400 here would
+// hand the caller a way to tell "well-formed but unknown" apart from
+// "malformed". The format checks therefore change no observable response — their
+// only effect is keeping garbage away from Redis, MySQL and the adapter.
+func resolveAccessToken(
+	ctx context.Context, cfg *config.Config, realmName, raw string,
+) (types.ResolvedAccessToken, error) {
+	// bkauth native token
+	if oauth.IsAcceptedTokenFormat(raw) {
+		return resolveNativeAccessToken(ctx, raw)
+	}
+	// third-party token
+	if cfg.OAuth.ExternalTokenAdapter.IsAcceptedTokenFormat(raw) {
+		return impls.GetExternalAccessToken(ctx, realmName, raw)
+	}
+	return types.ResolvedAccessToken{}, nil
+}
+
+// resolveNativeAccessToken dispatches on the token's family code so that each
+// family is looked up in its own store. The raw token never leaves this layer —
+// only its hash is passed down. The type code is a routing hint only: it sits
+// outside the checksum's scope, so a tampered code merely routes to the wrong
+// store where it misses and reports inactive. The hash lookup remains the sole
+// authority.
+func resolveNativeAccessToken(ctx context.Context, raw string) (types.ResolvedAccessToken, error) {
 	tokenHash := oauth.HashToken(raw)
 	if oauth.IsPersonalToken(raw) {
 		return impls.GetPersonalAccessTokenByTokenHash(ctx, tokenHash)

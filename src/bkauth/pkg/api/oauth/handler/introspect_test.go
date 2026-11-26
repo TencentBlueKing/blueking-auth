@@ -19,9 +19,12 @@
 package handler
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"bkauth/pkg/config"
 	"bkauth/pkg/oauth"
 	"bkauth/pkg/service/types"
 )
@@ -68,6 +71,30 @@ var _ = Describe("newActiveIntrospectionResponse", func() {
 
 		Expect(resp.Aud).To(Equal([]string{}))
 	})
+})
+
+var _ = Describe("resolveAccessToken", func() {
+	// No cache is initialised in this suite, so reaching any store would panic:
+	// passing proves the token was turned away before a lookup.
+	withAdapter := &config.Config{OAuth: config.OAuth{ExternalTokenAdapter: config.ExternalTokenAdapter{
+		Enabled:        true,
+		TokenPrefixes:  []string{"tai_pat_"},
+		MaxTokenLength: 16,
+	}}}
+
+	DescribeTable("reports a token nobody owns as not found without a lookup",
+		func(cfg *config.Config, raw string) {
+			token, err := resolveAccessToken(context.Background(), cfg, "blueking", raw)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(token).To(Equal(types.ResolvedAccessToken{}))
+		},
+		Entry("garbage", &config.Config{}, "not-a-token"),
+		Entry("malformed native token", withAdapter, "bkp_short"),
+		Entry("third-party token with no adapter configured", &config.Config{}, "tai_pat_xxx"),
+		Entry("format the adapter is not configured for", withAdapter, "acme_pat_xxx"),
+		Entry("configured format over the length limit", withAdapter, "tai_pat_123456789"),
+	)
 })
 
 var _ = Describe("newInactiveIntrospectionResponse", func() {
