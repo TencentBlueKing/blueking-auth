@@ -73,6 +73,18 @@ oauth:
   #   - realmName: "blueking"
   #     clientID: "my_special_app"
   #     accessTokenTTL: 900
+  # Third-party tokens accepted by /introspect: tokens of these formats are
+  # forwarded to the external token adapter, which answers in BlueKing terms.
+  # Answers are cached 5m, which is also how long an upstream revocation can go
+  # unnoticed.
+  # externalTokenAdapter:
+  #   enabled: false
+  #   endpoint: "https://bkauth-token-adapter.example.com/v1/introspect"
+  #   clientID: "bkauth"
+  #   clientSecret: "******"
+  #   timeout: 2
+  #   tokenPrefixes: ["demo_pat_"]
+  #   maxTokenLength: 256
 
 apiAllowLists:
   - api: "manage_app"

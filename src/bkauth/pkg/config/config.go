@@ -25,16 +25,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
-	defaultAccessTokenTTL  int64 = 7200    // 2 hours
-	defaultRefreshTokenTTL int64 = 2592000 // 30 days
-
-	defaultPersonalTokenMaxTTL int64 = 94608000 // 3 years
-	// A count rather than a duration, so it stays a plain int like every other
-	// length and quota in the codebase.
-	defaultPersonalTokenMaxActivePerUser int = 20
-)
-
 // Server ...
 type Server struct {
 	Host string
@@ -192,131 +182,6 @@ type ProfilingConfig struct {
 	UploadInterval string
 }
 
-// TokenTTLOverride allows overriding the default AccessToken/RefreshToken TTL
-// for a specific (RealmName, ClientID) combination.
-// ClientID can be "*" to match all clients within a realm.
-type TokenTTLOverride struct {
-	RealmName       string
-	ClientID        string
-	AccessTokenTTL  int64
-	RefreshTokenTTL int64
-}
-
-// tokenTTLKey is the lookup key for pre-computed TTL override map.
-type tokenTTLKey struct {
-	RealmName string
-	ClientID  string
-}
-
-// ConfidentialClientSecretExemption exempts a confidential client from
-// client_secret verification on the specified realm (exact match only).
-type ConfidentialClientSecretExemption struct {
-	RealmName string
-	ClientID  string
-}
-
-// IntrospectAllowedAppCode grants an AppCode access to the introspect
-// endpoint for a specific realm (exact match only).
-type IntrospectAllowedAppCode struct {
-	RealmName string
-	AppCode   string
-}
-
-// PersonalToken holds the policy knobs for personal access tokens (PAT).
-//
-// This phase does not gate the feature by realm on the backend: which realm the
-// PAT management API is used from is constrained purely by the frontend routing,
-// and the selectable-resource catalog is hardcoded in the frontend. Only the
-// numeric policy knobs below stay in config.
-type PersonalToken struct {
-	// MaxTTL is how far past now an expires_at may be set, in seconds. It bounds
-	// creation, renewal and the update path that carries an expiry.
-	MaxTTL int64
-	// MaxActivePerUser bounds active tokens per (realm, sub).
-	MaxActivePerUser int
-}
-
-// OAuth holds OAuth 2.0 protocol-specific configuration.
-type OAuth struct {
-	// AccessTokenTTL is the lifetime of access token in seconds (default: 7200)
-	AccessTokenTTL int64
-	// RefreshTokenTTL is the lifetime of refresh token in seconds (default: 2592000)
-	RefreshTokenTTL int64
-	// DCREnabled indicates whether Dynamic Client Registration is enabled
-	DCREnabled bool
-	// DefaultRealmName is used for backward-compatible endpoints that don't specify a realm.
-	DefaultRealmName string
-	// IntrospectAllowedAppCodes controls which AppCodes may call the introspect
-	// endpoint, on a per-realm basis (exact match only).
-	// If empty, all requests are denied.
-	IntrospectAllowedAppCodes []IntrospectAllowedAppCode
-	// ConfidentialClientSecretExemptions exempts specific confidential clients
-	// from client_secret verification on a per-(Realm, ClientID) basis (exact match only).
-	// Default: empty (all confidential clients must provide client_secret).
-	ConfidentialClientSecretExemptions []ConfidentialClientSecretExemption
-	// TokenTTLOverrides allows per-(realm, clientID) TTL configuration.
-	// Lookup priority: exact (realm, clientID) > realm wildcard (realm, "*") > global default.
-	TokenTTLOverrides []TokenTTLOverride
-
-	// tokenTTLMap is pre-computed in Load() for O(1) lookups.
-	tokenTTLMap map[tokenTTLKey]*TokenTTLOverride
-	// secretExemptMap is pre-computed in Load() for O(1) lookups.
-	secretExemptMap map[ConfidentialClientSecretExemption]struct{}
-	// introspectAllowedMap is pre-computed in Load() for O(1) lookups.
-	introspectAllowedMap map[IntrospectAllowedAppCode]struct{}
-}
-
-// ResolveTokenTTL returns the effective (accessTokenTTL, refreshTokenTTL) for the
-// given realm and clientID. Lookup priority:
-//  1. Exact match: (realmName, clientID)
-//  2. Realm wildcard: (realmName, "*")
-//  3. Global defaults: OAuth.AccessTokenTTL / OAuth.RefreshTokenTTL
-//
-// Within each level, only non-zero override values replace the inherited value.
-func (o *OAuth) ResolveTokenTTL(realmName, clientID string) (accessTTL, refreshTTL int64) {
-	accessTTL = o.AccessTokenTTL
-	refreshTTL = o.RefreshTokenTTL
-
-	if o.tokenTTLMap == nil {
-		return accessTTL, refreshTTL
-	}
-
-	if ov, ok := o.tokenTTLMap[tokenTTLKey{RealmName: realmName, ClientID: "*"}]; ok {
-		if ov.AccessTokenTTL > 0 {
-			accessTTL = ov.AccessTokenTTL
-		}
-		if ov.RefreshTokenTTL > 0 {
-			refreshTTL = ov.RefreshTokenTTL
-		}
-	}
-
-	if ov, ok := o.tokenTTLMap[tokenTTLKey{RealmName: realmName, ClientID: clientID}]; ok {
-		if ov.AccessTokenTTL > 0 {
-			accessTTL = ov.AccessTokenTTL
-		}
-		if ov.RefreshTokenTTL > 0 {
-			refreshTTL = ov.RefreshTokenTTL
-		}
-	}
-
-	return accessTTL, refreshTTL
-}
-
-// IsIntrospectAllowed reports whether the given appCode is allowed to call
-// the introspect endpoint for the specified realm.
-// Returns false when no entries are configured (deny by default).
-func (o *OAuth) IsIntrospectAllowed(realmName, appCode string) bool {
-	_, ok := o.introspectAllowedMap[IntrospectAllowedAppCode{RealmName: realmName, AppCode: appCode}]
-	return ok
-}
-
-// IsClientSecretExempt reports whether the given (realmName, clientID) is exempt
-// from client_secret verification (exact match only).
-func (o *OAuth) IsClientSecretExempt(realmName, clientID string) bool {
-	_, ok := o.secretExemptMap[ConfidentialClientSecretExemption{RealmName: realmName, ClientID: clientID}]
-	return ok
-}
-
 type Config struct {
 	Debug bool
 	// 是否开启多租户模式
@@ -404,42 +269,13 @@ func Load(v *viper.Viper) (*Config, error) {
 		cfg.RedisMap[rds.ID] = rds
 	}
 
-	// 3. OAuth defaults
-	if cfg.OAuth.AccessTokenTTL == 0 {
-		cfg.OAuth.AccessTokenTTL = defaultAccessTokenTTL
-	}
-	if cfg.OAuth.RefreshTokenTTL == 0 {
-		cfg.OAuth.RefreshTokenTTL = defaultRefreshTokenTTL
-	}
-	// 5. Build token TTL override map for O(1) lookups
-	cfg.OAuth.tokenTTLMap = make(map[tokenTTLKey]*TokenTTLOverride, len(cfg.OAuth.TokenTTLOverrides))
-	for i := range cfg.OAuth.TokenTTLOverrides {
-		ov := &cfg.OAuth.TokenTTLOverrides[i]
-		cfg.OAuth.tokenTTLMap[tokenTTLKey{RealmName: ov.RealmName, ClientID: ov.ClientID}] = ov
+	// 3. OAuth
+	if err := cfg.OAuth.load(); err != nil {
+		return nil, err
 	}
 
-	// 6. Build secret exemption map for O(1) lookups
-	exemptions := cfg.OAuth.ConfidentialClientSecretExemptions
-	cfg.OAuth.secretExemptMap = make(map[ConfidentialClientSecretExemption]struct{}, len(exemptions))
-	for _, ex := range exemptions {
-		cfg.OAuth.secretExemptMap[ex] = struct{}{}
-	}
-
-	// 7. Build introspect allowed map for O(1) lookups
-	cfg.OAuth.introspectAllowedMap = make(
-		map[IntrospectAllowedAppCode]struct{}, len(cfg.OAuth.IntrospectAllowedAppCodes),
-	)
-	for _, entry := range cfg.OAuth.IntrospectAllowedAppCodes {
-		cfg.OAuth.introspectAllowedMap[entry] = struct{}{}
-	}
-
-	// 8. PersonalToken numeric-policy defaults.
-	if cfg.PersonalToken.MaxTTL == 0 {
-		cfg.PersonalToken.MaxTTL = defaultPersonalTokenMaxTTL
-	}
-	if cfg.PersonalToken.MaxActivePerUser == 0 {
-		cfg.PersonalToken.MaxActivePerUser = defaultPersonalTokenMaxActivePerUser
-	}
+	// 4. PersonalToken
+	cfg.PersonalToken.load()
 
 	return &cfg, nil
 }

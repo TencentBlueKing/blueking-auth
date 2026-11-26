@@ -20,8 +20,8 @@
 -- management object whose audience is editable and whose expires_at can be renewed,
 -- all while the plaintext stays fixed. The two invariants cannot share one table.
 --
--- Every time column is DATETIME(6) COMMENT 'UTC' per AGENTS.md 3.7; TIMESTAMP is
--- banned because a 365-day expires_at will cross the 2038 boundary. expires_at has
+-- Every time column is DATETIME(6) COMMENT 'UTC'; TIMESTAMP is banned because a
+-- 365-day expires_at will cross the 2038 boundary. expires_at has
 -- no DEFAULT so that a missing value errors out instead of silently writing an
 -- already-expired row.
 CREATE TABLE IF NOT EXISTS `personal_access_token` (
