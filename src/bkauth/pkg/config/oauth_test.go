@@ -25,6 +25,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/stretchr/testify/assert"
+
+	"bkauth/pkg/oauth"
 )
 
 func validExternalTokenAdapter() ExternalTokenAdapter {
@@ -33,7 +35,7 @@ func validExternalTokenAdapter() ExternalTokenAdapter {
 		Endpoint:      "https://adapter.example.com/v1/introspect",
 		ClientID:      "bkauth",
 		ClientSecret:  "secret",
-		TokenPrefixes: []string{"tai_pat_", "acme_"},
+		TokenPrefixes: []string{"demo_pat_", "acme_"},
 	}
 }
 
@@ -239,12 +241,31 @@ var _ = Describe("ExternalTokenAdapter", func() {
 			Entry("negative timeout", func(a *ExternalTokenAdapter) { a.Timeout = -1 }, "timeout"),
 			Entry("no prefixes", func(a *ExternalTokenAdapter) { a.TokenPrefixes = nil }, "tokenPrefixes is required"),
 			Entry("empty prefix", func(a *ExternalTokenAdapter) { a.TokenPrefixes = []string{""} }, "must not be empty"),
-			Entry("native prefix", func(a *ExternalTokenAdapter) { a.TokenPrefixes = []string{"bkp_"} }, "must not start with"),
+			Entry("native prefix", func(a *ExternalTokenAdapter) { a.TokenPrefixes = []string{"bkp_"} }, "overlaps"),
 			Entry("native prefix in upper case",
-				func(a *ExternalTokenAdapter) { a.TokenPrefixes = []string{"BKx_"} }, "must not start with"),
+				func(a *ExternalTokenAdapter) { a.TokenPrefixes = []string{"BKx_"} }, "overlaps"),
+			// "b" matches every bk... string, so a malformed native token would be
+			// forwarded just as with a prefix starting with "bk".
+			Entry("prefix of the native namespace", func(a *ExternalTokenAdapter) { a.TokenPrefixes = []string{"b"} }, "overlaps"),
+			Entry("prefix of the native namespace in upper case",
+				func(a *ExternalTokenAdapter) { a.TokenPrefixes = []string{"B"} }, "overlaps"),
 			Entry("max length not above a prefix",
-				func(a *ExternalTokenAdapter) { a.MaxTokenLength = len("tai_pat_") }, "maxTokenLength"),
+				func(a *ExternalTokenAdapter) { a.MaxTokenLength = len("demo_pat_") }, "maxTokenLength"),
 		)
+	})
+
+	// The reserved namespace is spelled here and in pkg/oauth separately. If they
+	// drift, the validation above stops protecting native tokens; this fails
+	// first.
+	It("reserves the namespace native tokens are minted in", func() {
+		for _, generate := range []func() (string, error){
+			oauth.GenerateAccessToken, oauth.GenerateRefreshToken, oauth.GeneratePersonalToken,
+		} {
+			raw, err := generate()
+			assert.NoError(GinkgoT(), err)
+			assert.True(GinkgoT(), strings.HasPrefix(raw, reservedNativeTokenPrefix),
+				"native token %q is outside the reserved %q namespace", raw, reservedNativeTokenPrefix)
+		}
 	})
 
 	DescribeTable("IsAcceptedTokenFormat",
@@ -255,19 +276,19 @@ var _ = Describe("ExternalTokenAdapter", func() {
 
 			assert.Equal(GinkgoT(), want, a.IsAcceptedTokenFormat(raw))
 		},
-		Entry("first prefix", "tai_pat_abc", true),
+		Entry("first prefix", "demo_pat_abc", true),
 		Entry("second prefix", "acme_abc", true),
-		Entry("at max length", "tai_pat_"+strings.Repeat("x", 12), true),
-		Entry("over max length", "tai_pat_"+strings.Repeat("x", 13), false),
-		Entry("prefix only partly present", "tai_abc", false),
+		Entry("at max length", "demo_pat_"+strings.Repeat("x", 11), true),
+		Entry("over max length", "demo_pat_"+strings.Repeat("x", 12), false),
+		Entry("prefix only partly present", "demo_abc", false),
 		Entry("unconfigured prefix", "other_abc", false),
 	)
 
 	It("accepts no format when disabled, even with prefixes configured", func() {
-		a := ExternalTokenAdapter{TokenPrefixes: []string{"tai_pat_"}, MaxTokenLength: 256}
+		a := ExternalTokenAdapter{TokenPrefixes: []string{"demo_pat_"}, MaxTokenLength: 256}
 		assert.NoError(GinkgoT(), a.load())
 
-		assert.False(GinkgoT(), a.IsAcceptedTokenFormat("tai_pat_abc"))
+		assert.False(GinkgoT(), a.IsAcceptedTokenFormat("demo_pat_abc"))
 	})
 
 	It("is loaded from the config file", func() {
@@ -281,14 +302,14 @@ oauth:
     endpoint: "https://adapter.example.com/v1/introspect"
     clientID: "bkauth"
     clientSecret: "secret"
-    tokenPrefixes: ["tai_pat_"]
+    tokenPrefixes: ["demo_pat_"]
 `
 		assert.NoError(GinkgoT(), os.WriteFile(path, []byte(content), 0o600))
 
 		cfg, err := LoadFile(path)
 
 		assert.NoError(GinkgoT(), err)
-		assert.True(GinkgoT(), cfg.OAuth.ExternalTokenAdapter.IsAcceptedTokenFormat("tai_pat_abc"))
+		assert.True(GinkgoT(), cfg.OAuth.ExternalTokenAdapter.IsAcceptedTokenFormat("demo_pat_abc"))
 		assert.Equal(GinkgoT(), 2, cfg.OAuth.ExternalTokenAdapter.Timeout)
 	})
 })

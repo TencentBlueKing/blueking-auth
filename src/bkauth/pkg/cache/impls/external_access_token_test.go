@@ -35,7 +35,7 @@ import (
 )
 
 var _ = Describe("ExternalAccessTokenCache", func() {
-	const raw = "tai_pat_xxx"
+	const raw = "demo_pat_xxx"
 
 	var (
 		ctl *gomock.Controller

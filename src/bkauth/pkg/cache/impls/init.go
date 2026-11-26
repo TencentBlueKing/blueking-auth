@@ -103,8 +103,10 @@ func InitCaches(disabled bool) {
 		// exat = external access token
 		"exat",
 		// Upstream revocations are never pushed to bkauth, so this TTL is the
-		// whole revocation delay. Inactive answers share it: a third-party token
-		// that was unknown, revoked or expired does not become active later.
+		// whole revocation delay. Inactive answers share it: the adapter's
+		// inactive is taken as final, so a token it called unknown or revoked is
+		// not asked about again within the TTL. Expiry needs no TTL of its own:
+		// the entry carries exp and IsActive re-evaluates it on every read.
 		5*time.Minute,
 	)
 }

@@ -22,7 +22,11 @@
 package tokenadapter
 
 import (
+	"context"
+	"errors"
+	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -58,4 +62,27 @@ func Init(adapterEndpoint, adapterClientID, adapterClientSecret string, adapterT
 	clientID = adapterClientID
 	clientSecret = adapterClientSecret
 	timeout = adapterTimeout
+}
+
+// describeTransportError says what failed without saying where. The standard
+// library names the target at every layer: url.Error quotes the request URL,
+// net.OpError the resolved address, net.DNSError the host name.
+func describeTransportError(err error) string {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		err = urlErr.Err
+	}
+
+	var dnsErr *net.DNSError
+	var opErr *net.OpError
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timed out"
+	case errors.As(err, &dnsErr):
+		return "name resolution failed: " + dnsErr.Err
+	case errors.As(err, &opErr):
+		return opErr.Op + " failed: " + opErr.Err.Error()
+	default:
+		return err.Error()
+	}
 }

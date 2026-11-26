@@ -36,7 +36,7 @@ import (
 
 var _ = Describe("ExternalAccessTokenService", func() {
 	const (
-		raw   = "tai_pat_xxx"
+		raw   = "demo_pat_xxx"
 		realm = "blueking"
 	)
 

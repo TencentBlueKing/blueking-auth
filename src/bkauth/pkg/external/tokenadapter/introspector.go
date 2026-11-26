@@ -75,9 +75,13 @@ func (i *introspector) Introspect(ctx context.Context, realm, token string) (Res
 		"token": {token},
 		"realm": {realm},
 	}
+	// None of the errors below name the endpoint: they reach the 500 answer of
+	// introspect, and the adapter's address is internal topology.
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
-		return Response{}, fmt.Errorf("tokenadapter: build request for %s: %w", endpoint, err)
+		// The method is fixed, so only the endpoint can be at fault; its parse
+		// error would quote it.
+		return Response{}, errors.New("tokenadapter: build request: endpoint is not a valid URL")
 	}
 	req.SetBasicAuth(clientID, clientSecret)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -85,25 +89,29 @@ func (i *introspector) Introspect(ctx context.Context, realm, token string) (Res
 
 	resp, err := defaultHTTPClient.Do(req)
 	if err != nil {
-		// url.Error repeats the URL but never the body, so the token stays out.
-		return Response{}, fmt.Errorf("tokenadapter: call %s: %w", endpoint, err)
+		return Response{}, fmt.Errorf("tokenadapter: call adapter: %s", describeTransportError(err))
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodySize))
+	// One byte past the cap tells an oversized body from one that fits: a body
+	// cut at the cap could still decode as a valid, cacheable answer.
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodySize+1))
 	if err != nil {
-		return Response{}, fmt.Errorf("tokenadapter: read response of %s: %w", endpoint, err)
+		return Response{}, fmt.Errorf("tokenadapter: read response: %s", describeTransportError(err))
+	}
+	if len(body) > maxResponseBodySize {
+		return Response{}, fmt.Errorf("%w: response exceeds %d bytes", ErrInvalidResponse, maxResponseBodySize)
 	}
 
 	// An inactive token is answered with 200 as well, so anything else is the
 	// adapter failing rather than judging the token.
 	if resp.StatusCode != http.StatusOK {
-		return Response{}, fmt.Errorf("tokenadapter: %s answered status %d", endpoint, resp.StatusCode)
+		return Response{}, fmt.Errorf("tokenadapter: adapter answered status %d", resp.StatusCode)
 	}
 
 	var out Response
 	if err := json.Unmarshal(body, &out); err != nil {
-		return Response{}, fmt.Errorf("%w: decode response of %s: %w", ErrInvalidResponse, endpoint, err)
+		return Response{}, fmt.Errorf("%w: decode response: %w", ErrInvalidResponse, err)
 	}
 	// Decoded into a bool, a missing active reads as false: a failure dressed as
 	// a 200 (`{}`, `{"error": ...}`) would pass for an inactive token and be
@@ -112,7 +120,7 @@ func (i *introspector) Introspect(ctx context.Context, realm, token string) (Res
 		Active *bool `json:"active"`
 	}
 	if err := json.Unmarshal(body, &presence); err != nil || presence.Active == nil {
-		return Response{}, fmt.Errorf("%w: %s answered without active", ErrInvalidResponse, endpoint)
+		return Response{}, fmt.Errorf("%w: response has no active member", ErrInvalidResponse)
 	}
 	return out, nil
 }

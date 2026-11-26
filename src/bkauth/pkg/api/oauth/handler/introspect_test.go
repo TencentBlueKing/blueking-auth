@@ -78,7 +78,7 @@ var _ = Describe("resolveAccessToken", func() {
 	// passing proves the token was turned away before a lookup.
 	withAdapter := &config.Config{OAuth: config.OAuth{ExternalTokenAdapter: config.ExternalTokenAdapter{
 		Enabled:        true,
-		TokenPrefixes:  []string{"tai_pat_"},
+		TokenPrefixes:  []string{"demo_pat_"},
 		MaxTokenLength: 16,
 	}}}
 
@@ -91,9 +91,9 @@ var _ = Describe("resolveAccessToken", func() {
 		},
 		Entry("garbage", &config.Config{}, "not-a-token"),
 		Entry("malformed native token", withAdapter, "bkp_short"),
-		Entry("third-party token with no adapter configured", &config.Config{}, "tai_pat_xxx"),
+		Entry("third-party token with no adapter configured", &config.Config{}, "demo_pat_xxx"),
 		Entry("format the adapter is not configured for", withAdapter, "acme_pat_xxx"),
-		Entry("configured format over the length limit", withAdapter, "tai_pat_123456789"),
+		Entry("configured format over the length limit", withAdapter, "demo_pat_123456789"),
 	)
 })
 

@@ -263,9 +263,13 @@ func (a *ExternalTokenAdapter) validate() error {
 			return fmt.Errorf("tokenPrefixes[%d] must not be empty", i)
 		}
 		// Native tokens are bk[orps]_...; reserving the whole bk namespace keeps
-		// a native token from ever being forwarded, whatever formats come later.
-		if strings.HasPrefix(strings.ToLower(prefix), reservedNativeTokenPrefix) {
-			return fmt.Errorf("tokenPrefixes[%d] %q must not start with %q", i, prefix, reservedNativeTokenPrefix)
+		// a native token, even a malformed one, from ever being forwarded,
+		// whatever formats come later. A prefix of "bk" itself (e.g. "b") would
+		// claim the namespace just as one starting with it would.
+		lower := strings.ToLower(prefix)
+		if strings.HasPrefix(lower, reservedNativeTokenPrefix) || strings.HasPrefix(reservedNativeTokenPrefix, lower) {
+			return fmt.Errorf("tokenPrefixes[%d] %q overlaps the %q namespace reserved for native tokens",
+				i, prefix, reservedNativeTokenPrefix)
 		}
 		if a.MaxTokenLength <= len(prefix) {
 			return fmt.Errorf("maxTokenLength %d must exceed the length of prefix %q", a.MaxTokenLength, prefix)
